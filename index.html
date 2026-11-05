@@ -355,7 +355,7 @@
         <div class="section-header">
             <div class="section-title">👷‍♂️ Step 3: વર્કર (કારીગર) પગાર અને ઉપાડ ખાતાવહી</div>
             <div style="display:flex; gap:8px;">
-                <button class="btn btn-primary" onclick="openAddWorkerModal()">➕ નવો વર્કર ઉમેરો</button>
+                <button class="btn btn-primary" id="addWorkerTopBtn" onclick="openAddWorkerModal()">➕ નવો વર્કર ઉમેરો</button>
             </div>
         </div>
 
@@ -717,8 +717,10 @@
     let selectedDateKey = ""; 
     let canUserDelete = true; // 🗑️ ડિલીટ કરવાની પરવાનગી છે કે નહીં
     let selectedDateBaseKey = ""; // YYYY_MM_DD
-    let selectedSlot = "morning";  // 'morning' અથવા 'evening'
-    let canUserViewWorkers = true; // 👷‍♂️ વર્કર ખાતું જોવાની પરવાનગી
+    let selectedSlot = "morning";  // 'morning' અથવા 'evening' 
+   let canUserViewWorkers = true; // 👷‍♂️ વર્કર ખાતું જોવાની પરવાનગી
+    let canUserEditWorkers = true; // ✏️ વર્કર ઉમેરવા/ઉપાડ આપવાની અલગ પરવાનગી
+    let canUserDeleteWorkers = true; // 🗑️ વર્કર/ઉપાડ ડિલીટ કરવાની અલગ પરવાનગી
     let cloudWorkers = {}; // વર્કર્સનો ક્લાઉડ ડેટા
     let currentWorkerRef = null;
     let selectedWorkerIdForUpad = "";
@@ -950,8 +952,8 @@
             sumUpad += totalUpad;
             sumNet += netBalance;
 
-            let editBtn = canUserEdit ? `<button class="btn btn-outline" style="padding:3px 7px; font-size:11px;" onclick="openEditWorkerModal('${wId}')">✏️</button>` : '';
-            let delBtn = canUserDelete ? `<button class="btn btn-danger" style="padding:3px 7px; font-size:11px;" onclick="deleteWorker('${wId}', '${w.name}')">🗑️</button>` : '';
+            let editBtn = canUserEditWorkers ? `<button class="btn btn-outline" style="padding:3px 7px; font-size:11px;" onclick="openEditWorkerModal('${wId}')" title="સુધારો કરો">✏️</button>` : '';
+            let delBtn = canUserDeleteWorkers ? `<button class="btn btn-danger" style="padding:3px 7px; font-size:11px;" onclick="deleteWorker('${wId}', '${w.name}')" title="વર્કર કાઢી નાખો">🗑️</button>` : '';
 
             let row = `<tr>
                 <td>${count}</td>
@@ -981,8 +983,8 @@
     }
 
     // વર્કર ઉમેરવા/એડિટ કરવાના ફંક્શન્સ
-    function openAddWorkerModal() {
-        if (!canUserEdit) { alert("❌ તમારી પાસે વર્કર ઉમેરવાનો અધિકાર નથી!"); return; }
+    function openAddWorkerModal() {   
+        if (!canUserEditWorkers) { alert("❌ તમારી પાસે નવો વર્કર ઉમેરવાનો અધિકાર નથી!"); return; }
         document.getElementById("editWorkerId").value = "";
         document.getElementById("workerModalTitle").innerText = "➕ નવો વર્કર ઉમેરો";
         document.getElementById("wName").value = "";
@@ -993,8 +995,8 @@
         document.getElementById("workerModal").style.display = "flex";
     }
 
-    function openEditWorkerModal(wId) {
-        if (!canUserEdit) { alert("❌ તમારી પાસે એડિટ કરવાનો અધિકાર નથી!"); return; }
+    function openEditWorkerModal(wId) {   
+        if (!canUserEditWorkers) { alert("❌ તમારી પાસે વર્કર વિગત સુધારવાનો અધિકાર નથી!"); return; }
         let w = cloudWorkers[wId];
         if (!w) return;
         document.getElementById("editWorkerId").value = wId;
@@ -1011,8 +1013,8 @@
         document.getElementById("workerModal").style.display = "none";
     }
 
-    function saveWorker() {
-        if (!canUserEdit) { alert("❌ પરવાનગી નથી!"); return; }
+    function saveWorker() { 
+        if (!canUserEditWorkers) { alert("❌ તમારી પાસે વર્કર સેવ કરવાની પરવાનગી નથી!"); return; }
         let name = document.getElementById("wName").value.trim();
         let salary = parseFloat(document.getElementById("wSalary").value) || 0;
         if (!name || salary <= 0) {
@@ -1045,7 +1047,7 @@
     }
 
     function deleteWorker(wId, name) {
-        if (!canUserDelete) { alert("❌ તમારી પાસે વર્કર ડિલીટ કરવાનો અધિકાર નથી!"); return; }
+        if (!canUserDeleteWorkers) { alert("❌ તમારી પાસે વર્કર ખાતું ડિલીટ કરવાનો અધિકાર નથી!"); return; }
         if (confirm(`શું તમે કારીગર "${name}" નું પૂરું ખાતું ડિલીટ કરવા માંગો છો?`)) {
             delete cloudWorkers[wId];
             localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
@@ -1096,7 +1098,7 @@
         }
 
         upads.forEach((u, idx) => {
-            let delBtn = canUserDelete ? `<button type="button" onclick="deleteWorkerUpad(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ઉપાડ રદ કરો">❌</button>` : `<span style="color:#94a3b8;">🔒</span>`;
+            let delBtn = canUserDeleteWorkers ? `<button type="button" onclick="deleteWorkerUpad(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ઉપાડ રદ કરો">❌</button>` : `<span style="color:#94a3b8;" title="ડિલીટ અધિકાર નથી">🔒</span>`;
             tbody.innerHTML += `<tr>
                 <td style="padding:6px;">${u.date}</td>
                 <td style="padding:6px;">${u.note || '-'}</td>
@@ -1107,7 +1109,7 @@
     }
 
     function addWorkerUpad() {
-        if (!canUserEdit) { alert("❌ તમારી પાસે ઉપાડ ઉમેરવાની પરવાનગી નથી!"); return; }
+        if (!canUserEditWorkers) { alert("❌ તમારી પાસે નવો ઉપાડ આપવાની પરવાનગી નથી! માત્ર ખાતું જોઈ શકો છો."); return; }
         let amt = parseFloat(document.getElementById("newUpadAmount").value);
         let dateVal = document.getElementById("newUpadDate").value;
         let note = document.getElementById("newUpadNote").value.trim();
@@ -1137,7 +1139,7 @@
     }
 
     function deleteWorkerUpad(index) {
-        if (!canUserDelete) { alert("❌ તમારી પાસે ઉપાડ ડિલીટ કરવાનો અધિકાર નથી!"); return; }
+        if (!canUserDeleteWorkers) { alert("❌ તમારી પાસે ઉપાડ ડિલીટ કરવાનો અધિકાર નથી!"); return; }
         if (!confirm("શું તમે આ ઉપાડની એન્ટ્રી રદ કરવા માંગો છો?")) return;
 
         let w = cloudWorkers[selectedWorkerIdForUpad];
@@ -1266,6 +1268,14 @@
         staffPermRef.child(sId).child("canViewWorkers").set(isChecked);
     }
 
+    function toggleStaffWorkerEditPerm(sId, isChecked) {
+        staffPermRef.child(sId).child("canEditWorkers").set(isChecked);
+    }
+
+    function toggleStaffWorkerDeletePerm(sId, isChecked) {
+        staffPermRef.child(sId).child("canDeleteWorkers").set(isChecked);
+    }
+
     // ૩. નવું ફાર્મ ઉમેરવાના ફંક્શન્સ
     function openAddFarmModal() {
         if (currentUserRole !== 'admin') {
@@ -1310,6 +1320,8 @@
                 canUserEdit = true;
                 canUserDelete = true; // Admin ને પૂરો અધિકાર
                 canUserViewWorkers = true;
+                canUserEditWorkers = true; // Admin માટે વર્કર એડિટ માન્ય
+                canUserDeleteWorkers = true; // Admin માટે વર્કર ડિલીટ માન્ય
                 currentStaffConfig = null;
             } else {
                 error.innerText = "❌ ખોટો એડમિન પાસવર્ડ!";
@@ -1322,8 +1334,10 @@
                 currentUserRole = role;
                 currentStaffConfig = staff;
                 canUserEdit = staff.canEdit === true;
-                canUserDelete = staff.canDelete === true; // 🗑️ સ્ટાફની ડિલીટ પરવાનગી
-                canUserViewWorkers = staff.canViewWorkers === true; // 👷‍♂️ વર્કર પરવાનગી
+                canUserDelete = staff.canDelete === true; // 🗑️ સ્ટાફની ડિલીટ પરવાનગી 
+                canUserViewWorkers = staff.canViewWorkers === true; // 👷‍♂️ વર્કર જોવાની પરવાનગી
+                canUserEditWorkers = staff.canEditWorkers === true; // ✏️ વર્કર એડિટ પરવાનગી
+                canUserDeleteWorkers = staff.canDeleteWorkers === true; // 🗑️ વર્કર ડિલીટ પરવાનગી
             } else {
                 error.innerText = "❌ ખોટો સ્ટાફ પાસવર્ડ!";
                 return;
@@ -1360,6 +1374,9 @@
         let workerNavBtn = document.getElementById("workerNavBtn");
         if (workerSection) workerSection.style.display = canUserViewWorkers ? "block" : "none";
         if (workerNavBtn) workerNavBtn.style.display = canUserViewWorkers ? "inline-flex" : "none";
+        // ➕ નવો વર્કર ઉમેરવાનું બટન (માત્ર વર્કર એડિટ પરવાનગી હોય તેને જ દેખાશે)
+        let addWorkerBtn = document.getElementById("addWorkerTopBtn");
+        if (addWorkerBtn) addWorkerBtn.style.display = canUserEditWorkers ? "inline-flex" : "none";
 
         // ફાર્મ ડ્રોપડાઉન રીફ્રેશ કરવું (માત્ર પરવાનગી વાળા ફાર્મ બતાવવા માટે)
         farmsRef.once('value', (snap) => {
@@ -2216,7 +2233,10 @@
             name: name,
             pass: pass,
             canEdit: false, // બાય-ડિફોલ્ટ લોક
-            canDelete: false, // બાય-ડિફોલ્ટ ડિલીટ પરવાનગી બંધ
+            canDelete: false, // બાય-ડિફોલ્ટ ડિલીટ પરવાનગી બંધ  
+            canViewWorkers: false, // બાય-ડિફોલ્ટ વર્કર ખાતું બંધ
+            canEditWorkers: false, // બાય-ડિફોલ્ટ વર્કર એડિટ બંધ
+            canDeleteWorkers: false, // બાય-ડિફોલ્ટ વર્કર ડિલીટ બંધ
             allowedFarms: {}
         }, () => {
             document.getElementById("newStaffName").value = "";
@@ -2315,6 +2335,21 @@
                             <input type="checkbox" ${staff.canViewWorkers ? 'checked' : ''} onchange="toggleStaffWorkerPerm('${sId}', this.checked)">
                             ${staff.canViewWorkers ? '👷‍♂️ વર્કર અને પગાર ખાતું જોવાની પરવાનગી ચાલુ છે' : '🔒 વર્કર ખાતું બંધ છે (જોઈ શકશે નહીં)'}
                         </label>
+                    </div> 
+                    <!-- ✏️ Worker Edit / Upad Permission Toggle Checkbox -->
+                    <div style="margin-bottom:8px; background:${staff.canEditWorkers ? '#ecfdf5' : '#f8fafc'}; border:1px solid ${staff.canEditWorkers ? '#a7f3d0' : '#e2e8f0'}; padding:6px 10px; border-radius:6px;">
+                        <label style="font-size:12px; font-weight:700; color:${staff.canEditWorkers ? '#047857' : '#64748b'}; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" ${staff.canEditWorkers ? 'checked' : ''} onchange="toggleStaffWorkerEditPerm('${sId}', this.checked)">
+                            ${staff.canEditWorkers ? '✏️ વર્કર ઉમેરવા અને ઉપાડ આપવાની પરવાનગી ચાલુ છે' : '🔒 વર્કર એડિટ/ઉપાડ લૉક છે (માત્ર જોઈ શકશે)'}
+                        </label>
+                    </div>
+
+                    <!-- 🗑️ Worker Delete Permission Toggle Checkbox -->
+                    <div style="margin-bottom:8px; background:${staff.canDeleteWorkers ? '#fee2e2' : '#f8fafc'}; border:1px solid ${staff.canDeleteWorkers ? '#fca5a5' : '#e2e8f0'}; padding:6px 10px; border-radius:6px;">
+                        <label style="font-size:12px; font-weight:700; color:${staff.canDeleteWorkers ? '#b91c1c' : '#64748b'}; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" ${staff.canDeleteWorkers ? 'checked' : ''} onchange="toggleStaffWorkerDeletePerm('${sId}', this.checked)">
+                            ${staff.canDeleteWorkers ? '🗑️ વર્કર અથવા ઉપાડ ડિલીટ કરવાની પરવાનગી ચાલુ છે' : '🚫 વર્કર અથવા ઉપાડ ડિલીટ કરવાની પરવાનગી બંધ છે'}
+                        </label>
                     </div>
 
                     <!-- 🏰 ફાર્મ પરવાનગી Checkboxes -->
@@ -2340,6 +2375,8 @@
                 canUserEdit = true;
                 canUserDelete = true;
                 canUserViewWorkers = true; // Admin ને પૂરી પરવાનગી
+                canUserEditWorkers = true;
+                canUserDeleteWorkers = true;
                 currentStaffConfig = null;
                 setupUserView();
             } else {
@@ -2352,6 +2389,8 @@
                         canUserEdit = staff.canEdit === true;
                         canUserDelete = staff.canDelete === true;
                         canUserViewWorkers = staff.canViewWorkers === true;
+                        canUserEditWorkers = staff.canEditWorkers === true;
+                        canUserDeleteWorkers = staff.canDeleteWorkers === true;
                         setupUserView();
                     } else {
                         logout();
