@@ -96,6 +96,8 @@
         .day-subtext { font-size: 10px; font-weight: 500; margin-top: 2px; }
         .day-box.ok { background: #fef3c7; color: #b45309; border-color: #fde68a; }
         .badge-ok { background: #fef3c7; color: #92400e; }
+        .day-box.ok { background: #b91c1c; color: #ffffff; border-color: #991b1b; }
+        .badge-ok { background: #b91c1c; color: #ffffff; }
 
         /* Summary Badges */
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 20px; }
@@ -246,10 +248,11 @@
                 <option value="11">ડિસેમ્બર</option>
             </select>
 
-            <div style="font-size: 12px; display:flex; gap:12px; margin-left:auto; align-items:center;">
-                <span>🟢 ખાલી / ઉપલબ્ધ</span>
-                <span>🔴 બાકી રકમ (Pending)</span>
-                <span>🔵 ચૂકવાયેલ (Paid)</span>
+             <div style="font-size: 12px; display:flex; gap:10px; margin-left:auto; align-items:center; flex-wrap:wrap;">
+                <span>🟢 ખાલી</span>
+                <span>🔴 બાકી (લાલ)</span>
+                <span>🔵 ચૂકવાયેલ (વાદળી)</span>
+                <span>🛑 ઓકે (ઘાટો લાલ)</span>
             </div>
         </div>
 
@@ -327,6 +330,7 @@
                     <tr>
                         <th>#</th>
                         <th>તારીખ</th>
+                        <th>શિફ્ટ</th>
                         <th>કસ્ટમર</th>
                         <th>મોબાઈલ</th>
                         <th>ઇવેન્ટ પ્રકાર</th>
@@ -339,7 +343,7 @@
                     </tr>
                 </thead>
                 <tbody id="bookingTableBody">
-                    <tr><td colspan="11" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ બુકિંગ મળ્યું નથી.</td></tr>
+                    <tr><td colspan="12" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ બુકિંગ મળ્યું નથી.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -350,7 +354,17 @@
 <!-- Booking Modal -->
 <div class="modal" id="bookingModal">
     <div class="modal-content">
-        <div class="modal-title">📝 બુકિંગ ફોર્મ (<span id="modalDateDisplay"></span>)</div>
+        <div class="modal-title">📝 બુકિંગ ફોર્મ (<span id="modalDateDisplay"></span>)</div> 
+
+        <!-- ⏰ સવાર / સાંજ શિફ્ટ પસંદ કરવાનું બોક્સ -->
+       <div class="form-group" style="background:#eef2ff; padding:10px; border-radius:8px; border:1.5px solid #c7d2fe;">
+            <label style="color:var(--primary); font-weight:700; margin-bottom:4px;">⏰ સમય / શિફ્ટ પસંદ કરો *</label>
+            <select id="bookingSlot" class="form-control" onchange="switchSlot()" style="font-weight:700; color:#1e1b4b; background:#fff;">
+                <option value="morning">🌅 સવાર (Morning Shift)</option>
+                <option value="evening">🌙 સાંજ (Evening Shift)</option>
+                <option value="fullday">☀️ આખો દિવસ (Full Day)</option>
+            </select>
+        </div>
         
         <div class="form-group">
             <label>કસ્ટમરનું નામ *</label>
@@ -412,8 +426,8 @@
 
         <div class="form-group">
             <label>સ્ટેટસ</label>
-            <select id="bookingStatus" class="form-control">
-                <option value="ok">ઓકે / બરાબર (OK - પીળો)</option>
+            <select id="bookingStatus" class="form-control"> 
+                <option value="ok">ઓકે / બરાબર (OK - ઘાટો લાલ)</option>
                 <option value="pending">બાકી (Pending - લાલ)</option>
                 <option value="paid">પૂર્ણ પેઇડ (Paid - વાદળી)</option>
                 <option value="available">રદ કરો (ખાલી રાખો)</option>
@@ -422,6 +436,7 @@
 
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
             <button class="btn btn-success" onclick="saveBooking()" style="justify-content:center;">💾 સેવ / અપડેટ કરો</button>
+            <button class="btn btn-danger" id="modalDeleteBtn" onclick="deleteCurrentModalBooking()" style="justify-content:center;">🗑️ આ બુકિંગ રદ / ડિલીટ કરો</button>
             <button class="btn" onclick="sendWhatsAppReceipt()" style="background:#25D366; color:white; justify-content:center;">📲 WhatsApp પર રસીદ મોકલો</button>
             <button class="btn btn-primary" onclick="printInvoice()" style="justify-content:center;">🖨️ રસીદ (Invoice) પ્રિન્ટ કરો</button>
             <button class="btn btn-outline" onclick="closeModal()" style="justify-content:center;">બંધ કરો</button>
@@ -547,7 +562,10 @@
     let canUserEdit = true; // એડિટ કરવાની પરવાનગી છે કે નહીં (લોક સિસ્ટમ)
 
     let cloudBookings = {};
-    let selectedDateKey = "";
+    let selectedDateKey = ""; 
+    let canUserDelete = true; // 🗑️ ડિલીટ કરવાની પરવાનગી છે કે નહીં
+    let selectedDateBaseKey = ""; // YYYY_MM_DD
+    let selectedSlot = "morning";  // 'morning' અથવા 'evening'
     let currentUserRole = "";
     // 🌐 ૧. ઑફલાઇન હોય ત્યારે LocalStorage માંથી ડેટા લોડ કરવો
     try {
@@ -760,10 +778,11 @@
         let pass = document.getElementById("loginPassword").value;
         let error = document.getElementById("loginError");
 
-        if (role === "admin") {
+        if (role === "admin") { 
              if (pass === currentAdminPass) {
                 currentUserRole = "admin";
                 canUserEdit = true;
+                canUserDelete = true; // Admin ને પૂરો અધિકાર
                 currentStaffConfig = null;
             } else {
                 error.innerText = "❌ ખોટો એડમિન પાસવર્ડ!";
@@ -775,7 +794,8 @@
             if (staff && staff.pass === pass) {
                 currentUserRole = role;
                 currentStaffConfig = staff;
-                canUserEdit = staff.canEdit === true; // એડિટ પરવાનગી છે કે લોક છે
+                canUserEdit = staff.canEdit === true;
+                canUserDelete = staff.canDelete === true; // 🗑️ સ્ટાફની ડિલીટ પરવાનગી
             } else {
                 error.innerText = "❌ ખોટો સ્ટાફ પાસવર્ડ!";
                 return;
@@ -798,12 +818,13 @@
             document.getElementById("adminFarmBtnArea").style.display = "block";
             document.getElementById("adminPermBtn").style.display = "inline-flex";
         } else {
-            let lockText = canUserEdit ? "🔓 એડિટ પરવાનગી સાથે" : "🔒 માત્ર જોવા માટે (Locked)";
-            roleDisplay.innerText = `${currentStaffConfig.name} [${lockText}]`;
+            let editTxt = canUserEdit ? "🔓 એડિટ" : "🔒 લૉક";
+            let delTxt = canUserDelete ? "🗑️ ડિલીટ માન્ય" : "🚫 ડિલીટ અમાન્ય";
+            roleDisplay.innerText = `${currentStaffConfig.name} [${editTxt} | ${delTxt}]`;
             roleDisplay.className = "user-pill pill-staff";
             document.getElementById("clearAllBtn").style.display = "none";
             document.getElementById("adminFarmBtnArea").style.display = "none";
-            document.getElementById("adminPermBtn").style.display = "none"; // સ્ટાફથી બટન છુપાવવું
+            document.getElementById("adminPermBtn").style.display = "none";
         }
 
         // ફાર્મ ડ્રોપડાઉન રીફ્રેશ કરવું (માત્ર પરવાનગી વાળા ફાર્મ બતાવવા માટે)
@@ -882,30 +903,69 @@
             const emptyCell = document.createElement("div");
             emptyCell.className = "day-box empty-slot";
             grid.appendChild(emptyCell);
-        }
+        } 
 
-        // મહિનાના બધા દિવસો
-        for (let day = 1; day <= daysInMonth; day++) {
+          for (let day = 1; day <= daysInMonth; day++) {
             const dayBox = document.createElement("div");
             dayBox.className = "day-box";
             
-            let dateKey = `${STORAGE_PREFIX}${year}_${String(month + 1).padStart(2, '0')}_${String(day).padStart(2, '0')}`; 
-             // Firebase ક્લાઉડમાંથી તે તારીખનો ડેટા લેવો
-            let data = cloudBookings[dateKey];
+            let baseKey = `${STORAGE_PREFIX}${year}_${String(month + 1).padStart(2, '0')}_${String(day).padStart(2, '0')}`;  
+            
+           // ૧. આખો દિવસ, સવાર અને સાંજનો ડેટા તપાસવો
+            let fData = cloudBookings[baseKey + "_fullday"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'fullday' ? cloudBookings[baseKey] : null) || (cloudBookings[baseKey] && !cloudBookings[baseKey].slot ? cloudBookings[baseKey] : null);
+            let mData = cloudBookings[baseKey + "_morning"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'morning' ? cloudBookings[baseKey] : null);
+            let eData = cloudBookings[baseKey + "_evening"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'evening' ? cloudBookings[baseKey] : null);
 
-            if (data) {
-                dayBox.classList.add(data.status);
-
-                let label = 'બાકી';
-                if (data.status === 'paid') label = 'ચૂકવાયેલ';
-                else if (data.status === 'ok') label = 'ઓકે/બરાબર';
-                dayBox.innerHTML = `<span>${day}</span><span class="day-subtext">${label}</span>`;
-            } else {
-                dayBox.classList.add("available");
-                dayBox.innerHTML = `<span>${day}</span><span class="day-subtext">ઉપલબ્ધ</span>`;
+            // 🎨 ઘાટા (Dark Vibrant) કલર્સ અને બોલ્ડ ફોન્ટ્સ
+            function getSlotStyle(data) {
+                if (!data || !data.customerName) return { bg: '#dcfce7', label: 'ખાલી', textColor: '#166534', border: '#86efac' };
+                // જ્યારે OK કરે ત્યારે ઘાટો લાલ (Dark Deep Red)
+                if (data.status === 'ok') return { bg: '#b91c1c', label: 'ઓકે', textColor: '#ffffff', border: '#991b1b' };
+                // ચૂકવેલ હોય ત્યારે ઘાટો વાદળી (Rich Blue)
+                if (data.status === 'paid') return { bg: '#1d4ed8', label: 'ચૂકવેલ', textColor: '#ffffff', border: '#1e40af' };
+                // બાકી હોય ત્યારે લાલ (Red)
+                return { bg: '#ef4444', label: 'બાકી', textColor: '#ffffff', border: '#dc2626' };
             }
 
-            dayBox.onclick = () => openModal(year, month + 1, day);
+            // ૧. જો આખો દિવસ ૧ વ્યક્તિ માટે હોય (આખી તારીખમાં ઘાટો કલર અને બોલ્ડ ફોન્ટ)
+            if (fData && fData.customerName) {
+                let fInfo = getSlotStyle(fData);
+                dayBox.style.background = fInfo.bg;
+                dayBox.style.border = `2px solid ${fInfo.border}`;
+                dayBox.innerHTML = `
+                    <span style="font-weight:800; font-size:15px; color:${fInfo.textColor}; text-shadow:0 1px 2px rgba(0,0,0,0.3);">${day}</span>
+                    <span class="day-subtext" style="font-weight:800; color:${fInfo.textColor}; font-size:9.5px; text-transform:uppercase;">☀️ આખો દિવસ: ${fInfo.label}</span>
+                `;
+                dayBox.onclick = () => openModal(year, month + 1, day, "fullday");
+            } 
+            // ૨. જો અડધો દિવસ (સવાર અથવા સાંજ) હોય તો અડધું-અડધું ઘાટા કલરમાં (50% / 50%)
+            else if ((mData && mData.customerName) || (eData && eData.customerName)) {
+                let mInfo = getSlotStyle(mData);
+                let eInfo = getSlotStyle(eData);
+
+                dayBox.style.background = `linear-gradient(to right, ${mInfo.bg} 50%, ${eInfo.bg} 50%)`;
+                dayBox.style.border = "2px solid #64748b";
+                dayBox.innerHTML = `
+                    <span style="font-weight:800; font-size:14px; color:#0f172a; background:rgba(255,255,255,0.9); padding:1px 6px; border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,0.25);">${day}</span>
+                    <div style="display:flex; justify-content:space-between; width:100%; padding:0 3px; font-size:9.5px; font-weight:800; margin-top:2px;">
+                        <span style="color:${mInfo.textColor}; text-shadow:0 1px 2px rgba(0,0,0,0.5);">સ:${mInfo.label}</span>
+                        <span style="color:${eInfo.textColor}; text-shadow:0 1px 2px rgba(0,0,0,0.5);">સા:${eInfo.label}</span>
+                    </div>
+                `;
+                dayBox.onclick = () => openModal(year, month + 1, day, mData ? "morning" : "evening");
+            } 
+            // ૩. જો તારીખ ખાલી (ઉપલબ્ધ) હોય
+            else {
+                dayBox.className = "day-box available";
+                dayBox.style.background = "#ecfdf5";
+                dayBox.style.border = "1.5px solid #a7f3d0";
+                dayBox.innerHTML = `
+                    <span style="font-weight:800; font-size:14px; color:#065f46;">${day}</span>
+                    <span class="day-subtext" style="font-weight:700; color:#047857;">ઉપલબ્ધ</span>
+                `;
+                dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+            }
+
             grid.appendChild(dayBox);
         }
         filterData();
@@ -930,18 +990,17 @@
         let m = document.getElementById("monthSelect");
         let y = document.getElementById("yearSelect");
         let currentM = parseInt(m.value);
-        if (currentM < 11) {
-            m.value = currentM + 1;
+        if (currentM < 11) {  
+          m.value = currentM + 1;
         } else {
             m.value = 0;
             y.value = parseInt(y.value) + 1;
         }
         generateCalendar();
     }
+           let currentPaymentsList = [];
 
-    let currentPaymentsList = [];
-
-    function calculateBalance() {
+    function calculateBalance(preserveExistingOk = false) {
         let total = parseFloat(document.getElementById("totalAmount").value) || 0;
         let totalPaid = currentPaymentsList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
         
@@ -950,9 +1009,12 @@
         document.getElementById("balanceAmount").value = balance;
 
         let statusSelect = document.getElementById("bookingStatus");
+        // જો પહેલેથી 'ઓકે' હોય તો તેને ઓવરરાઇટ ન થવા દેવું
+        if (preserveExistingOk && statusSelect.value === "ok") return;
+
         if (total > 0 && balance === 0) {
             statusSelect.value = "paid";
-        } else if (total > 0 && balance > 0) {
+        } else if (total > 0 && balance > 0 && statusSelect.value !== "ok") {
             statusSelect.value = "pending";
         }
     }
@@ -963,7 +1025,7 @@
 
         if (currentPaymentsList.length === 0) {
             tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:8px; color:#94a3b8;">હજુ સુધી કોઈ પેમેન્ટ મળ્યું નથી.</td></tr>`;
-            calculateBalance();
+            calculateBalance(true);
             return;
         }
 
@@ -971,14 +1033,14 @@
             let row = `<tr>
                 <td style="padding:6px;">${pay.date}</td>
                 <td style="padding:6px; font-weight:600; color:#16a34a;">₹${parseFloat(pay.amount).toLocaleString('en-IN')}</td>
-                <td style="padding:6px; text-align:center;">   
-                       ${canUserEdit ? `<button type="button" onclick="removePayment(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;">❌</button>` : `<span style="color:#94a3b8;">🔒</span>`}
+                <td style="padding:6px; text-align:center;">    
+                      ${canUserDelete ? `<button type="button" onclick="removePayment(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="પેમેન્ટ ડિલીટ કરો">❌</button>` : `<span style="color:#94a3b8;" title="ડિલીટ પરવાનગી નથી">🔒</span>`}
                 </td>
             </tr>`;
             tbody.innerHTML += row;
         });
 
-        calculateBalance();
+        calculateBalance(true);
     }
 
     function addNewPayment() {
@@ -1006,28 +1068,47 @@
     }
 
     function removePayment(index) {
+        if (!canUserDelete) {
+            alert("❌ તમારી પાસે પેમેન્ટ ડિલીટ કરવાનો અધિકાર નથી!");
+            return;
+        }
         currentPaymentsList.splice(index, 1);
         renderPaymentHistory();
     }
 
-    function openModal(year, month, day) {
-        selectedDateKey = `${STORAGE_PREFIX}${year}_${String(month).padStart(2, '0')}_${String(day).padStart(2, '0')}`;
-        document.getElementById("modalDateDisplay").innerText = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+    function switchSlot() {
+        let prevSlot = selectedSlot;
+        selectedSlot = document.getElementById("bookingSlot").value;
         
-        // પેમેન્ટ તારીખમાં આજની તારીખ બાય-ડિફોલ્ટ સેટ કરો
-        document.getElementById("newPaymentDate").value = new Date().toISOString().slice(0, 10);
-        document.getElementById("newPaymentAmount").value = ""; 
+        // જો હાલના ફોર્મમાં કસ્ટમરનું નામ હોય અને નવા સ્લોટમાં ડેટા ન હોય, તો નામ-મોબાઈલ-પેમેન્ટ જાળવી રાખવું
+        let currentCustName = document.getElementById("customerName").value.trim();
+        let targetKey = `${selectedDateBaseKey}_${selectedSlot}`;
+        let targetData = cloudBookings[targetKey];
 
-         // ક્લાઉડ ડેટામાંથી વિગત લોડ કરવી
-        let data = cloudBookings[selectedDateKey];
-        if (data) {
+        if (!targetData && currentCustName !== "") {
+            // માત્ર સ્લોટ બદલાશે, કસ્ટમરની વિગત યથાવત રહેશે જેથી હાફ ડે માંથી આખો દિવસ સરળતાથી થઈ શકે!
+            calculateBalance(true);
+            return;
+        }
+
+        loadSlotData();
+    } 
+
+    function loadSlotData() {
+        let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
+        let data = cloudBookings[fullKey] || (selectedSlot === 'fullday' && cloudBookings[selectedDateBaseKey] && cloudBookings[selectedDateBaseKey].slot === 'fullday' ? cloudBookings[selectedDateBaseKey] : null) || (selectedSlot === 'morning' ? cloudBookings[selectedDateBaseKey] : null);
+
+        document.getElementById("newPaymentDate").value = new Date().toISOString().slice(0, 10);
+        document.getElementById("newPaymentAmount").value = "";
+
+        if (data && data.customerName) {
             document.getElementById("customerName").value = data.customerName || "";
             document.getElementById("mobile").value = data.mobile || "";
             document.getElementById("event").value = data.event || "";
             document.getElementById("guests").value = data.guests || "";
             document.getElementById("totalAmount").value = data.totalAmount || "";
             document.getElementById("bookingStatus").value = data.status || "pending";
-            
+
             if (data.payments && Array.isArray(data.payments)) {
                 currentPaymentsList = [...data.payments];
             } else if (data.advanceAmount > 0) {
@@ -1044,25 +1125,34 @@
             document.getElementById("bookingStatus").value = "pending";
             currentPaymentsList = [];
         }
-
         renderPaymentHistory();
-        document.getElementById("bookingModal").style.display = "flex";
-        // લોક સિસ્ટમ સક્રિય કરો (જો પરવાનગી ન હોય તો ફોર્મ અને સેવ બટન લોક થઈ જશે)
-        applyLockSystemToModal();
-    }   
+    }
 
-        // લોક સિસ્ટમ: પરવાનગી ન હોય તો ફોર્મ લોક કરવું
+    function openModal(year, month, day, slot = "morning") {
+        selectedDateBaseKey = `${STORAGE_PREFIX}${year}_${String(month).padStart(2, '0')}_${String(day).padStart(2, '0')}`;
+        selectedSlot = slot;
+        document.getElementById("bookingSlot").value = selectedSlot;
+        document.getElementById("modalDateDisplay").innerText = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+
+        loadSlotData();
+        document.getElementById("bookingModal").style.display = "flex";
+        applyLockSystemToModal();
+    } 
+
+    // લોક સિસ્ટમ: પરવાનગી ન હોય તો ફોર્મ લોક કરવું
     function applyLockSystemToModal() {
-        const fields = ["customerName", "mobile", "event", "guests", "totalAmount", "bookingStatus", "newPaymentAmount", "newPaymentDate"];
+        const fields = ["customerName", "mobile", "event", "guests", "totalAmount", "bookingStatus", "newPaymentAmount", "newPaymentDate", "bookingSlot"];
         fields.forEach(fId => {
             let el = document.getElementById(fId);
-            if (el) el.disabled = !canUserEdit; // જો એડિટ પરવાનગી ન હોય તો ડિસેબલ
+            if (el) el.disabled = !canUserEdit;
         });
 
-        // સેવ બટન અને એડ પેમેન્ટ બટન છુપાવવું અથવા લોક કરવું
         let saveBtn = document.querySelector("#bookingModal button[onclick='saveBooking()']");
-        //let saveBtn = document.querySelector("#bookingModal .btn-success");
-        if (saveBtn) saveBtn.style.display = canUserEdit ? "flex" : "none";
+        if (saveBtn) saveBtn.style.display = canUserEdit ? "flex" : "none"; 
+
+        let delBtn = document.getElementById("modalDeleteBtn");
+        // માત્ર ડિલીટ પરવાનગી હોય તેને જ ડિલીટ બટન દેખાશે
+        if (delBtn) delBtn.style.display = canUserDelete ? "flex" : "none";
 
         let addPayBtn = document.querySelector("#bookingModal button[onclick='addNewPayment()']");
         if (addPayBtn) addPayBtn.style.display = canUserEdit ? "inline-flex" : "none";
@@ -1072,22 +1162,53 @@
         document.getElementById("bookingModal").style.display = "none";
     }
 
-    function saveBooking() {
+    // 🗑️ સીધું બુકિંગ રદ / ડિલીટ કરવાનું ફંક્શન
+    function deleteCurrentModalBooking() {
+        if (!canUserDelete) {
+            alert("❌ તમારી પાસે બુકિંગ ડિલીટ કરવાનો અધિકાર નથી!");
+            return;
+        }
+        if (!confirm("શું તમે આ બુકિંગ રદ (ડિલીટ) કરવા માંગો છો?")) return;
+
+        let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
+        delete cloudBookings[fullKey];
+        delete cloudBookings[selectedDateBaseKey];
+
+        // જો આખો દિવસ હોય તો બધા જ સ્લોટ્સ ક્લિયર કરવા
+        if (selectedSlot === 'fullday') {
+            delete cloudBookings[`${selectedDateBaseKey}_morning`];
+            delete cloudBookings[`${selectedDateBaseKey}_evening`];
+        }
+
+        localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
+        generateCalendar();
+
+        if (navigator.onLine && currentBookingRef) {
+            currentBookingRef.child(fullKey).remove();
+            currentBookingRef.child(selectedDateBaseKey).remove();
+            if (selectedSlot === 'fullday') {
+                currentBookingRef.child(`${selectedDateBaseKey}_morning`).remove();
+                currentBookingRef.child(`${selectedDateBaseKey}_evening`).remove();
+            }
+        } else {
+            addToSyncQueue({ action: "remove", farmId: currentFarmId, dateKey: fullKey });
+        }
+        alert("✅ બુકિંગ સફળતાપૂર્વક રદ થઈ ગયું છે!");
+        closeModal();
+    }
+
+    function saveBooking() { 
+        let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let name = document.getElementById("customerName").value.trim();
         let status = document.getElementById("bookingStatus").value;   
 
-       // જો રદ કરે કે નામ ખાલી હોય તો લોકલ અને ક્લાઉડ બંનેમાંથી હટાવો
+        // જો રદ કરે કે નામ ખાલી હોય તો ડિલીટ કરી દેવું
         if (status === "available" || name === "") {
-            delete cloudBookings[selectedDateKey];
-            localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
-            generateCalendar();
-
-            if (navigator.onLine && currentBookingRef) {
-                currentBookingRef.child(selectedDateKey).remove();
-            } else {
-                addToSyncQueue({ action: "remove", farmId: currentFarmId, dateKey: selectedDateKey });
+            if (!canUserDelete) {
+                alert("❌ તમારી પાસે બુકિંગ રદ / ડિલીટ કરવાનો અધિકાર નથી!");
+                return;
             }
-            closeModal();
+            deleteCurrentModalBooking();
             return;
         }
 
@@ -1099,7 +1220,9 @@
         let balanceAmount = Math.max(0, totalAmount - advanceAmount);
 
         let bookingData = {
-            dateKey: selectedDateKey,
+            dateKey: fullKey,
+            baseDateKey: selectedDateBaseKey,
+            slot: selectedSlot,
             customerName: name,
             mobile,
             event,
@@ -1112,17 +1235,45 @@
             status
         };
 
-        // ૧. તુરંત સ્ક્રીન અને LocalStorage પર સેવ કરી લો (ઇન્ટરનેટ ન હોય તો પણ દેખાશે)
-        cloudBookings[selectedDateKey] = bookingData;
+        // 🔄 જો આખો દિવસ (Full Day) કર્યો હોય, તો જૂના સવાર અને સાંજ હાફ-ડે આપોઆપ ડેટાબેઝમાંથી ડિલીટ કરો
+        if (selectedSlot === 'fullday') {
+            let mKey = `${selectedDateBaseKey}_morning`;
+            let eKey = `${selectedDateBaseKey}_evening`;
+            delete cloudBookings[mKey];
+            delete cloudBookings[eKey];
+            delete cloudBookings[selectedDateBaseKey];
+            if (navigator.onLine && currentBookingRef) {
+                currentBookingRef.child(mKey).remove();
+                currentBookingRef.child(eKey).remove();
+                currentBookingRef.child(selectedDateBaseKey).remove();
+            } else {
+                addToSyncQueue({ action: "remove", farmId: currentFarmId, dateKey: mKey });
+                addToSyncQueue({ action: "remove", farmId: currentFarmId, dateKey: eKey });
+            }
+        } 
+        // 🔄 જો સવાર કે સાંજ કરી હોય, તો જૂનો આખા દિવસનો સ્લોટ ડિલીટ કરવો
+        else if (selectedSlot === 'morning' || selectedSlot === 'evening') {
+            let fKey = `${selectedDateBaseKey}_fullday`;
+            delete cloudBookings[fKey];
+            delete cloudBookings[selectedDateBaseKey];
+            if (navigator.onLine && currentBookingRef) {
+                currentBookingRef.child(fKey).remove();
+                currentBookingRef.child(selectedDateBaseKey).remove();
+            } else {
+                addToSyncQueue({ action: "remove", farmId: currentFarmId, dateKey: fKey });
+            }
+        }
+
+        cloudBookings[fullKey] = bookingData;
         localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
         generateCalendar();
 
-        // ૨. જો ઇન્ટરનેટ હોય તો સીધું Firebase માં, નહીં તો કતાર (Queue) માં ઉમેરો
         if (navigator.onLine && currentBookingRef) {
-            currentBookingRef.child(selectedDateKey).set(bookingData);
+            currentBookingRef.child(fullKey).set(bookingData);
         } else {
-            addToSyncQueue({ action: "set", farmId: currentFarmId, dateKey: selectedDateKey, data: bookingData });
+            addToSyncQueue({ action: "set", farmId: currentFarmId, dateKey: fullKey, data: bookingData });
         }
+        alert("✅ બુકિંગ સફળતાપૂર્વક સેવ/અપડેટ થઈ ગયું છે!");
         closeModal();
     }
 
@@ -1130,12 +1281,13 @@
     function sendWhatsAppReceipt() {
         let name = document.getElementById("customerName").value.trim();
         let mobile = document.getElementById("mobile").value.trim();
-        let event = document.getElementById("event").value.trim() || "ઇવેન્ટ";
-        let date = document.getElementById("modalDateDisplay").innerText;
+        let event = document.getElementById("event").value.trim() || "ઇવેન્ટ";  
+        let date = document.getElementById("modalDateDisplay").innerText; 
         let total = parseFloat(document.getElementById("totalAmount").value) || 0;
         let balance = parseFloat(document.getElementById("balanceAmount").value) || 0;
+        let shiftText = (selectedSlot === 'evening') ? '🌙 સાંજ (Evening)' : '🌅 સવાર (Morning)';
 
-        if (!mobile || mobile.length < 10) {
+       if (!mobile || mobile.length < 10) {
             alert("કૃપા કરીને સાચો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો!");
             return;
         }
@@ -1143,7 +1295,8 @@
         let cleanMobile = mobile.replace(/[^0-9]/g, '');
         if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile; 
 
-        let msg = `નમસ્તે ${name}, તમારું ${event} માટેનું બુકિંગ (${currentFarmName}) તારીખ ${date} માટે કન્ફર્મ થયું છે. કુલ રકમ: ₹${total.toLocaleString('en-IN')}, બાકી રકમ: ₹${balance.toLocaleString('en-IN')}. આભાર!`;
+        let shiftName = (selectedSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((selectedSlot === 'evening') ? '🌙 સાંજ (Evening)' : '🌅 સવાર (Morning)');
+        let msg = `નમસ્તે ${name}, તમારું ${event} માટેનું બુકિંગ (${currentFarmName}) તારીખ ${date} [સમય: ${shiftName}] માટે કન્ફર્મ થયું છે. કુલ રકમ: ₹${total.toLocaleString('en-IN')}, બાકી રકમ: ₹${balance.toLocaleString('en-IN')}. આભાર!`;
         window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
     }
 
@@ -1200,7 +1353,8 @@
         let name = document.getElementById("customerName").value || "N/A";
         let mobile = document.getElementById("mobile").value || "N/A";
         let event = document.getElementById("event").value || "જનરલ ઇવેન્ટ";
-        let date = document.getElementById("modalDateDisplay").innerText;
+        let date = document.getElementById("modalDateDisplay").innerText;   
+        let shiftText = (selectedSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((selectedSlot === 'evening') ? '🌙 સાંજ (Evening Shift)' : '🌅 સવાર (Morning Shift)');
         let total = parseFloat(document.getElementById("totalAmount").value) || 0;
         let advance = parseFloat(document.getElementById("advanceAmount").value) || 0;
         let balance = Math.max(0, total - advance);
@@ -1245,7 +1399,8 @@
                         <h1 style="color:#4f46e5; margin:0 0 6px 0;">${currentFarmName}</h1>
                         <h3 style="margin:0; color:#64748b; font-size:16px;">ઓફિશિયલ બુકિંગ પહોંચ (RECEIPT)</h3>
                         <p style="margin:6px 0 0 0;">ઇવેન્ટ તારીખ: <b>${date}</b></p>
-                    </div>
+                    </div> 
+                    <p><b>ઇવેન્ટ તારીખ & સમય:</b> ${date} (<b>${shiftText}</b>)</p>
                     <p><b>ગ્રાહકનું નામ:</b> ${name}</p>
                     <p><b>મોબાઈલ નંબર:</b> ${mobile}</p>
                     <p><b>ઇવેન્ટ વિગત:</b> ${event}</p>
@@ -1335,12 +1490,15 @@
                 statusLabel = '<span class="status-badge badge-paid">પૂર્ણ (Paid)</span>';
             } else if (item.status === "ok") {
                 statusLabel = '<span class="status-badge badge-ok">ઓકે (OK)</span>';
-            }
+            }  
 
-            // લિસ્ટમાંથી સીધું પેમેન્ટ જમા કરવા માટેનું બટન
-            let editBtn = `<button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="openModal(${y}, ${parseInt(m) + 1}, ${parseInt(d)})">✏️ પેમેન્ટ</button>`;
+            let slotLabel = (item.slot === 'fullday') ? '☀️ આખો દિવસ' : ((item.slot === 'evening') ? '🌙 સાંજ' : '🌅 સવાર');
+            let itemSlot = item.slot || 'morning'; 
 
-            let deleteBtn = currentUserRole === 'admin'
+            // લિસ્ટમાંથી સીધું તે શિફ્ટનું પેમેન્ટ જમા કરવા માટેનું બટન
+            let editBtn = `<button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="openModal(${y}, ${parseInt(m) + 1}, ${parseInt(d)}, '${itemSlot}')">✏️ પેમેન્ટ</button>`;
+  
+            let deleteBtn = canUserDelete
                 ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="deleteBooking('${item.dateKey}')">ડિલીટ</button>`
                 : `<span style="color:#94a3b8; font-size:12px;">અધિકાર નથી</span>`;
 
@@ -1348,6 +1506,7 @@
                 <tr>
                     <td>${totalCount}</td>
                     <td><b>${d}/${parts[1]}/${y}</b></td>
+                    <td><b style="color:var(--primary);">${slotLabel}</b></td>
                     <td>${item.customerName}</td>
                     <td>${item.mobile}</td>
                     <td>${item.event || '-'}</td>
@@ -1363,7 +1522,7 @@
         });
 
         if (totalCount === 0) {
-            tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ બુકિંગ મળ્યું નથી.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ બુકિંગ મળ્યું નથી.</td></tr>`;
         }
 
         document.getElementById("totalBookingCount").innerText = totalCount;
@@ -1383,9 +1542,9 @@
     }
 
     // ૩. ક્લાઉડ (Firebase) માંથી કાયમ માટે ડિલીટ કરવા (મેમરી સાફ રહે)
-    function deleteBooking(key) { 
-             if (currentUserRole !== 'admin') {
-            alert("માત્ર Admin પાસે ડેટા ડિલીટ કરવાનો અધિકાર છે!");
+    function deleteBooking(key) {  
+             if (!canUserDelete) {
+            alert("❌ તમારી પાસે ડેટા ડિલીટ કરવાનો અધિકાર નથી!");
             return;
         }
         if (confirm("શું તમે આ બુકિંગ કાયમ માટે ડિલીટ કરવા માંગો છો?")) {
@@ -1415,13 +1574,14 @@
         if (bookings.length === 0) {
             alert("એક્સપોર્ટ કરવા માટે કોઈ ડેટા નથી!");
             return;
-        }
+        }  
 
-        let csv = "\uFEFFતારીખ,કસ્ટમરનું નામ,મોબાઈલ,ઇવેન્ટ,મહેમાનો,કુલ રકમ,એડવાન્સ,બાકી રકમ,સ્ટેટસ\n";
+        let csv = "\uFEFFતારીખ,શિફ્ટ,કસ્ટમરનું નામ,મોબાઈલ,ઇવેન્ટ,મહેમાનો,કુલ રકમ,એડવાન્સ,બાકી રકમ,સ્ટેટસ\n";
         bookings.forEach(b => {
             let parts = b.dateKey.replace(STORAGE_PREFIX, "").split("_");
-            let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-            csv += `"${formattedDate}","${b.customerName}","${b.mobile}","${b.event}","${b.guests}","${b.totalAmount}","${b.advanceAmount}","${b.balanceAmount}","${b.status}"\n`;
+            let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            let slotName = (b.slot === 'fullday') ? 'આખો દિવસ' : ((b.slot === 'evening') ? 'સાંજ' : 'સવાર');
+            csv += `"${formattedDate}","${slotName}","${b.customerName}","${b.mobile}","${b.event}","${b.guests}","${b.totalAmount}","${b.advanceAmount}","${b.balanceAmount}","${b.status}"\n`;
         });
 
         let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1479,17 +1639,29 @@
             }
         });
     }
-
-    // 👤 સ્ટાફનો પાસવર્ડ બદલવાનું ફંક્શન
-    function changeStaffPasswordPrompt(sId, name) {
-        let newP = prompt(`સ્ટાફ "${name}" માટે નવો પાસવર્ડ દાખલ કરો:`);
-        if (newP !== null && newP.trim() !== "") {
-            staffPermRef.child(sId).child("pass").set(newP.trim(), (err) => {
-                if (!err) {
-                    alert(`✅ સ્ટાફ "${name}" નો પાસવર્ડ Firebase માં અપડેટ થઈ ગયો છે!`);
-                }
-            });
+ 
+    // 👤 સ્ટાફનો પાસવર્ડ બદલવાનું ફંક્શન (માત્ર Admin માટે સંપૂર્ણ સુરક્ષિત)
+    function saveStaffPassword(sId, name) {
+        if (currentUserRole !== 'admin') {
+            alert("❌ માત્ર Admin પાસે સ્ટાફનો પાસવર્ડ બદલવાનો અધિકાર છે!");
+            return;
         }
+        let passInput = document.getElementById(`staffPassInput_${sId}`);
+        let newP = passInput ? passInput.value.trim() : "";
+
+        if (!newP) {
+            alert("કૃપા કરીને સ્ટાફ માટે નવો પાસવર્ડ દાખલ કરો!");
+            return;
+        }
+
+        // Firebase ડેટાબેઝમાં કાયમી સેવ થશે
+        staffPermRef.child(sId).child("pass").set(newP, (err) => {
+            if (!err) {
+                alert(`✅ સ્ટાફ "${name}" નો પાસવર્ડ બદલાઈ ગયો છે!\nહવે તેઓ નવા પાસવર્ડ (${newP}) થી જ લોગિન કરી શકશે.`);
+            } else {
+                alert("❌ ક્લાઉડમાં પાસવર્ડ સેવ કરવામાં ભૂલ થઈ!");
+            }
+        });
     }
 
     function closeAdminSettingsModal() {
@@ -1500,7 +1672,7 @@
     function addNewStaffUser() {
         let name = document.getElementById("newStaffName").value.trim();
         let pass = document.getElementById("newStaffPass").value.trim();
-        if (!name || !pass) {
+        if (!name || !pass) { 
             alert("કૃપા કરીને સ્ટાફનું નામ અને પાસવર્ડ લખો!");
             return;
         }
@@ -1509,13 +1681,19 @@
         staffPermRef.child(newStaffId).set({
             name: name,
             pass: pass,
-            canEdit: false, // બાય-ડિફોલ્ટ લોક (માત્ર વાંચવા માટે)
+            canEdit: false, // બાય-ડિફોલ્ટ લોક
+            canDelete: false, // બાય-ડિફોલ્ટ ડિલીટ પરવાનગી બંધ
             allowedFarms: {}
         }, () => {
             document.getElementById("newStaffName").value = "";
             document.getElementById("newStaffPass").value = "";
-            alert(`✅ ${name} સફળતાપૂર્વક ઉમેરાઈ ગયા! હવે તેમના ફાર્મ પર ટીક કરો.`);
+            alert(`✅ ${name} સફળતાપૂર્વક ઉમેરાઈ ગયા! હવે તેમની પરવાનગી પર ટીક કરો.`);
         });
+    }
+
+    // ડિલીટ પરવાનગી ચેકબોક્સ ટોગલ
+    function toggleStaffDeletePerm(sId, isChecked) {
+        staffPermRef.child(sId).child("canDelete").set(isChecked);
     }
 
     // સ્ટાફ ડિલીટ કરવો
@@ -1571,13 +1749,16 @@
 
                 let card = document.createElement("div");
                 card.style = "background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px;";
-                card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:8px;">
+                card.innerHTML = ` 
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
                         <div> 
-                                <b style="font-size:14px; color:#1e293b;">👤 ${staff.name}</b>
-                            <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px; margin-left:8px;" onclick="changeStaffPasswordPrompt('${sId}', '${staff.name}')">🔑 પાસવર્ડ બદલો</button>
+                            <b style="font-size:14px; color:#1e293b;">👤 ${staff.name}</b>
                         </div>
-                        <button class="btn btn-danger" style="padding:3px 8px; font-size:11px;" onclick="deleteStaffUser('${sId}', '${staff.name}')">🗑 કાઢી નાખો</button>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <input type="text" id="staffPassInput_${sId}" class="form-control" value="${staff.pass || ''}" placeholder="પાસવર્ડ" style="width:110px; padding:4px 8px; font-size:12px; height:30px;" title="અહીંથી પાસવર્ડ બદલો">
+                            <button type="button" class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="saveStaffPassword('${sId}', '${staff.name}')">💾 પાસવર્ડ બદલો</button>
+                            <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteStaffUser('${sId}', '${staff.name}')">🗑 કાઢી નાખો</button>
+                        </div>
                     </div>
 
                     <!-- 🔒 Lock System Toggle Checkbox -->
@@ -1586,8 +1767,14 @@
                             <input type="checkbox" ${staff.canEdit ? 'checked' : ''} onchange="toggleStaffEditPerm('${sId}', this.checked)">
                             ${staff.canEdit ? '🔓 ડેટા એડિટ પરવાનગી ચાલુ છે (બુકિંગ/પેમેન્ટ કરી શકશે)' : '🔒 લોક સિસ્ટમ સક્રિય છે (માત્ર ડેટા જોઈ શકશે, એડિટ નહિ થાય)'}
                         </label>
+                    </div> 
+                    <!-- 🗑️ Delete Permission Toggle Checkbox -->
+                    <div style="margin-bottom:8px; background:${staff.canDelete ? '#fee2e2' : '#f8fafc'}; border:1px solid ${staff.canDelete ? '#fca5a5' : '#e2e8f0'}; padding:6px 10px; border-radius:6px;">
+                        <label style="font-size:12.5px; font-weight:700; color:${staff.canDelete ? '#b91c1c' : '#64748b'}; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" ${staff.canDelete ? 'checked' : ''} onchange="toggleStaffDeletePerm('${sId}', this.checked)">
+                            ${staff.canDelete ? '🗑️ ડિલીટ પરવાનગી ચાલુ છે (બુકિંગ અને પેમેન્ટ ડિલીટ કરી શકશે)' : '🚫 ડિલીટ પરવાનગી બંધ છે (ડિલીટ કરી શકશે નહીં)'}
+                        </label>
                     </div>
-
                     <!-- 🏰 ફાર્મ પરવાનગી Checkboxes -->
                     <div>
                         <span style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:4px;">જોવા માટે માન્ય ફાર્મ (ટીક કરો):</span>
@@ -1619,6 +1806,7 @@
                     if (staff) {
                         currentStaffConfig = staff;
                         canUserEdit = staff.canEdit === true;
+                        canUserDelete = staff.canDelete === true;
                         setupUserView();
                     } else {
                         logout();
