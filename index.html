@@ -93,9 +93,7 @@
         .day-box.available { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
         .day-box.pending { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
         .day-box.paid { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-        .day-subtext { font-size: 10px; font-weight: 500; margin-top: 2px; }
-        .day-box.ok { background: #fef3c7; color: #b45309; border-color: #fde68a; }
-        .badge-ok { background: #fef3c7; color: #92400e; }
+        .day-subtext { font-size: 10px; font-weight: 500; margin-top: 2px; } 
         .day-box.ok { background: #b91c1c; color: #ffffff; border-color: #991b1b; }
         .badge-ok { background: #b91c1c; color: #ffffff; }
 
@@ -195,7 +193,10 @@
             👤 સક્રિય યુઝર:
             <span id="currentRoleDisplay" class="user-pill pill-admin">Admin</span> 
         </div>
-            <div style="display:flex; gap:8px; align-items:center;"> 
+            <div style="display:flex; gap:8px; align-items:center;">  
+            <!-- 👷‍♂️ વર્કર ખાતા પર સીધા જવા માટેનું બટન -->
+            <button id="workerNavBtn" class="btn btn-outline" onclick="scrollToWorkerSection()" style="font-size:12px; padding:6px 12px; background:#f0fdf4; border-color:#86efac; color:#166534; font-weight:700;">👷‍♂️ વર્કર & પગાર ખાતું</button>
+
               <!-- 🌐 ઓનલાઇન / ઑફલાઇન લાઇવ સ્ટેટસ બેજ -->
             <span id="networkStatusBadge" style="font-size:12px; font-weight:700; padding:5px 10px; border-radius:20px; background:#dcfce7; color:#15803d; border:1px solid #86efac;">🟢 ઓનલાઇન</span>
             <button id="adminPermBtn" class="btn btn-outline" onclick="openAdminSettingsModal()" style="font-size:12px; padding:6px 12px; background:#eff6ff; border-color:#93c5fd; color:#1d4ed8;">⚙️ સ્ટાફ પરવાનગી & લોક કંટ્રોલ</button>
@@ -349,6 +350,157 @@
         </div>
     </div>
 
+<!-- Step 3: Worker & Salary Management Card -->
+    <div class="card" id="workerSectionCard">
+        <div class="section-header">
+            <div class="section-title">👷‍♂️ Step 3: વર્કર (કારીગર) પગાર અને ઉપાડ ખાતાવહી</div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary" onclick="openAddWorkerModal()">➕ નવો વર્કર ઉમેરો</button>
+            </div>
+        </div>
+
+        <!-- Worker Financial Summary -->
+        <div class="summary-grid">
+            <div class="stat-card">
+                <span class="stat-title">કુલ સક્રિય વર્કર્સ</span>
+                <span class="stat-value" id="workerTotalCount">0</span>
+            </div>
+            <div class="stat-card green">
+                <span class="stat-title">કુલ પગાર (Total Salary)</span>
+                <span class="stat-value" id="workerTotalSalarySum">₹0</span>
+            </div>
+            <div class="stat-card red">
+                <span class="stat-title">કુલ ચૂકવેલ ઉપાડ (Total Upad)</span>
+                <span class="stat-value" id="workerTotalUpadSum">₹0</span>
+            </div>
+            <div class="stat-card yellow">
+                <span class="stat-title">ચૂકવવાપાત્ર ચોખ્ખો પગાર (Net Balance)</span>
+                <span class="stat-value" id="workerTotalNetSum">₹0</span>
+            </div>
+        </div>
+
+        <!-- Worker Search Bar -->
+        <div class="controls-row" style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:15px;">
+            <input type="text" id="workerSearchInput" class="form-control" onkeyup="renderWorkersTable()" placeholder="વર્કરનું નામ અથવા મોબાઈલ શોધો..." style="flex:1; min-width:220px;">
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>વર્કરનું નામ</th>
+                        <th>મોબાઈલ</th>
+                        <th>કામ / હોદ્દો</th>
+                        <th>પગાર (₹)</th>
+                        <th>કુલ ઉપાડ (₹)</th>
+                        <th>ચોખ્ખો બાકી પગાર (₹)</th>
+                        <th>ક્રિયા</th>
+                    </tr>
+                </thead>
+                <tbody id="workerTableBody">
+                    <tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી. ઉપરથી નવો વર્કર ઉમેરો.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ➕ Add / Edit Worker Modal -->
+<div class="modal" id="workerModal">
+    <div class="modal-content" style="max-width: 420px;">
+        <div class="modal-title" id="workerModalTitle">👷‍♂️ વર્કર વિગત</div>
+        <input type="hidden" id="editWorkerId">
+        <div class="form-group">
+            <label>વર્કરનું પૂરું નામ *</label>
+            <input type="text" id="wName" class="form-control" placeholder="દા.ત. રમેશભાઈ મકવાણા">
+        </div>
+        <div class="form-group">
+            <label>મોબાઈલ નંબર</label>
+            <input type="tel" id="wMobile" class="form-control" placeholder="10 આંકડાનો મોબાઈલ">
+        </div>
+        <div class="form-group">
+            <label>કામનો પ્રકાર / હોદ્દો</label>
+            <input type="text" id="wRole" class="form-control" placeholder="દા.ત. રસોઈયો, ડેકોરેશન, સફાઈ, મેનેજર">
+        </div>
+        <div class="form-group">
+            <label>પગાર રકમ (₹) *</label>
+            <input type="number" id="wSalary" class="form-control" placeholder="દા.ત. 15000">
+        </div>
+        <div class="form-group">
+            <label>પગાર પ્રકાર</label>
+            <select id="wSalaryType" class="form-control">
+                <option value="monthly">માસિક પગાર (Monthly)</option>
+                <option value="daily">રોજિંદો પગાર (Daily)</option>
+                <option value="per_event">ઇવેન્ટ દીઠ (Per Event)</option>
+            </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+            <button class="btn btn-success" onclick="saveWorker()" style="justify-content:center;">💾 વર્કર સેવ કરો</button>
+            <button class="btn btn-outline" onclick="closeWorkerModal()" style="justify-content:center;">બંધ કરો</button>
+        </div>
+    </div>
+</div>
+
+<!-- 💰 Worker Upad (ઉપાડ) & Statement Modal -->
+<div class="modal" id="workerUpadModal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>💰 ઉપાડ ખાતાવહી: <span id="upadWorkerNameDisplay" style="color:#1e293b;"></span></span>
+            <button class="btn btn-outline" onclick="closeWorkerUpadModal()" style="padding:2px 8px; font-size:12px;">✕</button>
+        </div>
+
+        <!-- Worker Summary Strip -->
+        <div style="background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; padding:10px; margin-bottom:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; text-align:center;">
+            <div>
+                <span style="font-size:11px; color:#475569; display:block;">કુલ પગાર</span>
+                <b id="stripSalary" style="color:#4f46e5; font-size:15px;">₹0</b>
+            </div>
+            <div>
+                <span style="font-size:11px; color:#475569; display:block;">કુલ ઉપાડ</span>
+                <b id="stripUpad" style="color:#ef4444; font-size:15px;">₹0</b>
+            </div>
+            <div>
+                <span style="font-size:11px; color:#475569; display:block;">ચોખ્ખો બાકી પગાર</span>
+                <b id="stripBalance" style="color:#10b981; font-size:15px;">₹0</b>
+            </div>
+        </div>
+
+        <!-- Add Upad Form -->
+        <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px;">
+            <b style="font-size:13px; color:#b45309; display:block; margin-bottom:6px;">➕ નવો ઉપાડ (Advance) આપો:</b>
+            <div style="display:grid; grid-template-columns:1fr 1.2fr auto; gap:6px; align-items:center;">
+                <input type="number" id="newUpadAmount" class="form-control" placeholder="રકમ (₹)">
+                <input type="date" id="newUpadDate" class="form-control">
+                <button type="button" class="btn btn-danger" onclick="addWorkerUpad()" style="padding:9px 12px; white-space:nowrap;">- ઉપાડ આપો</button>
+            </div>
+            <input type="text" id="newUpadNote" class="form-control" placeholder="ઉપાડની વિગત (દા.ત. ઘર ખર્ચ, તહેવાર)" style="margin-top:6px;">
+        </div>
+
+        <!-- Upad Ledger History Table -->
+        <div style="max-height:160px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+            <table style="width:100%; font-size:12px;">
+                <thead style="background:#f1f5f9; position:sticky; top:0;">
+                    <tr>
+                        <th style="padding:6px;">તારીખ</th>
+                        <th style="padding:6px;">વિગત / નોંધ</th>
+                        <th style="padding:6px; text-align:right;">ઉપાડ રકમ</th>
+                        <th style="padding:6px; text-align:center;">ક્રિયા</th>
+                    </tr>
+                </thead>
+                <tbody id="upadHistoryBody">
+                    <tr><td colspan="4" style="text-align:center; padding:10px; color:#94a3b8;">હજુ કોઈ ઉપાડ લીધેલ નથી.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+            <button class="btn btn-primary" onclick="printWorkerStatement()" style="justify-content:center;">🖨️ પગાર & ઉપાડ સ્ટેટમેન્ટ પ્રિન્ટ કરો</button>
+            <button class="btn" onclick="sendWorkerWhatsAppStatement()" style="background:#25D366; color:white; justify-content:center;">📲 WhatsApp પર સ્લિપ મોકલો</button>
+            <button class="btn btn-outline" onclick="closeWorkerUpadModal()" style="justify-content:center;">બંધ કરો</button>
+        </div>
+    </div>
 </div>
 
 <!-- Booking Modal -->
@@ -566,6 +718,10 @@
     let canUserDelete = true; // 🗑️ ડિલીટ કરવાની પરવાનગી છે કે નહીં
     let selectedDateBaseKey = ""; // YYYY_MM_DD
     let selectedSlot = "morning";  // 'morning' અથવા 'evening'
+    let canUserViewWorkers = true; // 👷‍♂️ વર્કર ખાતું જોવાની પરવાનગી
+    let cloudWorkers = {}; // વર્કર્સનો ક્લાઉડ ડેટા
+    let currentWorkerRef = null;
+    let selectedWorkerIdForUpad = "";
     let currentUserRole = "";
     // 🌐 ૧. ઑફલાઇન હોય ત્યારે LocalStorage માંથી ડેટા લોડ કરવો
     try {
@@ -738,6 +894,376 @@
             localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
             generateCalendar();
         });
+   listenToFarmWorkers();
+    }
+
+    // 👷‍♂️ વર્કર્સ લાઈવ ડેટાબેઝ લિસનર
+    function listenToFarmWorkers() {
+        if (currentWorkerRef) currentWorkerRef.off();
+        
+        let cached = localStorage.getItem("cached_workers_" + currentFarmId);
+        if (cached) {
+            try { cloudWorkers = JSON.parse(cached); renderWorkersTable(); } catch(e){}
+        }
+
+        currentWorkerRef = firebase.database().ref("farm_workers").child(currentFarmId);
+        currentWorkerRef.on('value', (snap) => {
+            cloudWorkers = snap.val() || {};
+            localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            renderWorkersTable();
+        });
+    }
+
+    function scrollToWorkerSection() {
+        let el = document.getElementById("workerSectionCard");
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 👷‍♂️ વર્કર ટેબલ અને બેલેન્સ શીટ રેન્ડર કરવું
+    function renderWorkersTable() {
+        let tbody = document.getElementById("workerTableBody");
+        if (!tbody) return;
+        tbody.innerHTML = "";
+
+        let search = (document.getElementById("workerSearchInput") ? document.getElementById("workerSearchInput").value : "").toLowerCase().trim();
+
+        let count = 0;
+        let sumSalary = 0;
+        let sumUpad = 0;
+        let sumNet = 0;
+
+        for (let wId in cloudWorkers) {
+            let w = cloudWorkers[wId];
+            if (!w || !w.name) continue;
+
+            if (search && !w.name.toLowerCase().includes(search) && !(w.mobile || "").includes(search)) {
+                continue;
+            }
+
+            count++;
+            let salary = parseFloat(w.salary || 0);
+            let upads = w.upads || [];
+            let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+            let netBalance = salary - totalUpad;
+
+            sumSalary += salary;
+            sumUpad += totalUpad;
+            sumNet += netBalance;
+
+            let editBtn = canUserEdit ? `<button class="btn btn-outline" style="padding:3px 7px; font-size:11px;" onclick="openEditWorkerModal('${wId}')">✏️</button>` : '';
+            let delBtn = canUserDelete ? `<button class="btn btn-danger" style="padding:3px 7px; font-size:11px;" onclick="deleteWorker('${wId}', '${w.name}')">🗑️</button>` : '';
+
+            let row = `<tr>
+                <td>${count}</td>
+                <td><b>${w.name}</b></td>
+                <td>${w.mobile || '-'}</td>
+                <td><span style="background:#eef2ff; color:#4338ca; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600;">${w.role || 'કારીગર'}</span></td>
+                <td>₹${salary.toLocaleString('en-IN')}</td>
+                <td style="color:#ef4444; font-weight:700;">₹${totalUpad.toLocaleString('en-IN')}</td>
+                <td style="color:${netBalance >= 0 ? '#10b981' : '#b91c1c'}; font-weight:800; font-size:14px;">₹${netBalance.toLocaleString('en-IN')}</td>
+                <td style="white-space:nowrap; display:flex; gap:4px;">
+                    <button class="btn btn-success" style="padding:3px 8px; font-size:11px;" onclick="openWorkerUpadModal('${wId}')">💰 ઉપાડ & સ્લિપ</button>
+                    ${editBtn}
+                    ${delBtn}
+                </td>
+            </tr>`;
+            tbody.innerHTML += row;
+        }
+
+        if (count === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી.</td></tr>`;
+        }
+
+        if (document.getElementById("workerTotalCount")) document.getElementById("workerTotalCount").innerText = count;
+        if (document.getElementById("workerTotalSalarySum")) document.getElementById("workerTotalSalarySum").innerText = "₹" + sumSalary.toLocaleString('en-IN');
+        if (document.getElementById("workerTotalUpadSum")) document.getElementById("workerTotalUpadSum").innerText = "₹" + sumUpad.toLocaleString('en-IN');
+        if (document.getElementById("workerTotalNetSum")) document.getElementById("workerTotalNetSum").innerText = "₹" + sumNet.toLocaleString('en-IN');
+    }
+
+    // વર્કર ઉમેરવા/એડિટ કરવાના ફંક્શન્સ
+    function openAddWorkerModal() {
+        if (!canUserEdit) { alert("❌ તમારી પાસે વર્કર ઉમેરવાનો અધિકાર નથી!"); return; }
+        document.getElementById("editWorkerId").value = "";
+        document.getElementById("workerModalTitle").innerText = "➕ નવો વર્કર ઉમેરો";
+        document.getElementById("wName").value = "";
+        document.getElementById("wMobile").value = "";
+        document.getElementById("wRole").value = "";
+        document.getElementById("wSalary").value = "";
+        document.getElementById("wSalaryType").value = "monthly";
+        document.getElementById("workerModal").style.display = "flex";
+    }
+
+    function openEditWorkerModal(wId) {
+        if (!canUserEdit) { alert("❌ તમારી પાસે એડિટ કરવાનો અધિકાર નથી!"); return; }
+        let w = cloudWorkers[wId];
+        if (!w) return;
+        document.getElementById("editWorkerId").value = wId;
+        document.getElementById("workerModalTitle").innerText = "✏️ વર્કર વિગત સુધારો";
+        document.getElementById("wName").value = w.name || "";
+        document.getElementById("wMobile").value = w.mobile || "";
+        document.getElementById("wRole").value = w.role || "";
+        document.getElementById("wSalary").value = w.salary || "";
+        document.getElementById("wSalaryType").value = w.salaryType || "monthly";
+        document.getElementById("workerModal").style.display = "flex";
+    }
+
+    function closeWorkerModal() {
+        document.getElementById("workerModal").style.display = "none";
+    }
+
+    function saveWorker() {
+        if (!canUserEdit) { alert("❌ પરવાનગી નથી!"); return; }
+        let name = document.getElementById("wName").value.trim();
+        let salary = parseFloat(document.getElementById("wSalary").value) || 0;
+        if (!name || salary <= 0) {
+            alert("કૃપા કરીને વર્કરનું નામ અને માન્ય પગાર દાખલ કરો!");
+            return;
+        }
+
+        let wId = document.getElementById("editWorkerId").value || ("worker_" + Date.now());
+        let existingUpads = (cloudWorkers[wId] && cloudWorkers[wId].upads) ? cloudWorkers[wId].upads : [];
+
+        let workerData = {
+            id: wId,
+            name: name,
+            mobile: document.getElementById("wMobile").value.trim(),
+            role: document.getElementById("wRole").value.trim() || "કારીગર",
+            salary: salary,
+            salaryType: document.getElementById("wSalaryType").value,
+            upads: existingUpads
+        };
+
+        cloudWorkers[wId] = workerData;
+        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+        renderWorkersTable();
+
+        if (navigator.onLine && currentWorkerRef) {
+            currentWorkerRef.child(wId).set(workerData);
+        }
+        alert("✅ વર્કર સફળતાપૂર્વક સેવ થઈ ગયા!");
+        closeWorkerModal();
+    }
+
+    function deleteWorker(wId, name) {
+        if (!canUserDelete) { alert("❌ તમારી પાસે વર્કર ડિલીટ કરવાનો અધિકાર નથી!"); return; }
+        if (confirm(`શું તમે કારીગર "${name}" નું પૂરું ખાતું ડિલીટ કરવા માંગો છો?`)) {
+            delete cloudWorkers[wId];
+            localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            renderWorkersTable();
+            if (navigator.onLine && currentWorkerRef) {
+                currentWorkerRef.child(wId).remove();
+            }
+        }
+    }
+
+    // 💰 ઉપાડ મોડલ અને કેલ્ક્યુલેશન
+    function openWorkerUpadModal(wId) {
+        selectedWorkerIdForUpad = wId;
+        let w = cloudWorkers[wId];
+        if (!w) return;
+
+        document.getElementById("upadWorkerNameDisplay").innerText = w.name;
+        document.getElementById("newUpadDate").value = new Date().toISOString().slice(0, 10);
+        document.getElementById("newUpadAmount").value = "";
+        document.getElementById("newUpadNote").value = "";
+
+        renderUpadModalDetails();
+        document.getElementById("workerUpadModal").style.display = "flex";
+    }
+
+    function closeWorkerUpadModal() {
+        document.getElementById("workerUpadModal").style.display = "none";
+    }
+
+    function renderUpadModalDetails() {
+        let w = cloudWorkers[selectedWorkerIdForUpad];
+        if (!w) return;
+
+        let salary = parseFloat(w.salary || 0);
+        let upads = w.upads || [];
+        let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+        let balance = salary - totalUpad;
+
+        document.getElementById("stripSalary").innerText = "₹" + salary.toLocaleString('en-IN');
+        document.getElementById("stripUpad").innerText = "₹" + totalUpad.toLocaleString('en-IN');
+        document.getElementById("stripBalance").innerText = "₹" + balance.toLocaleString('en-IN');
+
+        let tbody = document.getElementById("upadHistoryBody");
+        tbody.innerHTML = "";
+        if (upads.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:10px; color:#94a3b8;">હજુ કોઈ ઉપાડ લીધેલ નથી.</td></tr>`;
+            return;
+        }
+
+        upads.forEach((u, idx) => {
+            let delBtn = canUserDelete ? `<button type="button" onclick="deleteWorkerUpad(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ઉપાડ રદ કરો">❌</button>` : `<span style="color:#94a3b8;">🔒</span>`;
+            tbody.innerHTML += `<tr>
+                <td style="padding:6px;">${u.date}</td>
+                <td style="padding:6px;">${u.note || '-'}</td>
+                <td style="padding:6px; text-align:right; font-weight:700; color:#ef4444;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
+                <td style="padding:6px; text-align:center;">${delBtn}</td>
+            </tr>`;
+        });
+    }
+
+    function addWorkerUpad() {
+        if (!canUserEdit) { alert("❌ તમારી પાસે ઉપાડ ઉમેરવાની પરવાનગી નથી!"); return; }
+        let amt = parseFloat(document.getElementById("newUpadAmount").value);
+        let dateVal = document.getElementById("newUpadDate").value;
+        let note = document.getElementById("newUpadNote").value.trim();
+
+        if (!amt || amt <= 0) { alert("કૃપા કરીને માન્ય ઉપાડ રકમ લખો!"); return; }
+        if (!dateVal) { alert("કૃપા કરીને તારીખ પસંદ કરો!"); return; }
+
+        let parts = dateVal.split("-");
+        let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+        let w = cloudWorkers[selectedWorkerIdForUpad];
+        if (!w.upads) w.upads = [];
+
+        w.upads.push({ amount: amt, date: formattedDate, note: note });
+
+        cloudWorkers[selectedWorkerIdForUpad] = w;
+        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+
+        if (navigator.onLine && currentWorkerRef) {
+            currentWorkerRef.child(selectedWorkerIdForUpad).set(w);
+        }
+
+        document.getElementById("newUpadAmount").value = "";
+        document.getElementById("newUpadNote").value = "";
+        renderUpadModalDetails();
+        renderWorkersTable();
+    }
+
+    function deleteWorkerUpad(index) {
+        if (!canUserDelete) { alert("❌ તમારી પાસે ઉપાડ ડિલીટ કરવાનો અધિકાર નથી!"); return; }
+        if (!confirm("શું તમે આ ઉપાડની એન્ટ્રી રદ કરવા માંગો છો?")) return;
+
+        let w = cloudWorkers[selectedWorkerIdForUpad];
+        w.upads.splice(index, 1);
+
+        cloudWorkers[selectedWorkerIdForUpad] = w;
+        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+
+        if (navigator.onLine && currentWorkerRef) {
+            currentWorkerRef.child(selectedWorkerIdForUpad).set(w);
+        }
+        renderUpadModalDetails();
+        renderWorkersTable();
+    }
+
+    // 🖨️ પગાર & ઉપાડ સ્ટેટમેન્ટ પ્રિન્ટ કરવું
+    function printWorkerStatement() {
+        let w = cloudWorkers[selectedWorkerIdForUpad];
+        if (!w) return;
+
+        let salary = parseFloat(w.salary || 0);
+        let upads = w.upads || [];
+        let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+        let balance = salary - totalUpad;
+
+        let printWindow = window.open('', '_blank', 'width=750,height=600');
+        if (!printWindow) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
+
+        let upadRows = "";
+        if (upads.length > 0) {
+            upads.forEach((u, i) => {
+                upadRows += `<tr>
+                    <td style="padding:8px;">${i + 1}</td>
+                    <td style="padding:8px;">${u.date}</td>
+                    <td style="padding:8px;">${u.note || 'ઉપાડ'}</td>
+                    <td style="padding:8px; text-align:right; color:#ef4444;">(-) ₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
+                </tr>`;
+            });
+        } else {
+            upadRows = `<tr><td colspan="4" style="text-align:center; padding:10px; color:#64748b;">(કોઈ ઉપાડ લીધેલ નથી)</td></tr>`;
+        }
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>પગાર સ્ટેટમેન્ટ - ${w.name}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 25px; color: #333; }
+                    .card { border: 2px solid #1e293b; padding: 20px; border-radius: 8px; max-width: 650px; margin: auto; }
+                    .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                    th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                    th { background: #f1f5f9; text-align: left; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="header">
+                        <h2 style="margin:0; color:#4f46e5;">${currentFarmName}</h2>
+                        <h4 style="margin:4px 0; color:#475569;">વર્કર પગાર & ઉપાડ ખાતાવહી પહોંચ</h4>
+                    </div>
+                    <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role} | <b>મોબાઈલ:</b> ${w.mobile || '-'}</p>
+                    <table style="margin-bottom:15px;">
+                        <tr style="background:#f8fafc; font-weight:bold;">
+                            <td>કુલ ફિક્સ પગાર:</td>
+                            <td style="text-align:right; color:#4f46e5; font-size:16px;">₹${salary.toLocaleString('en-IN')}</td>
+                        </tr>
+                    </table>
+                    <b>ઉપાડ (Advance) વિગત:</b>
+                    <table>
+                        <thead>
+                            <tr><th>#</th><th>તારીખ</th><th>વિગત</th><th style="text-align:right;">રકમ</th></tr>
+                        </thead>
+                        <tbody>${upadRows}</tbody>
+                        <tfoot>
+                            <tr style="font-weight:bold; background:#fef2f2;">
+                                <td colspan="3" style="text-align:right;">કુલ લીધેલ ઉપાડ બાદ:</td>
+                                <td style="text-align:right; color:#ef4444;">₹${totalUpad.toLocaleString('en-IN')}</td>
+                            </tr>
+                            <tr style="font-weight:bold; background:#ecfdf5; font-size:15px;">
+                                <td colspan="3" style="text-align:right; color:#047857;">ચોખ્ખો ચૂકવવાપાત્ર બાકી પગાર (Net Balance):</td>
+                                <td style="text-align:right; color:#047857;">₹${balance.toLocaleString('en-IN')}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div style="margin-top:40px; display:flex; justify-content:space-between;">
+                        <div>કારીગરની સહી: ____________</div>
+                        <div>માલિક / ઑફિસ સહી: ____________</div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    }
+
+    // 📲 WhatsApp પર સ્ટેટમેન્ટ મોકલવું
+    function sendWorkerWhatsAppStatement() {
+        let w = cloudWorkers[selectedWorkerIdForUpad];
+        if (!w || !w.mobile || w.mobile.length < 10) {
+            alert("કૃપા કરીને વર્કરનો સાચો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો!");
+            return;
+        }
+
+        let salary = parseFloat(w.salary || 0);
+        let upads = w.upads || [];
+        let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+        let balance = salary - totalUpad;
+
+        let cleanMobile = w.mobile.replace(/[^0-9]/g, '');
+        if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile;
+
+        let msg = `નમસ્તે ${w.name},\nતમારું પગાર & ઉપાડ ખાતું (${currentFarmName}):\n\n` +
+                  `💰 કુલ પગાર: ₹${salary.toLocaleString('en-IN')}\n` +
+                  `🔻 કુલ ઉપાડ બાદ: ₹${totalUpad.toLocaleString('en-IN')}\n` +
+                  `---------------------------\n` +
+                  `✅ ચોખ્ખો બાકી પગાર: ₹${balance.toLocaleString('en-IN')}\n\nઆભાર!`;
+
+        window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`);
+    }
+
+    // સ્ટાફ પરવાનગી ટોગલ
+    function toggleStaffWorkerPerm(sId, isChecked) {
+        staffPermRef.child(sId).child("canViewWorkers").set(isChecked);
     }
 
     // ૩. નવું ફાર્મ ઉમેરવાના ફંક્શન્સ
@@ -783,6 +1309,7 @@
                 currentUserRole = "admin";
                 canUserEdit = true;
                 canUserDelete = true; // Admin ને પૂરો અધિકાર
+                canUserViewWorkers = true;
                 currentStaffConfig = null;
             } else {
                 error.innerText = "❌ ખોટો એડમિન પાસવર્ડ!";
@@ -796,6 +1323,7 @@
                 currentStaffConfig = staff;
                 canUserEdit = staff.canEdit === true;
                 canUserDelete = staff.canDelete === true; // 🗑️ સ્ટાફની ડિલીટ પરવાનગી
+                canUserViewWorkers = staff.canViewWorkers === true; // 👷‍♂️ વર્કર પરવાનગી
             } else {
                 error.innerText = "❌ ખોટો સ્ટાફ પાસવર્ડ!";
                 return;
@@ -827,6 +1355,12 @@
             document.getElementById("adminPermBtn").style.display = "none";
         }
 
+        // 👷‍♂️ વર્કર સેક્શન વિઝિબિલિટી (માત્ર પરવાનગી હોય તેને જ દેખાશે)
+        let workerSection = document.getElementById("workerSectionCard");
+        let workerNavBtn = document.getElementById("workerNavBtn");
+        if (workerSection) workerSection.style.display = canUserViewWorkers ? "block" : "none";
+        if (workerNavBtn) workerNavBtn.style.display = canUserViewWorkers ? "inline-flex" : "none";
+
         // ફાર્મ ડ્રોપડાઉન રીફ્રેશ કરવું (માત્ર પરવાનગી વાળા ફાર્મ બતાવવા માટે)
         farmsRef.once('value', (snap) => {
             let farmsData = snap.val() || {};
@@ -851,7 +1385,7 @@
                 generateCalendar();
             }
         });
-
+   
         populateYears();
         goToToday();
     }
@@ -1181,7 +1715,7 @@
         }
 
         localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
-        generateCalendar();
+        generateCalendar(); 
 
         if (navigator.onLine && currentBookingRef) {
             currentBookingRef.child(fullKey).remove();
@@ -1775,6 +2309,14 @@
                             ${staff.canDelete ? '🗑️ ડિલીટ પરવાનગી ચાલુ છે (બુકિંગ અને પેમેન્ટ ડિલીટ કરી શકશે)' : '🚫 ડિલીટ પરવાનગી બંધ છે (ડિલીટ કરી શકશે નહીં)'}
                         </label>
                     </div>
+                    <!-- 👷‍♂️ Worker Module Permission Checkbox -->
+                    <div style="margin-bottom:8px; background:${staff.canViewWorkers ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${staff.canViewWorkers ? '#86efac' : '#e2e8f0'}; padding:6px 10px; border-radius:6px;">
+                        <label style="font-size:12.5px; font-weight:700; color:${staff.canViewWorkers ? '#166534' : '#64748b'}; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" ${staff.canViewWorkers ? 'checked' : ''} onchange="toggleStaffWorkerPerm('${sId}', this.checked)">
+                            ${staff.canViewWorkers ? '👷‍♂️ વર્કર અને પગાર ખાતું જોવાની પરવાનગી ચાલુ છે' : '🔒 વર્કર ખાતું બંધ છે (જોઈ શકશે નહીં)'}
+                        </label>
+                    </div>
+
                     <!-- 🏰 ફાર્મ પરવાનગી Checkboxes -->
                     <div>
                         <span style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:4px;">જોવા માટે માન્ય ફાર્મ (ટીક કરો):</span>
@@ -1793,9 +2335,11 @@
     window.onload = function() {
         let savedRole = sessionStorage.getItem("loggedUserRole");
         if (savedRole) {
-            currentUserRole = savedRole;
+            currentUserRole = savedRole; 
             if (currentUserRole === "admin") {
                 canUserEdit = true;
+                canUserDelete = true;
+                canUserViewWorkers = true; // Admin ને પૂરી પરવાનગી
                 currentStaffConfig = null;
                 setupUserView();
             } else {
@@ -1807,6 +2351,7 @@
                         currentStaffConfig = staff;
                         canUserEdit = staff.canEdit === true;
                         canUserDelete = staff.canDelete === true;
+                        canUserViewWorkers = staff.canViewWorkers === true;
                         setupUserView();
                     } else {
                         logout();
