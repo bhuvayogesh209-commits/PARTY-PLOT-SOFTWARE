@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>બુકિંગ અને પેમેન્ટ મેનેજમેન્ટ સિસ્ટમ (CEO Edition)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase Cloud Database Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', 'Noto Sans Gujarati', sans-serif; }
+        body { background-color: var(--bg-main); margin: 0; padding: 20px; color: var(--text-main); }
+
+        /* Login Screen */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-box {
+            background: white; padding: 35px; border-radius: 16px; width: 380px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+        .login-box h2 { color: var(--primary); margin: 0 0 8px 0; text-align: center; font-size: 24px; }
+        .login-box p.subtext { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
+        
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
+        .form-control {
+            width: 100%; padding: 10px 14px; font-size: 14px; border: 1.5px solid var(--border-color);
+            border-radius: 8px; outline: none; transition: 0.2s;
+        }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
+
+        /* Container */
+        .container { max-width: 1250px; margin: 0 auto; display: none; }
+        
+        /* Top Navigation Header */
+        .role-bar {
+            background: white; padding: 14px 20px; border-radius: 12px; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .user-tag { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+        .user-pill { padding: 4px 10px; border-radius: 20px; font-size: 12px; text-transform: uppercase; }
+        .pill-admin { background: #e0e7ff; color: #4338ca; }
+        .pill-staff { background: #fef3c7; color: #b45309; }
+
+        /* Main Section Cards */
+        .card {
+            background: white; border-radius: 14px; padding: 22px;
+            margin-bottom: 24px; border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .section-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;
+        }
+        .section-title { font-size: 18px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+        /* Calendar Controls */
+        .controls-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .nav-btns { margin-left: auto; display: flex; gap: 8px; }
+
+        /* Calendar Grid */
+        .weekdays-grid {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
+            margin-top: 15px; text-align: center; font-weight: 700; font-size: 13px; color: var(--text-muted);
+        }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 8px; }
+        .day-box {
+            min-height: 52px; border-radius: 10px; text-align: center;
+            cursor: pointer; font-weight: 600; font-size: 14px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            border: 1px solid transparent; transition: all 0.15s ease-in-out;
+        }
+        .day-box:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+        .day-box.empty-slot { background: #f1f5f9; color: #94a3b8; cursor: default; }
+        .day-box.available { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+        .day-box.pending { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+        .day-box.paid { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+        .day-subtext { font-size: 10px; font-weight: 500; margin-top: 2px; }
+        .day-box.ok { background: #fef3c7; color: #b45309; border-color: #fde68a; }
+        .badge-ok { background: #fef3c7; color: #92400e; }
+
+        /* Summary Badges */
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .stat-card {
+            background: #f8fafc; padding: 14px 18px; border-radius: 10px;
+            border-left: 4px solid var(--primary); display: flex; flex-direction: column;
+        }
+        .stat-card.red { border-left-color: var(--danger); }
+        .stat-card.green { border-left-color: var(--success); }
+        .stat-card.yellow { border-left-color: var(--warning); }
+        .stat-title { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        .stat-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+
+        /* Buttons */
+        .btn {
+            border: none; padding: 9px 16px; border-radius: 8px;
+            font-size: 13.5px; font-weight: 600; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px; transition: 0.15s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-outline { background: transparent; border: 1.5px solid var(--border-color); color: var(--text-main); }
+        .btn-outline:hover { background: #f1f5f9; }
+
+        /* Table */
+        .table-responsive { overflow-x: auto; margin-top: 15px; border-radius: 8px; border: 1px solid var(--border-color); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { background: #f8fafc; color: var(--text-muted); padding: 12px 14px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border-color); }
+        td { padding: 12px 14px; font-size: 13.5px; border-bottom: 1px solid var(--border-color); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background-color: #faf5ff; }
+
+        .status-badge {
+            padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+        }
+        .badge-available { background: #d1fae5; color: #065f46; }
+        .badge-pending { background: #fee2e2; color: #991b1b; }
+        .badge-paid { background: #dbeafe; color: #1e40af; }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px);
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: white; padding: 24px; border-radius: 14px;
+            width: 440px; max-width: 92%; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+        .modal-title { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 15px; }
+
+        @media (max-width: 768px) {
+            .nav-btns { width: 100%; justify-content: space-between; margin-left: 0; }
+            .weekdays-grid, .days-grid { gap: 4px; }
+            .day-box { min-height: 44px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div id="loginOverlay">
+    <div class="login-box">
+        <h2>🔒 સોફ્ટવેર લોગિન</h2>
+        <p class="subtext">કૃપા કરીને આગળ વધવા ઓળખ પસંદ કરો</p>
+
+        <div class="form-group">
+            <label>યુઝર પ્રકાર:</label>
+            <select id="loginRole" class="form-control">
+                <option value="admin">Admin (માલિક - પૂરો અધિકાર)</option>
+                <option value="staff">Staff (સ્ટાફ - મર્યાદિત અધિકાર)</option>
+            </select>
+        </div>
+ 
+        <div class="form-group">
+            <label>પાસવર્ડ દાખલ કરો:</label>
+            <input type="password" id="loginPassword" class="form-control" placeholder="પાસવર્ડ દાખલ કરો (***)" onkeypress="handleLoginKey(event)">
+        </div>
+
+        <button class="btn btn-primary" onclick="checkLogin()" style="width:100%; justify-content:center; padding:11px; margin-top:8px;">
+            લોગિન કરો ➔
+        </button>
+        <p id="loginError" style="color:var(--danger); text-align:center; margin-top:12px; font-size:13px; font-weight:600;"></p>
+    </div>
+</div>
+
+<!-- Main Application -->
+<div class="container" id="mainContainer">
+    
+    <div class="role-bar">
+        <div class="user-tag">
+            👤 સક્રિય યુઝર:
+            <span id="currentRoleDisplay" class="user-pill pill-admin">Admin</span> 
+        </div>
+            <div style="display:flex; gap:8px; align-items:center;"> 
+              <!-- 🌐 ઓનલાઇન / ઑફલાઇન લાઇવ સ્ટેટસ બેજ -->
+            <span id="networkStatusBadge" style="font-size:12px; font-weight:700; padding:5px 10px; border-radius:20px; background:#dcfce7; color:#15803d; border:1px solid #86efac;">🟢 ઓનલાઇન</span>
+            <button id="adminPermBtn" class="btn btn-outline" onclick="openAdminSettingsModal()" style="font-size:12px; padding:6px 12px; background:#eff6ff; border-color:#93c5fd; color:#1d4ed8;">⚙️ સ્ટાફ પરવાનગી & લોક કંટ્રોલ</button>
+            <button class="btn btn-outline" onclick="logout()" style="font-size:12px; padding:6px 12px;">🚪 લોગ આઉટ</button>
+        </div>
+    </div>
+        <!-- 🏰 Farm Selector Bar -->
+    <div class="card" style="padding: 14px 20px; margin-bottom: 16px; background: #eef2ff; border: 1.5px solid #c7d2fe;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label style="font-weight: 700; color: var(--primary); font-size: 15px;">🏰 હાલનું ફાર્મ પસંદ કરો:</label>
+                <select id="farmSelect" class="form-control" style="width: auto; min-width: 240px; font-weight: 700; color: #1e1b4b; background: white;" onchange="changeFarm()">
+                    <!-- Farms dynamic load thashe -->
+                </select>
+            </div>
+            <div id="adminFarmBtnArea">
+                <button class="btn btn-primary" onclick="openAddFarmModal()" style="font-size: 13px; padding: 7px 14px;">➕ નવું ફાર્મ ઉમેરો</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 1: Calendar View -->
+    <div class="card">
+        <div class="section-header">
+            <div class="section-title">📅 Step 1: તારીખ અને કૅલેન્ડર પસંદ કરો</div>
+            <div class="nav-btns">
+                <button class="btn btn-outline" onclick="prevMonth()">◀ પાછળ</button>
+                <button class="btn btn-outline" onclick="goToToday()">આજે</button>
+                <button class="btn btn-outline" onclick="nextMonth()">આગળ ▶</button>
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <label><b>વર્ષ:</b></label>
+            <select id="yearSelect" class="form-control" style="width:auto;" onchange="changeCalendar()"></select>
+
+            <label><b>મહિનો:</b></label>
+            <select id="monthSelect" class="form-control" style="width:auto;" onchange="changeCalendar()">
+                <option value="0">જાન્યુઆરી</option>
+                <option value="1">ફેબ્રુઆરી</option>
+                <option value="2">માર્ચ</option>
+                <option value="3">એપ્રિલ</option>
+                <option value="4">મે</option>
+                <option value="5">જૂન</option>
+                <option value="6">જુલાઈ</option>
+                <option value="7">ઓગસ્ટ</option>
+                <option value="8">સપ્ટેમ્બર</option>
+                <option value="9">ઓક્ટોબર</option>
+                <option value="10">નવેમ્બર</option>
+                <option value="11">ડિસેમ્બર</option>
+            </select>
+
+            <div style="font-size: 12px; display:flex; gap:12px; margin-left:auto; align-items:center;">
+                <span>🟢 ખાલી / ઉપલબ્ધ</span>
+                <span>🔴 બાકી રકમ (Pending)</span>
+                <span>🔵 ચૂકવાયેલ (Paid)</span>
+            </div>
+        </div>
+
+        <!-- 7 Days Weekday Header -->
+        <div class="weekdays-grid">
+            <div>રવિ</div><div>સોમ</div><div>મંગળ</div><div>બુધ</div><div>ગુરુ</div><div>શુક્ર</div><div>શનિ</div>
+        </div>
+        <div class="days-grid" id="daysGrid"></div>
+    </div>
+
+    <!-- Step 2: Bookings & Financial Summary -->
+    <div class="card">
+        <div class="section-header">
+            <div class="section-title">📊 નાણાકીય વિગત અને બુકિંગ રિપોર્ટ</div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-outline" onclick="downloadBackupJSON()" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">💾 બેકઅપ લો (JSON)</button>
+                <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="handleRestoreJSON(event)">
+                <button class="btn btn-outline" onclick="document.getElementById('restoreFileInput').click()" style="background:#fef3c7; color:#92400e; border-color:#fde68a;">📂 બેકઅપ રિસ્ટોર</button>
+                <button class="btn btn-success" onclick="exportExcel()">📑 Excel / CSV એક્સપોર્ટ</button>
+                <button class="btn btn-danger" id="clearAllBtn" onclick="clearAllData()">🗑 ડેટા ક્લિયર</button>
+            </div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="stat-card">
+                <span class="stat-title">કુલ સક્રિય બુકિંગ</span>
+                <span class="stat-value" id="totalBookingCount">0</span>
+            </div>
+            <div class="stat-card green">
+                <span class="stat-title">કુલ બિલિંગ રકમ</span>
+                <span class="stat-value" id="totalAmountSum">₹0</span>
+            </div>
+            <div class="stat-card red">
+                <span class="stat-title">કુલ બાકી રકમ (Dues)</span>
+                <span class="stat-value" id="totalBalanceSum">₹0</span>
+            </div>
+            <div class="stat-card yellow">
+                <span class="stat-title">સૌથી વધુ બુકિંગ મહિનો</span>
+                <span class="stat-value" id="peakMonthDisplay" style="font-size:16px;">-</span>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="controls-row" style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:15px;">
+            <select id="filterYear" class="form-control" style="width:130px;" onchange="filterData()">
+                <option value="">બધા વર્ષ</option>
+            </select>
+            <select id="filterMonth" class="form-control" style="width:140px;" onchange="filterData()">
+                <option value="">બધા મહિના</option>
+                <option value="0">જાન્યુઆરી</option>
+                <option value="1">ફેબ્રુઆરી</option>
+                <option value="2">માર્ચ</option>
+                <option value="3">એપ્રિલ</option>
+                <option value="4">મે</option>
+                <option value="5">જૂન</option>
+                <option value="6">જુલાઈ</option>
+                <option value="7">ઓગસ્ટ</option>
+                <option value="8">સપ્ટેમ્બર</option>
+                <option value="9">ઓક્ટોબર</option>
+                <option value="10">નવેમ્બર</option>
+                <option value="11">ડિસેમ્બર</option>
+            </select>
+            <select id="filterStatus" class="form-control" style="width:150px;" onchange="filterData()">
+                <option value="">બધા સ્ટેટસ</option>
+                <option value="pending">બાકી (Pending)</option>
+                <option value="paid">પૂર્ણ (Paid)</option>
+                <option value="ok">ઓકે / બરાબર (OK)</option>
+            </select>
+            <input type="text" id="searchInput" class="form-control" onkeyup="filterData()" placeholder="કસ્ટમરનું નામ અથવા મોબાઈલ શોધો..." style="flex:1; min-width:200px;">
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>તારીખ</th>
+                        <th>કસ્ટમર</th>
+                        <th>મોબાઈલ</th>
+                        <th>ઇવેન્ટ પ્રકાર</th>
+                        <th>મહેમાનો</th>
+                        <th>કુલ રકમ</th>
+                        <th>એડવાન્સ</th>
+                        <th>બાકી રકમ</th>
+                        <th>સ્ટેટસ</th>
+                        <th>ક્રિયા</th>
+                    </tr>
+                </thead>
+                <tbody id="bookingTableBody">
+                    <tr><td colspan="11" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ બુકિંગ મળ્યું નથી.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Booking Modal -->
+<div class="modal" id="bookingModal">
+    <div class="modal-content">
+        <div class="modal-title">📝 બુકિંગ ફોર્મ (<span id="modalDateDisplay"></span>)</div>
+        
+        <div class="form-group">
+            <label>કસ્ટમરનું નામ *</label>
+            <input type="text" id="customerName" class="form-control" placeholder="નામ લખો">
+        </div>
+
+        <div class="form-group">
+            <label>મોબાઈલ નંબર *</label>
+            <input type="tel" id="mobile" class="form-control" placeholder="10 આંકડાનો નંબર">
+        </div>
+
+        <div class="form-group">
+            <label>ઇવેન્ટ વિગત</label>
+            <input type="text" id="event" class="form-control" placeholder="દા.ત. લગ્ન, સગાઈ, બર્થડે પાર્ટી">
+        </div>
+
+        <div class="form-group">
+            <label>અંદાજિત મહેમાનો</label>
+            <input type="number" id="guests" class="form-control" placeholder="સંખ્યા">
+        </div>
+           
+        <div class="form-group">
+            <label>કુલ રકમ (₹) *</label>
+            <input type="number" id="totalAmount" class="form-control" oninput="calculateBalance()" placeholder="કુલ રકમ દાખલ કરો">
+        </div>
+
+        <!-- 4-5 વાર ટુકડે ટુકડે પેમેન્ટ ઉમેરવા માટેનું બોક્સ -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:14px;">
+            <label style="font-weight:700; color:#1e293b; font-size:13px; display:block; margin-bottom:6px;">💰 નવું પેમેન્ટ જમા કરો (ઇન્સ્ટોલમેન્ટ):</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:6px; align-items:center;">
+                <input type="number" id="newPaymentAmount" class="form-control" placeholder="રકમ (₹)">
+                <input type="date" id="newPaymentDate" class="form-control">
+                <button type="button" class="btn btn-success" onclick="addNewPayment()" style="padding:9px 12px;">+ ઉમેરો</button>
+            </div>
+
+            <!-- પેમેન્ટ હિસ્ટ્રી બોક્સ -->
+            <div style="margin-top:10px; max-height:110px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff;">
+                <table style="width:100%; font-size:12px;">
+                    <thead style="background:#f1f5f9; position:sticky; top:0;">
+                        <tr><th style="padding:6px;">તારીખ</th><th style="padding:6px;">રકમ (₹)</th><th style="padding:6px; text-align:center;">ક્રિયા</th></tr>
+                    </thead>
+                    <tbody id="paymentHistoryBody">
+                        <tr><td colspan="3" style="text-align:center; padding:8px; color:#94a3b8;">હજુ સુધી કોઈ પેમેન્ટ મળ્યું નથી.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="form-group">
+                <label>કુલ જમા રકમ (₹)</label>
+                <input type="number" id="advanceAmount" class="form-control" style="background:#f8fafc; font-weight:bold; color:#16a34a;" readonly placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>બાકી રકમ (₹)</label>
+                <input type="number" id="balanceAmount" class="form-control" style="background:#fef2f2; font-weight:bold; color:#dc2626;" readonly placeholder="0.00">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>સ્ટેટસ</label>
+            <select id="bookingStatus" class="form-control">
+                <option value="ok">ઓકે / બરાબર (OK - પીળો)</option>
+                <option value="pending">બાકી (Pending - લાલ)</option>
+                <option value="paid">પૂર્ણ પેઇડ (Paid - વાદળી)</option>
+                <option value="available">રદ કરો (ખાલી રાખો)</option>
+            </select>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+            <button class="btn btn-success" onclick="saveBooking()" style="justify-content:center;">💾 સેવ / અપડેટ કરો</button>
+            <button class="btn" onclick="sendWhatsAppReceipt()" style="background:#25D366; color:white; justify-content:center;">📲 WhatsApp પર રસીદ મોકલો</button>
+            <button class="btn btn-primary" onclick="printInvoice()" style="justify-content:center;">🖨️ રસીદ (Invoice) પ્રિન્ટ કરો</button>
+            <button class="btn btn-outline" onclick="closeModal()" style="justify-content:center;">બંધ કરો</button>
+        </div>
+    </div>
+</div>
+
+          <!-- 🏰 નવું ફાર્મ ઉમેરવા માટેનું Modal -->
+<div class="modal" id="addFarmModal">
+    <div class="modal-content" style="max-width: 380px;">
+        <div class="modal-title">🏰 નવું ફાર્મ ઉમેરો</div>
+        <div class="form-group">
+            <label>ફાર્મનું નામ લખો *</label>
+            <input type="text" id="newFarmName" class="form-control" placeholder="દા.ત. તુલસી વન ગ્રીન લોન્સ">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:16px;">
+            <button class="btn btn-success" onclick="saveNewFarm()" style="flex:1; justify-content:center;">💾 સેવ કરો</button>
+            <button class="btn btn-outline" onclick="closeAddFarmModal()" style="flex:1; justify-content:center;">બંધ કરો</button>
+        </div>
+    </div>
+</div>
+
+           <!-- 🔐 Admin Password Verification Modal -->
+<div class="modal" id="adminPassPromptModal">
+    <div class="modal-content" style="max-width: 340px;">
+        <div class="modal-title">🔒 એડમિન સિક્યોરિટી</div>
+        <p style="font-size:13px; color:#64748b; margin-top:-8px;">પરવાનગી કંટ્રોલ ખોલવા Admin પાસવર્ડ લખો:</p>
+        <div class="form-group">
+            <input type="password" id="adminVerifyPass" class="form-control" placeholder="પાસવર્ડ દાખલ કરો (***)" onkeypress="if(event.key==='Enter') verifyAdminPass()">
+        </div>
+        <p id="adminVerifyError" style="color:var(--danger); font-size:12px; margin:4px 0;"></p>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="verifyAdminPass()" style="flex:1; justify-content:center;">ચકાસો ➔</button>
+            <button class="btn btn-outline" onclick="document.getElementById('adminPassPromptModal').style.display='none'" style="flex:1; justify-content:center;">રદ કરો</button>
+        </div>
+    </div>
+</div>
+
+<!-- ⚙️ સ્ટાફ પરવાનગી, ફાર્મ ચેકબોક્સ અને લોક સિસ્ટમ Modal -->
+<div class="modal" id="adminSettingsModal">
+    <div class="modal-content" style="width: 580px; max-width:95%;">
+        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>⚙️ યુઝર પરવાનગી & લોક સિસ્ટમ</span>
+            <button class="btn btn-outline" onclick="closeAdminSettingsModal()" style="padding:4px 8px; font-size:12px;">✕</button>
+        </div>
+        <p style="font-size:12px; color:#64748b; margin-top:-8px;">અહીંથી તમે ૨૦ યુઝર્સને કયું ફાર્મ બતાવવું અને કોને એડિટ કરવા દેવું તે કંટ્રોલ કરી શકો છો.</p>
+
+         <!-- 🔑 એડમિન પાસવર્ડ બદલવાનું ફોર્મ (Firebase માં કાયમ સેવ રહેશે) -->
+        <div style="background:#fefce8; border:1.5px solid #fde047; border-radius:8px; padding:12px; margin-bottom:14px;">
+            <b style="font-size:13px; color:#854d0e;">🔑 એડમિન પાસવર્ડ બદલો (Firebase માં કાયમી સેવ થશે):</b>
+            <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:6px; margin-top:8px;">
+                <input type="password" id="adminOldPass" class="form-control" placeholder="જૂનો પાસવર્ડ (Old Pass)">
+                <input type="password" id="adminNewPass" class="form-control" placeholder="નવો પાસવર્ડ (New Pass)">
+                <button class="btn btn-primary" onclick="changeAdminPassword()" style="padding:8px 14px;">💾 સેવ કરો</button>
+            </div>
+        </div>
+
+        <!-- નવો સ્ટાફ ઉમેરવાનું નાનું ફોર્મ -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:14px;">
+            <b style="font-size:13px; color:var(--primary);">➕ નવો સ્ટાફ યુઝર ઉમેરો:</b>
+            <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:6px; margin-top:8px;">
+                <input type="text" id="newStaffName" class="form-control" placeholder="સ્ટાફનું નામ (દા.ત. રમેશભાઈ)">
+                <input type="password" id="newStaffPass" class="form-control" placeholder="પાસવર્ડ (***)">
+                <button class="btn btn-success" onclick="addNewStaffUser()" style="padding:8px 12px;">+ ઉમેરો</button>
+            </div>
+        </div>
+
+        <!-- સ્ટાફ લિસ્ટ અને ચેકબોક્સ -->
+        <div id="staffPermissionsList" style="max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:12px;">
+            <!-- ડાયનેમિક યુઝર્સ અને ચેકબોક્સ અહીં લોડ થશે -->
+        </div>
+
+        <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+            <button class="btn btn-outline" onclick="closeAdminSettingsModal()">બંધ કરો</button>
+        </div>
+    </div>
+</div>
+
+<script>
+         const STORAGE_PREFIX = "bk_";  
+    // ⚠️ અહીં તમારી Firebase માંથી મળેલી Config પેસ્ટ કરો:
+    const firebaseConfig = {
+        apiKey: "AIzaSyA6iJtcv5Uegh0PMQmeoMbM3b8S2sTmOko",
+        authDomain: "party-plot-software.firebaseapp.com",
+        databaseURL: "https://party-plot-software-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "party-plot-software",
+        storageBucket: "party-plot-software.firebasestorage.app",
+        messagingSenderId: "136125878805",
+        appId: "1:136125878805:web:390d7d3427e2ce9750f41c"
+    };
+
+    // Firebase શરૂ કરો (તમારી જૂની સિસ્ટમ મુજબ)
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const dbRef = firebase.database().ref("bookings");
+    
+
+    const farmsRef = firebase.database().ref("farms");
+    let currentFarmId = "";
+    let currentFarmName = "";
+    let currentBookingRef = null; 
+
+     const staffPermRef = firebase.database().ref("staff_permissions"); 
+       // 🔐 Firebase માં એડમિન પાસવર્ડ કાયમી સેવ રાખવા માટેનું કનેક્શન
+    const adminConfigRef = firebase.database().ref("admin_config");
+    let currentAdminPass = "1234"; // ડિફોલ્ટ પાસવર્ડ
+
+    // Firebase માંથી લાઈવ પાસવર્ડ લોડ કરવો અને LocalStorage માં કેશ કરવો
+    adminConfigRef.on('value', (snap) => {
+        let config = snap.val();
+        if (config && config.password) {
+            currentAdminPass = config.password;
+            localStorage.setItem("cached_admin_pass", currentAdminPass);
+        } else {
+            // પહેલીવાર ડેટાબેઝમાં 1234 સેવ કરી લેશે
+            adminConfigRef.set({ password: "1234" });
+            localStorage.setItem("cached_admin_pass", "1234");
+        }
+    });
+    let staffListObj = {}; // તમામ સ્ટાફનો ડેટા
+    let currentStaffConfig = null; // હાલમાં લોગિન થયેલા સ્ટાફની પરવાનગી
+    let canUserEdit = true; // એડિટ કરવાની પરવાનગી છે કે નહીં (લોક સિસ્ટમ)
+
+    let cloudBookings = {};
+    let selectedDateKey = "";
+    let currentUserRole = "";
+    // 🌐 ૧. ઑફલાઇન હોય ત્યારે LocalStorage માંથી ડેટા લોડ કરવો
+    try {
+        let cachedAdmin = localStorage.getItem("cached_admin_pass");
+        if (cachedAdmin) currentAdminPass = cachedAdmin;
+
+        let cachedStaff = localStorage.getItem("cached_staff_list");
+        if (cachedStaff) staffListObj = JSON.parse(cachedStaff);
+    } catch(e) { console.log("Cache Read Error", e); } 
+
+     // 🔄 ઑફલાઇન સિન્ક કતાર (Offline Queue) માં ડેટા ઉમેરવો
+    function addToSyncQueue(actionItem) {
+        let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
+        // જૂની પેન્ડિંગ એન્ટ્રી હોય તો રીપ્લેસ કરવી
+        queue = queue.filter(item => !(item.farmId === actionItem.farmId && item.dateKey === actionItem.dateKey));
+        queue.push(actionItem);
+        localStorage.setItem("offline_sync_queue", JSON.stringify(queue));
+    }
+
+    // 🚀 ઇન્ટરનેટ આવતાં Firebase માં ઓટોમેટિક ડેટા મોકલવાનું ફંક્શન
+    function processSyncQueue() {
+        if (!navigator.onLine) return;
+        let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
+        if (queue.length === 0) return;
+
+        let badge = document.getElementById("networkStatusBadge");
+        if (badge) {
+            badge.innerText = "🔄 સિન્ક થઈ રહ્યું છે...";
+            badge.style.background = "#fef3c7";
+            badge.style.color = "#b45309";
+        }
+
+        let syncPromises = queue.map(item => {
+            let ref = firebase.database().ref("farm_bookings").child(item.farmId).child(item.dateKey);
+            if (item.action === "set") {
+                return ref.set(item.data);
+            } else if (item.action === "remove") {
+                return ref.remove();
+            }
+        });
+
+        Promise.all(syncPromises).then(() => {
+            localStorage.removeItem("offline_sync_queue");
+            if (badge) {
+                badge.innerText = "🟢 ઓનલાઇન (સિન્ક પૂર્ણ)";
+                badge.style.background = "#dcfce7";
+                badge.style.color = "#15803d";
+                setTimeout(updateNetworkStatus, 3000);
+            }
+        }).catch(err => {
+            console.error("Sync error:", err);
+        });
+    }
+
+    // 🌐 ઇન્ટરનેટ સ્ટેટસ અપડેટ
+    function updateNetworkStatus() {
+        let badge = document.getElementById("networkStatusBadge");
+        if (!badge) return;
+        if (navigator.onLine) {
+            badge.innerText = "🟢 ઓનલાઇન";
+            badge.style.background = "#dcfce7";
+            badge.style.color = "#15803d";
+            badge.style.borderColor = "#86efac";
+            processSyncQueue(); // ઇન્ટરનેટ આવતાં જ પેન્ડિંગ ડેટા સિન્ક કરો
+        } else {
+            badge.innerText = "🔴 ઑફલાઇન (કેશ મોડ)";
+            badge.style.background = "#fee2e2";
+            badge.style.color = "#b91c1c";
+            badge.style.borderColor = "#fca5a5";
+        }
+    } 
+      window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    updateNetworkStatus(); // 🚀 પેજ ખુલતાં જ નેટવર્ક ચેક કરો અને પેન્ડિંગ ડેટા સિન્ક કરો
+
+    // સ્ટાફ લિસ્ટ ક્લાઉડમાંથી લાઈવ વાંચવી અને LocalStorage માં સાચવવી
+    staffPermRef.on('value', (snap) => {
+        staffListObj = snap.val() || {};
+        localStorage.setItem("cached_staff_list", JSON.stringify(staffListObj));
+        updateLoginUserDropdown();
+        renderStaffPermissionsUI();
+    });
+
+    // લોગિન સ્ક્રીનમાં સ્ટાફના નામ આપોઆપ લોડ કરવા
+    function updateLoginUserDropdown() {
+        let select = document.getElementById("loginRole");
+        let currentVal = select.value;
+        select.innerHTML = `<option value="admin">Admin (માલિક - પૂરો અધિકાર)</option>`;
+        
+        for (let sId in staffListObj) {
+            let opt = document.createElement("option");
+            opt.value = sId;
+            opt.innerText = `${staffListObj[sId].name} (સ્ટાફ)`;
+            select.appendChild(opt);
+        }
+        select.value = currentVal;
+    }
+
+    // ૧. ક્લાઉડમાંથી ફાર્મનું લિસ્ટ લોડ કરવું
+    farmsRef.on('value', (snapshot) => {
+        let farmsData = snapshot.val();
+        let select = document.getElementById("farmSelect");
+        select.innerHTML = "";
+
+        // જો ડેટાબેઝમાં હજુ કોઈ ફાર્મ ન હોય તો શરૂઆતના ડિફોલ્ટ ફાર્મ ઉમેરવા
+        if (!farmsData) {
+            let defaultFarms = {
+                "farm_1": { name: "સીતારામ વાડી ફાર્મ ૧" },
+                "farm_2": { name: "વિશ્વામિત્ર ફાર્મ ૨" },
+                "farm_3": { name: "તુલસી વન ગ્રીન લોન્સ" }
+            };
+            farmsRef.set(defaultFarms);
+            return;
+        }  
+
+        for (let fId in farmsData) {
+            // જો સ્ટાફ હોય, તો માત્ર પરવાનગી આપેલું ફાર્મ જ ડ્રોપડાઉનમાં બતાવો
+            if (currentUserRole !== 'admin' && currentStaffConfig) {
+                let allowed = currentStaffConfig.allowedFarms || {};
+                if (!allowed[fId]) continue; // પરવાનગી ન હોય તો લિસ્ટમાં ઉમેરવું નહીં
+            }
+
+            let opt = document.createElement("option");
+            opt.value = fId;
+            opt.innerText = farmsData[fId].name;
+            select.appendChild(opt);
+        }
+
+        // જો સ્ટાફને કોઈ ફાર્મની પરવાનગી ન હોય
+        if (select.options.length === 0) {
+            select.innerHTML = `<option value="">(કોઈ ફાર્મની પરવાનગી નથી)</option>`;
+            cloudBookings = {};
+            generateCalendar();
+            return;
+        }
+
+        if (!currentFarmId || !select.querySelector(`option[value="${currentFarmId}"]`)) {
+            currentFarmId = select.options[0].value;
+        }
+        select.value = currentFarmId;
+        currentFarmName = select.options[select.selectedIndex].text;
+        listenToFarmBookings();
+    });
+
+    // ૨. ફાર્મ બદલાય ત્યારે તે ફાર્મનો ડેટા લોડ કરવો
+    function changeFarm() {
+        currentFarmId = document.getElementById("farmSelect").value;
+        let select = document.getElementById("farmSelect");
+        currentFarmName = select.options[select.selectedIndex].text;
+        listenToFarmBookings();
+    }
+
+    function listenToFarmBookings() {
+        if (currentBookingRef) {
+            currentBookingRef.off(); // જૂના ફાર્મનો લિસનર બંધ કરો
+        } 
+         // 💾 જો ઇન્ટરનેટ ન હોય તો પહેલા LocalStorage માંથી ડેટા બતાવો
+        let cached = localStorage.getItem("cached_bookings_" + currentFarmId);
+        if (cached) {
+            try {
+                cloudBookings = JSON.parse(cached);
+                generateCalendar();
+            } catch(e) {}
+        }
+
+        currentBookingRef = firebase.database().ref("farm_bookings").child(currentFarmId);
+        currentBookingRef.on('value', (snapshot) => {
+            cloudBookings = snapshot.val() || {};
+            // ક્લાઉડમાંથી ડેટા મળતા જ LocalStorage માં કેશ કરી લેવો
+            localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
+            generateCalendar();
+        });
+    }
+
+    // ૩. નવું ફાર્મ ઉમેરવાના ફંક્શન્સ
+    function openAddFarmModal() {
+        if (currentUserRole !== 'admin') {
+            alert("માત્ર Admin નવું ફાર્મ ઉમેરી શકે છે!");
+            return;
+        }
+        document.getElementById("newFarmName").value = "";
+        document.getElementById("addFarmModal").style.display = "flex";
+    }
+
+    function closeAddFarmModal() {
+        document.getElementById("addFarmModal").style.display = "none";
+    }
+
+    function saveNewFarm() {
+        let name = document.getElementById("newFarmName").value.trim();
+        if (!name) {
+            alert("કૃપા કરીને ફાર્મનું નામ લખો!");
+            return;
+        }
+        let newRef = farmsRef.push();
+        newRef.set({ name: name }, (error) => {
+            if (!error) {
+                alert(`✅ "${name}" સફળતાપૂર્વક ઉમેરાઈ ગયું છે!`);
+                closeAddFarmModal();
+            }
+        });
+    }
+
+    function handleLoginKey(e) {
+        if (e.key === "Enter") checkLogin();
+    }   
+
+     function checkLogin() {
+        let role = document.getElementById("loginRole").value;
+        let pass = document.getElementById("loginPassword").value;
+        let error = document.getElementById("loginError");
+
+        if (role === "admin") {
+             if (pass === currentAdminPass) {
+                currentUserRole = "admin";
+                canUserEdit = true;
+                currentStaffConfig = null;
+            } else {
+                error.innerText = "❌ ખોટો એડમિન પાસવર્ડ!";
+                return;
+            }
+        } else {
+            // સ્ટાફ લોગિન તપાસવું
+            let staff = staffListObj[role];
+            if (staff && staff.pass === pass) {
+                currentUserRole = role;
+                currentStaffConfig = staff;
+                canUserEdit = staff.canEdit === true; // એડિટ પરવાનગી છે કે લોક છે
+            } else {
+                error.innerText = "❌ ખોટો સ્ટાફ પાસવર્ડ!";
+                return;
+            }
+        }
+
+        sessionStorage.setItem("loggedUserRole", currentUserRole);
+        setupUserView();
+    }
+
+    function setupUserView() {
+        document.getElementById("loginOverlay").style.display = "none";
+        document.getElementById("mainContainer").style.display = "block";
+        
+        let roleDisplay = document.getElementById("currentRoleDisplay"); 
+        if (currentUserRole === "admin") {
+            roleDisplay.innerText = "Admin (માલિક - પૂરો અધિકાર)";
+            roleDisplay.className = "user-pill pill-admin";
+            document.getElementById("clearAllBtn").style.display = "inline-flex";
+            document.getElementById("adminFarmBtnArea").style.display = "block";
+            document.getElementById("adminPermBtn").style.display = "inline-flex";
+        } else {
+            let lockText = canUserEdit ? "🔓 એડિટ પરવાનગી સાથે" : "🔒 માત્ર જોવા માટે (Locked)";
+            roleDisplay.innerText = `${currentStaffConfig.name} [${lockText}]`;
+            roleDisplay.className = "user-pill pill-staff";
+            document.getElementById("clearAllBtn").style.display = "none";
+            document.getElementById("adminFarmBtnArea").style.display = "none";
+            document.getElementById("adminPermBtn").style.display = "none"; // સ્ટાફથી બટન છુપાવવું
+        }
+
+        // ફાર્મ ડ્રોપડાઉન રીફ્રેશ કરવું (માત્ર પરવાનગી વાળા ફાર્મ બતાવવા માટે)
+        farmsRef.once('value', (snap) => {
+            let farmsData = snap.val() || {};
+            let select = document.getElementById("farmSelect");
+            select.innerHTML = "";
+            for (let fId in farmsData) {
+                if (currentUserRole !== 'admin' && currentStaffConfig) {
+                    let allowed = currentStaffConfig.allowedFarms || {};
+                    if (!allowed[fId]) continue;
+                }
+                let opt = document.createElement("option");
+                opt.value = fId;
+                opt.innerText = farmsData[fId].name;
+                select.appendChild(opt);
+            }
+            if (select.options.length > 0) {
+                currentFarmId = select.options[0].value;
+                currentFarmName = select.options[0].text;
+                listenToFarmBookings();
+            } else {
+                cloudBookings = {};
+                generateCalendar();
+            }
+        });
+
+        populateYears();
+        goToToday();
+    }
+
+    function logout() {
+        sessionStorage.removeItem("loggedUserRole");
+        location.reload();
+    }
+
+    function populateYears() {
+        const yearSelect = document.getElementById("yearSelect");
+        const filterYear = document.getElementById("filterYear");
+        const currentYear = new Date().getFullYear();
+        yearSelect.innerHTML = "";
+        filterYear.innerHTML = `<option value="">બધા વર્ષ</option>`;
+
+        for (let y = currentYear - 1; y <= currentYear + 8; y++) {
+            let opt1 = document.createElement("option");
+            opt1.value = y;
+            opt1.innerText = y;
+            if (y === currentYear) opt1.selected = true;
+            yearSelect.appendChild(opt1);
+
+            let opt2 = document.createElement("option");
+            opt2.value = y;
+            opt2.innerText = y;
+            filterYear.appendChild(opt2);
+        }
+    }
+
+    function goToToday() {
+        const now = new Date();
+        document.getElementById("yearSelect").value = now.getFullYear();
+        document.getElementById("monthSelect").value = now.getMonth();
+        generateCalendar();
+    }
+
+    function generateCalendar() {
+        const year = parseInt(document.getElementById("yearSelect").value);
+        const month = parseInt(document.getElementById("monthSelect").value);
+        const grid = document.getElementById("daysGrid");
+        grid.innerHTML = "";
+
+        const firstDayIndex = new Date(year, month, 1).getDay(); // વાર (0 = રવિવાર)
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // આગલા મહિનાની ખાલી જગ્યાઓ (Empty slots before day 1)
+        for (let x = 0; x < firstDayIndex; x++) {
+            const emptyCell = document.createElement("div");
+            emptyCell.className = "day-box empty-slot";
+            grid.appendChild(emptyCell);
+        }
+
+        // મહિનાના બધા દિવસો
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayBox = document.createElement("div");
+            dayBox.className = "day-box";
+            
+            let dateKey = `${STORAGE_PREFIX}${year}_${String(month + 1).padStart(2, '0')}_${String(day).padStart(2, '0')}`; 
+             // Firebase ક્લાઉડમાંથી તે તારીખનો ડેટા લેવો
+            let data = cloudBookings[dateKey];
+
+            if (data) {
+                dayBox.classList.add(data.status);
+
+                let label = 'બાકી';
+                if (data.status === 'paid') label = 'ચૂકવાયેલ';
+                else if (data.status === 'ok') label = 'ઓકે/બરાબર';
+                dayBox.innerHTML = `<span>${day}</span><span class="day-subtext">${label}</span>`;
+            } else {
+                dayBox.classList.add("available");
+                dayBox.innerHTML = `<span>${day}</span><span class="day-subtext">ઉપલબ્ધ</span>`;
+            }
+
+            dayBox.onclick = () => openModal(year, month + 1, day);
+            grid.appendChild(dayBox);
+        }
+        filterData();
+    }
+
+    function changeCalendar() { generateCalendar(); }
+
+    function prevMonth() {
+        let m = document.getElementById("monthSelect");
+        let y = document.getElementById("yearSelect");
+        let currentM = parseInt(m.value);
+        if (currentM > 0) {
+            m.value = currentM - 1;
+        } else {
+            m.value = 11;
+            y.value = parseInt(y.value) - 1;
+        }
+        generateCalendar();
+    }
+
+    function nextMonth() {
+        let m = document.getElementById("monthSelect");
+        let y = document.getElementById("yearSelect");
+        let currentM = parseInt(m.value);
+        if (currentM < 11) {
+            m.value = currentM + 1;
+        } else {
+            m.value = 0;
+            y.value = parseInt(y.value) + 1;
+        }
+        generateCalendar();
+    }
+
+    let currentPaymentsList = [];
+
+    function calculateBalance() {
+        let total = parseFloat(document.getElementById("totalAmount").value) || 0;
+        let totalPaid = currentPaymentsList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+        
+        document.getElementById("advanceAmount").value = totalPaid;
+        let balance = Math.max(0, total - totalPaid);
+        document.getElementById("balanceAmount").value = balance;
+
+        let statusSelect = document.getElementById("bookingStatus");
+        if (total > 0 && balance === 0) {
+            statusSelect.value = "paid";
+        } else if (total > 0 && balance > 0) {
+            statusSelect.value = "pending";
+        }
+    }
+
+    function renderPaymentHistory() {
+        let tbody = document.getElementById("paymentHistoryBody");
+        tbody.innerHTML = "";
+
+        if (currentPaymentsList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:8px; color:#94a3b8;">હજુ સુધી કોઈ પેમેન્ટ મળ્યું નથી.</td></tr>`;
+            calculateBalance();
+            return;
+        }
+
+        currentPaymentsList.forEach((pay, idx) => {
+            let row = `<tr>
+                <td style="padding:6px;">${pay.date}</td>
+                <td style="padding:6px; font-weight:600; color:#16a34a;">₹${parseFloat(pay.amount).toLocaleString('en-IN')}</td>
+                <td style="padding:6px; text-align:center;">   
+                       ${canUserEdit ? `<button type="button" onclick="removePayment(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;">❌</button>` : `<span style="color:#94a3b8;">🔒</span>`}
+                </td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        calculateBalance();
+    }
+
+    function addNewPayment() {
+        let amountInput = document.getElementById("newPaymentAmount");
+        let dateInput = document.getElementById("newPaymentDate");
+        let amt = parseFloat(amountInput.value);
+        let dateVal = dateInput.value;
+
+        if (!amt || amt <= 0) {
+            alert("કૃપા કરીને માન્ય રકમ દાખલ કરો!");
+            return;
+        }
+        if (!dateVal) {
+            alert("કૃપા કરીને પેમેન્ટની તારીખ પસંદ કરો!");
+            return;
+        }
+
+        // તારીખને DD/MM/YYYY ફોર્મેટમાં ફેરવો
+        let parts = dateVal.split("-");
+        let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+        currentPaymentsList.push({ amount: amt, date: formattedDate });
+        amountInput.value = "";
+        renderPaymentHistory();
+    }
+
+    function removePayment(index) {
+        currentPaymentsList.splice(index, 1);
+        renderPaymentHistory();
+    }
+
+    function openModal(year, month, day) {
+        selectedDateKey = `${STORAGE_PREFIX}${year}_${String(month).padStart(2, '0')}_${String(day).padStart(2, '0')}`;
+        document.getElementById("modalDateDisplay").innerText = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+        
+        // પેમેન્ટ તારીખમાં આજની તારીખ બાય-ડિફોલ્ટ સેટ કરો
+        document.getElementById("newPaymentDate").value = new Date().toISOString().slice(0, 10);
+        document.getElementById("newPaymentAmount").value = ""; 
+
+         // ક્લાઉડ ડેટામાંથી વિગત લોડ કરવી
+        let data = cloudBookings[selectedDateKey];
+        if (data) {
+            document.getElementById("customerName").value = data.customerName || "";
+            document.getElementById("mobile").value = data.mobile || "";
+            document.getElementById("event").value = data.event || "";
+            document.getElementById("guests").value = data.guests || "";
+            document.getElementById("totalAmount").value = data.totalAmount || "";
+            document.getElementById("bookingStatus").value = data.status || "pending";
+            
+            if (data.payments && Array.isArray(data.payments)) {
+                currentPaymentsList = [...data.payments];
+            } else if (data.advanceAmount > 0) {
+                currentPaymentsList = [{ amount: data.advanceAmount, date: document.getElementById("modalDateDisplay").innerText }];
+            } else {
+                currentPaymentsList = [];
+            }
+        } else {
+            document.getElementById("customerName").value = "";
+            document.getElementById("mobile").value = "";
+            document.getElementById("event").value = "";
+            document.getElementById("guests").value = "";
+            document.getElementById("totalAmount").value = "";
+            document.getElementById("bookingStatus").value = "pending";
+            currentPaymentsList = [];
+        }
+
+        renderPaymentHistory();
+        document.getElementById("bookingModal").style.display = "flex";
+        // લોક સિસ્ટમ સક્રિય કરો (જો પરવાનગી ન હોય તો ફોર્મ અને સેવ બટન લોક થઈ જશે)
+        applyLockSystemToModal();
+    }   
+
+        // લોક સિસ્ટમ: પરવાનગી ન હોય તો ફોર્મ લોક કરવું
+    function applyLockSystemToModal() {
+        const fields = ["customerName", "mobile", "event", "guests", "totalAmount", "bookingStatus", "newPaymentAmount", "newPaymentDate"];
+        fields.forEach(fId => {
+            let el = document.getElementById(fId);
+            if (el) el.disabled = !canUserEdit; // જો એડિટ પરવાનગી ન હોય તો ડિસેબલ
+        });
+
+        // સેવ બટન અને એડ પેમેન્ટ બટન છુપાવવું અથવા લોક કરવું
+        let saveBtn = document.querySelector("#bookingModal button[onclick='saveBooking()']");
+        //let saveBtn = document.querySelector("#bookingModal .btn-success");
+        if (saveBtn) saveBtn.style.display = canUserEdit ? "flex" : "none";
+
+        let addPayBtn = document.querySelector("#bookingModal button[onclick='addNewPayment()']");
+        if (addPayBtn) addPayBtn.style.display = canUserEdit ? "inline-flex" : "none";
+    }
+
+    function closeModal() {
+        document.getElementById("bookingModal").style.display = "none";
+    }
+
+    function saveBooking() {
+        let name = document.getElementById("customerName").value.trim();
+        let status = document.getElementById("bookingStatus").value;   
+
+       // જો રદ કરે કે નામ ખાલી હોય તો લોકલ અને ક્લાઉડ બંનેમાંથી હટાવો
+        if (status === "available" || name === "") {
+            delete cloudBookings[selectedDateKey];
+            localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
+            generateCalendar();
+
+            if (navigator.onLine && currentBookingRef) {
+                currentBookingRef.child(selectedDateKey).remove();
+            } else {
+                addToSyncQueue({ action: "remove", farmId: currentFarmId, dateKey: selectedDateKey });
+            }
+            closeModal();
+            return;
+        }
+
+        let mobile = document.getElementById("mobile").value.trim();
+        let event = document.getElementById("event").value.trim();
+        let guests = document.getElementById("guests").value.trim();
+        let totalAmount = parseFloat(document.getElementById("totalAmount").value) || 0;
+        let advanceAmount = currentPaymentsList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+        let balanceAmount = Math.max(0, totalAmount - advanceAmount);
+
+        let bookingData = {
+            dateKey: selectedDateKey,
+            customerName: name,
+            mobile,
+            event,
+            guests, 
+            farmName: currentFarmName,
+            totalAmount,
+            advanceAmount,
+            balanceAmount,
+            payments: currentPaymentsList,
+            status
+        };
+
+        // ૧. તુરંત સ્ક્રીન અને LocalStorage પર સેવ કરી લો (ઇન્ટરનેટ ન હોય તો પણ દેખાશે)
+        cloudBookings[selectedDateKey] = bookingData;
+        localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
+        generateCalendar();
+
+        // ૨. જો ઇન્ટરનેટ હોય તો સીધું Firebase માં, નહીં તો કતાર (Queue) માં ઉમેરો
+        if (navigator.onLine && currentBookingRef) {
+            currentBookingRef.child(selectedDateKey).set(bookingData);
+        } else {
+            addToSyncQueue({ action: "set", farmId: currentFarmId, dateKey: selectedDateKey, data: bookingData });
+        }
+        closeModal();
+    }
+
+    // 📲 WhatsApp મેસેજ મોકલવા માટેનું ફંક્શન
+    function sendWhatsAppReceipt() {
+        let name = document.getElementById("customerName").value.trim();
+        let mobile = document.getElementById("mobile").value.trim();
+        let event = document.getElementById("event").value.trim() || "ઇવેન્ટ";
+        let date = document.getElementById("modalDateDisplay").innerText;
+        let total = parseFloat(document.getElementById("totalAmount").value) || 0;
+        let balance = parseFloat(document.getElementById("balanceAmount").value) || 0;
+
+        if (!mobile || mobile.length < 10) {
+            alert("કૃપા કરીને સાચો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો!");
+            return;
+        }
+
+        let cleanMobile = mobile.replace(/[^0-9]/g, '');
+        if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile; 
+
+        let msg = `નમસ્તે ${name}, તમારું ${event} માટેનું બુકિંગ (${currentFarmName}) તારીખ ${date} માટે કન્ફર્મ થયું છે. કુલ રકમ: ₹${total.toLocaleString('en-IN')}, બાકી રકમ: ₹${balance.toLocaleString('en-IN')}. આભાર!`;
+        window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
+    }
+
+      // 💾 ૧. બેકઅપ ફોન મેમરીમાં ડાઉનલોડ થશે
+    function downloadBackupJSON() {
+        if (!cloudBookings || Object.keys(cloudBookings).length === 0) {
+            alert("બેકઅપ લેવા માટે ક્લાઉડમાં કોઈ ડેટા નથી!");
+            return;
+        }
+
+        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cloudBookings, null, 2));
+        let now = new Date();
+        let timeStamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+        
+        let dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", `Booking_Backup_${timeStamp}.json`);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        dlAnchor.remove();
+    }
+
+    // 📂 ૨. ફોનમાંથી ફાઈલ પસંદ કરી ક્લાઉડ (Firebase) માં રિસ્ટોર થશે
+    function handleRestoreJSON(event) {
+        if (currentUserRole !== 'admin') {
+            alert("માત્ર Admin પાસે બેકઅપ રિસ્ટોર કરવાનો અધિકાર છે!");
+            return;
+        }
+
+        let file = event.target.files[0];
+        if (!file) return;
+
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let data = JSON.parse(e.target.result); 
+                // પસંદ કરેલા ફાર્મમાં સંપૂર્ણ ડેટા ઓવરરાઈટ અપડેટ
+                currentBookingRef.set(data, function(error) {
+                    if (error) {
+                        alert("❌ ક્લાઉડમાં ડેટા સેવ કરવામાં ભૂલ થઈ!");
+                    } else {
+                        alert(`✅ સફળતાપૂર્વક બેકઅપ "${currentFarmName}" માં રિસ્ટોર થઈ ગયું છે! બધા ૨૦ યુઝર્સને હવે આ દેખાશે.`);
+                    }
+                });
+            } catch (err) {
+                alert("❌ ફાઇલ વાંચવામાં ભૂલ! કૃપા કરીને સાચી બેકઅપ ફાઇલ પસંદ કરો.");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = "";
+    }
+
+    function printInvoice() {
+        let name = document.getElementById("customerName").value || "N/A";
+        let mobile = document.getElementById("mobile").value || "N/A";
+        let event = document.getElementById("event").value || "જનરલ ઇવેન્ટ";
+        let date = document.getElementById("modalDateDisplay").innerText;
+        let total = parseFloat(document.getElementById("totalAmount").value) || 0;
+        let advance = parseFloat(document.getElementById("advanceAmount").value) || 0;
+        let balance = Math.max(0, total - advance);
+
+        let printWindow = window.open('', '_blank', 'width=750,height=600');
+        if (!printWindow) {
+            alert("કૃપા કરીને બ્રાઉઝરમાં પોપ-અપ (Pop-up) ની પરવાનગી (Allow) આપો!");
+            return;
+        }
+
+        // ૪-૫ વાર મળેલા તમામ હપ્તાઓની યાદી રસીદમાં ઉમેરવા માટે
+        let paymentBreakdown = "";
+        if (currentPaymentsList && currentPaymentsList.length > 0) {
+            currentPaymentsList.forEach((pay, i) => {
+                paymentBreakdown += `<tr>
+                    <td style="padding-left:20px; color:#16a34a;">↳ જમા હપ્તો #${i + 1} (${pay.date})</td>
+                    <td style="text-align:right; color:#16a34a;">(-) ₹${parseFloat(pay.amount).toLocaleString('en-IN')}</td>
+                </tr>`;
+            });
+        } else {
+            paymentBreakdown = `<tr><td style="padding-left:20px; color:#64748b;">(હજુ કોઈ એડવાન્સ મળેલ નથી)</td><td style="text-align:right;">₹0</td></tr>`;
+        }
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>બુકિંગ રસીદ - ${name}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 30px; color: #333; }
+                    .invoice-card { border: 2px solid #333; padding: 25px; border-radius: 8px; max-width: 650px; margin: auto; }
+                    .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 12px; margin-bottom: 20px; }
+                    .header h1 { margin: 0; color: #4f46e5; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                    td, th { padding: 9px 10px; border: 1px solid #ddd; text-align: left; }
+                    th { background-color: #f3f4f6; }
+                    .footer { margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+                </style>
+            </head>
+            <body>
+                <div class="invoice-card">    
+                     <div class="header">
+                        <h1 style="color:#4f46e5; margin:0 0 6px 0;">${currentFarmName}</h1>
+                        <h3 style="margin:0; color:#64748b; font-size:16px;">ઓફિશિયલ બુકિંગ પહોંચ (RECEIPT)</h3>
+                        <p style="margin:6px 0 0 0;">ઇવેન્ટ તારીખ: <b>${date}</b></p>
+                    </div>
+                    <p><b>ગ્રાહકનું નામ:</b> ${name}</p>
+                    <p><b>મોબાઈલ નંબર:</b> ${mobile}</p>
+                    <p><b>ઇવેન્ટ વિગત:</b> ${event}</p>
+                    <table>
+                        <thead>
+                            <tr><th>વિગત / પેમેન્ટ હિસ્ટ્રી</th><th style="text-align:right;">રકમ (₹)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr style="font-weight:bold; background:#f9fafb;">
+                                <td>કુલ પેકેજ રકમ</td>
+                                <td style="text-align:right;">₹${total.toLocaleString('en-IN')}</td>
+                            </tr>
+                            ${paymentBreakdown}
+                            <tr style="font-weight:bold; background:#f0fdf4;">
+                                <td>કુલ જમા મળેલ રકમ</td>
+                                <td style="text-align:right; color:#16a34a;">₹${advance.toLocaleString('en-IN')}</td>
+                            </tr>
+                            <tr style="font-weight:bold; background:#fef2f2;">
+                                <td>ચૂકવવાપાત્ર બાકી રકમ (Due Balance)</td>
+                                <td style="text-align:right; color:#dc2626; font-size:16px;">₹${balance.toLocaleString('en-IN')}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <div><p>આપનો ખૂબ ખૂબ આભાર!</p></div>
+                        <div style="text-align:center;"><p>__________________<br>અધિકૃત સહી / સ્ટેમ્પ</p></div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    }    
+
+    // ૧. ક્લાઉડ (Firebase) માંથી તમામ બુકિંગ્સ વાંચવા
+    function getAllBookings() {
+        let bookings = [];
+        for (let key in cloudBookings) {
+            let item = cloudBookings[key];
+            if (item && item.customerName) {
+                bookings.push(item);
+            }
+        }
+        // તારીખ મુજબ ગોઠવણી (Sort by date)
+        bookings.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+        return bookings;
+    }
+
+    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ
+    function filterData() {
+        const tbody = document.getElementById("bookingTableBody");
+        tbody.innerHTML = "";
+        
+        let fYear = document.getElementById("filterYear").value;
+        let fMonth = document.getElementById("filterMonth").value;
+        let fStatus = document.getElementById("filterStatus").value;
+        let search = document.getElementById("searchInput").value.toLowerCase().trim();
+
+        let all = getAllBookings();
+        let totalCount = 0;
+        let sumTotal = 0;
+        let sumBalance = 0;
+        let monthCounts = {};
+
+        all.forEach((item, index) => {
+            // key format: bk_YYYY_MM_DD
+            let parts = item.dateKey.replace(STORAGE_PREFIX, "").split("_");
+            let y = parts[0];
+            let m = String(parseInt(parts[1]) - 1); // 0-indexed month
+            let d = parts[2];
+
+            monthCounts[m] = (monthCounts[m] || 0) + 1;
+
+            if (fYear && y !== fYear) return;
+            if (fMonth !== "" && m !== fMonth) return;
+            if (fStatus && item.status !== fStatus) return;
+            if (search && !item.customerName.toLowerCase().includes(search) && !item.mobile.includes(search)) return;
+
+            totalCount++;
+            sumTotal += parseFloat(item.totalAmount || 0);
+            sumBalance += parseFloat(item.balanceAmount || 0);
+
+            let statusLabel = '<span class="status-badge badge-pending">બાકી (Pending)</span>';
+            if (item.status === "paid") {
+                statusLabel = '<span class="status-badge badge-paid">પૂર્ણ (Paid)</span>';
+            } else if (item.status === "ok") {
+                statusLabel = '<span class="status-badge badge-ok">ઓકે (OK)</span>';
+            }
+
+            // લિસ્ટમાંથી સીધું પેમેન્ટ જમા કરવા માટેનું બટન
+            let editBtn = `<button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="openModal(${y}, ${parseInt(m) + 1}, ${parseInt(d)})">✏️ પેમેન્ટ</button>`;
+
+            let deleteBtn = currentUserRole === 'admin'
+                ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="deleteBooking('${item.dateKey}')">ડિલીટ</button>`
+                : `<span style="color:#94a3b8; font-size:12px;">અધિકાર નથી</span>`;
+
+            let row = `
+                <tr>
+                    <td>${totalCount}</td>
+                    <td><b>${d}/${parts[1]}/${y}</b></td>
+                    <td>${item.customerName}</td>
+                    <td>${item.mobile}</td>
+                    <td>${item.event || '-'}</td>
+                    <td>${item.guests || '-'}</td>
+                    <td>₹${(item.totalAmount || 0).toLocaleString('en-IN')}</td>
+                    <td>₹${(item.advanceAmount || 0).toLocaleString('en-IN')}</td>
+                    <td style="color:${item.balanceAmount > 0 ? '#ef4444' : '#10b981'}; font-weight:700;">₹${(item.balanceAmount || 0).toLocaleString('en-IN')}</td>
+                    <td>${statusLabel}</td>
+                    <td style="white-space:nowrap;">${editBtn}${deleteBtn}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+        if (totalCount === 0) {
+            tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ બુકિંગ મળ્યું નથી.</td></tr>`;
+        }
+
+        document.getElementById("totalBookingCount").innerText = totalCount;
+        document.getElementById("totalAmountSum").innerText = "₹" + sumTotal.toLocaleString('en-IN');
+        document.getElementById("totalBalanceSum").innerText = "₹" + sumBalance.toLocaleString('en-IN');
+
+        const monthNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let peakText = "-";
+        let maxBookings = 0;
+        for (let mKey in monthCounts) {
+            if (monthCounts[mKey] > maxBookings) {
+                maxBookings = monthCounts[mKey];
+                peakText = `${monthNames[mKey]} (${maxBookings} બુકિંગ)`;
+            }
+        }
+        document.getElementById("peakMonthDisplay").innerText = peakText;
+    }
+
+    // ૩. ક્લાઉડ (Firebase) માંથી કાયમ માટે ડિલીટ કરવા (મેમરી સાફ રહે)
+    function deleteBooking(key) { 
+             if (currentUserRole !== 'admin') {
+            alert("માત્ર Admin પાસે ડેટા ડિલીટ કરવાનો અધિકાર છે!");
+            return;
+        }
+        if (confirm("શું તમે આ બુકિંગ કાયમ માટે ડિલીટ કરવા માંગો છો?")) {
+            // લોકલ સ્ક્રીનમાંથી તુરંત હટાવો
+            delete cloudBookings[key];
+            localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
+            generateCalendar();
+
+            if (navigator.onLine && currentBookingRef) {
+                currentBookingRef.child(key).remove();
+            } else {
+                addToSyncQueue({ action: "remove", farmId: currentFarmId, dateKey: key });
+            }
+        }
+    }
+
+    // ૪. ક્લાઉડ (Firebase) માંથી તમામ ૨૦ યુઝર્સ માટે ડેટા સાફ કરવા
+    function clearAllData() {
+        if (currentUserRole !== 'admin') return;
+        if (confirm(`ચેતવણી: આનાથી "${currentFarmName}" નો બધો જ ડેટા ભૂંસાઈ જશે! શું તમે આગળ વધવા માંગો છો?`)) {
+            currentBookingRef.remove();
+        }
+    }
+
+    function exportExcel() {
+        let bookings = getAllBookings();
+        if (bookings.length === 0) {
+            alert("એક્સપોર્ટ કરવા માટે કોઈ ડેટા નથી!");
+            return;
+        }
+
+        let csv = "\uFEFFતારીખ,કસ્ટમરનું નામ,મોબાઈલ,ઇવેન્ટ,મહેમાનો,કુલ રકમ,એડવાન્સ,બાકી રકમ,સ્ટેટસ\n";
+        bookings.forEach(b => {
+            let parts = b.dateKey.replace(STORAGE_PREFIX, "").split("_");
+            let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            csv += `"${formattedDate}","${b.customerName}","${b.mobile}","${b.event}","${b.guests}","${b.totalAmount}","${b.advanceAmount}","${b.balanceAmount}","${b.status}"\n`;
+        });
+
+        let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        let link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Booking_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+    } 
+
+    // 🔒 Admin Password Modal
+    function openAdminSettingsModal() {
+        document.getElementById("adminVerifyPass").value = "";
+        document.getElementById("adminVerifyError").innerText = "";
+        document.getElementById("adminPassPromptModal").style.display = "flex";
+    } 
+
+     function verifyAdminPass() {
+        let p = document.getElementById("adminVerifyPass").value;
+        if (p === currentAdminPass) {
+            document.getElementById("adminPassPromptModal").style.display = "none";
+            document.getElementById("adminSettingsModal").style.display = "flex";
+            renderStaffPermissionsUI();
+        } else {
+            document.getElementById("adminVerifyError").innerText = "❌ ખોટો એડમિન પાસવર્ડ!";
+        }
+    }
+
+    // 💾 Firebase માં એડમિન પાસવર્ડ કાયમ માટે બદલવાનું ફંક્શન
+    function changeAdminPassword() {
+        let oldP = document.getElementById("adminOldPass").value.trim();
+        let newP = document.getElementById("adminNewPass").value.trim();
+
+        if (!oldP || !newP) {
+            alert("કૃપા કરીને જૂનો અને નવો બંને પાસવર્ડ દાખલ કરો!");
+            return;
+        }
+        if (oldP !== currentAdminPass) {
+            alert("❌ જૂનો પાસવર્ડ ખોટો છે! સાચો પાસવર્ડ નાખો.");
+            return;
+        }
+        if (newP.length < 3) {
+            alert("નવો પાસવર્ડ ઓછામાં ઓછો 3 અક્ષરનો રાખો!");
+            return;
+        }
+
+        // Firebase માં કાયમ માટે સેવ થશે
+        adminConfigRef.child("password").set(newP, (error) => {
+            if (!error) {
+                currentAdminPass = newP;
+                document.getElementById("adminOldPass").value = "";
+                document.getElementById("adminNewPass").value = "";
+                alert("✅ એડમિન પાસવર્ડ સફળતાપૂર્વક Firebase માં સેવ થઈ ગયો છે! હવે આ નવો પાસવર્ડ જ ચાલશે.");
+            } else {
+                alert("❌ ક્લાઉડમાં પાસવર્ડ સેવ કરવામાં ભૂલ થઈ!");
+            }
+        });
+    }
+
+    // 👤 સ્ટાફનો પાસવર્ડ બદલવાનું ફંક્શન
+    function changeStaffPasswordPrompt(sId, name) {
+        let newP = prompt(`સ્ટાફ "${name}" માટે નવો પાસવર્ડ દાખલ કરો:`);
+        if (newP !== null && newP.trim() !== "") {
+            staffPermRef.child(sId).child("pass").set(newP.trim(), (err) => {
+                if (!err) {
+                    alert(`✅ સ્ટાફ "${name}" નો પાસવર્ડ Firebase માં અપડેટ થઈ ગયો છે!`);
+                }
+            });
+        }
+    }
+
+    function closeAdminSettingsModal() {
+        document.getElementById("adminSettingsModal").style.display = "none";
+    }
+
+    // નવો સ્ટાફ ઉમેરવો
+    function addNewStaffUser() {
+        let name = document.getElementById("newStaffName").value.trim();
+        let pass = document.getElementById("newStaffPass").value.trim();
+        if (!name || !pass) {
+            alert("કૃપા કરીને સ્ટાફનું નામ અને પાસવર્ડ લખો!");
+            return;
+        }
+
+        let newStaffId = "staff_" + Date.now();
+        staffPermRef.child(newStaffId).set({
+            name: name,
+            pass: pass,
+            canEdit: false, // બાય-ડિફોલ્ટ લોક (માત્ર વાંચવા માટે)
+            allowedFarms: {}
+        }, () => {
+            document.getElementById("newStaffName").value = "";
+            document.getElementById("newStaffPass").value = "";
+            alert(`✅ ${name} સફળતાપૂર્વક ઉમેરાઈ ગયા! હવે તેમના ફાર્મ પર ટીક કરો.`);
+        });
+    }
+
+    // સ્ટાફ ડિલીટ કરવો
+    function deleteStaffUser(sId, name) {
+        if (confirm(`શું તમે સ્ટાફ "${name}" ને હટાવવા માંગો છો?`)) {
+            staffPermRef.child(sId).remove();
+        }
+    }
+
+    // એડિટ પરવાનગી (Lock System Checkbox) ટોગલ
+    function toggleStaffEditPerm(sId, isChecked) {
+        staffPermRef.child(sId).child("canEdit").set(isChecked);
+    }
+
+    // ફાર્મ પરવાનગી ચેકબોક્સ ટોગલ
+    function toggleFarmPerm(sId, fId, isChecked) {
+        if (isChecked) {
+            staffPermRef.child(sId).child("allowedFarms").child(fId).set(true);
+        } else {
+            staffPermRef.child(sId).child("allowedFarms").child(fId).remove();
+        }
+    }
+
+    // સ્ટાફ અને ફાર્મ ચેકબોક્સ UI રેન્ડર કરવું
+    function renderStaffPermissionsUI() {
+        let container = document.getElementById("staffPermissionsList");
+        if (!container) return;
+        container.innerHTML = "";
+
+        if (Object.keys(staffListObj).length === 0) {
+            container.innerHTML = `<p style="text-align:center; color:#94a3b8; padding:20px;">હજુ સુધી કોઈ સ્ટાફ ઉમેરેલ નથી. ઉપરથી નવો સ્ટાફ ઉમેરો.</p>`;
+            return;
+        }
+
+        farmsRef.once('value', (fSnap) => {
+            let allFarms = fSnap.val() || {};
+
+            for (let sId in staffListObj) {
+                let staff = staffListObj[sId];
+                let allowed = staff.allowedFarms || {};
+
+                // દરેક ફાર્મના ચેકબોક્સ
+                let farmCheckboxesHTML = "";
+                for (let fId in allFarms) {
+                    let isChecked = allowed[fId] === true ? "checked" : "";
+                    farmCheckboxesHTML += `
+                        <label style="font-size:12px; display:inline-flex; align-items:center; gap:5px; background:#fff; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer;">
+                            <input type="checkbox" ${isChecked} onchange="toggleFarmPerm('${sId}', '${fId}', this.checked)">
+                            🏰 ${allFarms[fId].name}
+                        </label>
+                    `;
+                }
+
+                let card = document.createElement("div");
+                card.style = "background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px;";
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:8px;">
+                        <div> 
+                                <b style="font-size:14px; color:#1e293b;">👤 ${staff.name}</b>
+                            <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px; margin-left:8px;" onclick="changeStaffPasswordPrompt('${sId}', '${staff.name}')">🔑 પાસવર્ડ બદલો</button>
+                        </div>
+                        <button class="btn btn-danger" style="padding:3px 8px; font-size:11px;" onclick="deleteStaffUser('${sId}', '${staff.name}')">🗑 કાઢી નાખો</button>
+                    </div>
+
+                    <!-- 🔒 Lock System Toggle Checkbox -->
+                    <div style="margin-bottom:8px; background:${staff.canEdit ? '#ecfdf5' : '#fef2f2'}; border:1px solid ${staff.canEdit ? '#a7f3d0' : '#fecaca'}; padding:6px 10px; border-radius:6px;">
+                        <label style="font-size:12.5px; font-weight:700; color:${staff.canEdit ? '#047857' : '#b91c1c'}; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" ${staff.canEdit ? 'checked' : ''} onchange="toggleStaffEditPerm('${sId}', this.checked)">
+                            ${staff.canEdit ? '🔓 ડેટા એડિટ પરવાનગી ચાલુ છે (બુકિંગ/પેમેન્ટ કરી શકશે)' : '🔒 લોક સિસ્ટમ સક્રિય છે (માત્ર ડેટા જોઈ શકશે, એડિટ નહિ થાય)'}
+                        </label>
+                    </div>
+
+                    <!-- 🏰 ફાર્મ પરવાનગી Checkboxes -->
+                    <div>
+                        <span style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:4px;">જોવા માટે માન્ય ફાર્મ (ટીક કરો):</span>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${farmCheckboxesHTML || '<span style="font-size:11px; color:#94a3b8;">કોઈ ફાર્મ ઉપલબ્ધ નથી</span>'}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        });
+    }
+
+
+    // પેજ લોડ વખતે જો પહેલેથી સેશન હોય તો સાચી પરવાનગી સાથે ખુલે
+    window.onload = function() {
+        let savedRole = sessionStorage.getItem("loggedUserRole");
+        if (savedRole) {
+            currentUserRole = savedRole;
+            if (currentUserRole === "admin") {
+                canUserEdit = true;
+                currentStaffConfig = null;
+                setupUserView();
+            } else {
+                // સ્ટાફ હોય તો ક્લાઉડમાંથી તેની પરવાનગી લોડ થયા પછી જ સ્ક્રીન ખોલો
+                staffPermRef.once('value', (snap) => {
+                    staffListObj = snap.val() || {};
+                    let staff = staffListObj[currentUserRole];
+                    if (staff) {
+                        currentStaffConfig = staff;
+                        canUserEdit = staff.canEdit === true;
+                        setupUserView();
+                    } else {
+                        logout();
+                    }
+                });
+            }
+        }
+    };
+</script>
+
+</body>
+</html>
