@@ -458,7 +458,7 @@
             <div>
                 <span style="font-size:11px; color:#475569; display:block;">કુલ પગાર</span>
                 <b id="stripSalary" style="color:#4f46e5; font-size:15px;">₹0</b>
-            </div>
+            </div>   
             <div>
                 <span style="font-size:11px; color:#475569; display:block;">કુલ ઉપાડ</span>
                 <b id="stripUpad" style="color:#ef4444; font-size:15px;">₹0</b>
@@ -469,15 +469,30 @@
             </div>
         </div>
 
-        <!-- Add Upad Form -->
+            <!-- Add Upad Form (Cash / Cheque / GPay & Time સાથે) -->
         <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px;">
-            <b style="font-size:13px; color:#b45309; display:block; margin-bottom:6px;">➕ નવો ઉપાડ (Advance) આપો:</b>
-            <div style="display:grid; grid-template-columns:1fr 1.2fr auto; gap:6px; align-items:center;">
-                <input type="number" id="newUpadAmount" class="form-control" placeholder="રકમ (₹)">
-                <input type="date" id="newUpadDate" class="form-control">
-                <button type="button" class="btn btn-danger" onclick="addWorkerUpad()" style="padding:9px 12px; white-space:nowrap;">- ઉપાડ આપો</button>
+            <b style="font-size:13px; color:#b45309; display:block; margin-bottom:8px;">➕ નવો ઉપાડ (Advance) આપો:</b>
+            
+            <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap:6px; margin-bottom:6px;">
+                <input type="number" id="newUpadAmount" class="form-control" placeholder="રકમ (₹) *">
+                <input type="date" id="newUpadDate" class="form-control" title="તારીખ">
+                <input type="time" id="newUpadTime" class="form-control" title="સમય">
             </div>
-            <input type="text" id="newUpadNote" class="form-control" placeholder="ઉપાડની વિગત (દા.ત. ઘર ખર્ચ, તહેવાર)" style="margin-top:6px;">
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+                <select id="newUpadMode" class="form-control" onchange="onUpadPaymentModeChange()">
+                    <option value="cash">💵 રોકડ (Cash)</option>
+                    <option value="cheque">🏦 ચેક (Cheque)</option>
+                    <option value="gpay">📱 GPay / UPI</option>
+                </select>
+                <input type="text" id="newUpadNote" class="form-control" placeholder="નોંધ (દા.ત. ઘર ખર્ચ)">
+            </div>
+
+            <div id="upadRefGroup" style="display:none; margin-bottom:6px;">
+                <input type="text" id="newUpadRefInput" class="form-control" placeholder="ચેક નંબર અથવા GPay ID *">
+            </div>
+
+            <button type="button" class="btn btn-danger" onclick="addWorkerUpad()" style="width:100%; justify-content:center; padding:9px;">- ઉપાડ આપો & સેવ કરો</button>
         </div>
 
         <!-- Upad Ledger History Table -->
@@ -485,8 +500,8 @@
             <table style="width:100%; font-size:12px;">
                 <thead style="background:#f1f5f9; position:sticky; top:0;">
                     <tr>
-                        <th style="padding:6px;">તારીખ</th>
-                        <th style="padding:6px;">વિગત / નોંધ</th>
+                        <th style="padding:6px;">તારીખ & સમય</th>
+                        <th style="padding:6px;">પેમેન્ટ મોડ / વિગત</th>
                         <th style="padding:6px; text-align:right;">ઉપાડ રકમ</th>
                         <th style="padding:6px; text-align:center;">ક્રિયા</th>
                     </tr>
@@ -1331,19 +1346,20 @@
                 let parts = u.date.split("/"); // DD/MM/YYYY
                 let uDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
                 if (uDate >= start && uDate <= end) {
-                    totalUpad += parseFloat(u.amount || 0);
+                    totalUpad += parseFloat(u.amount || 0); 
+                    let upadModeText = u.mode === 'cheque' ? `ચેક (${u.refNumber || ''})` : (u.mode === 'gpay' ? `GPay (${u.refNumber || ''})` : 'રોકડ (Cash)');
                     currentReportData.push({
                         dateObj: uDate,
                         dateStr: u.date,
-                        timeStr: "-",
+                        timeStr: u.time || "-",
                         workerName: w.name,
                         type: "ઉપાડ (Advance)",
-                        mode: "રોકડ/ઉપાડ",
+                        mode: upadModeText,
                         ref: u.note || "-",
                         upadAmount: parseFloat(u.amount || 0),
                         salaryAmount: 0
                     });
-                }
+                    }
             });
 
             // ૨. ચૂકવેલો પગાર (Salary Payments)
@@ -1508,7 +1524,7 @@
         };
 
         cloudWorkers[wId] = workerData;
-        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers)); 
         renderWorkersTable();
 
         if (navigator.onLine && currentWorkerRef) {
@@ -1522,24 +1538,45 @@
         if (!canUserDeleteWorker) { alert("❌ તમારી પાસે વર્કર ખાતું ડિલીટ કરવાનો અધિકાર નથી!"); return; }
         if (confirm(`શું તમે કારીગર "${name}" નું પૂરું ખાતું ડિલીટ કરવા માંગો છો?`)) {
             delete cloudWorkers[wId];
-            localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers)); 
             renderWorkersTable();
             if (navigator.onLine && currentWorkerRef) {
                 currentWorkerRef.child(wId).remove();
             }
         }
     }
+            // 💰 ઉપાડ મોડલ અને પેમેન્ટ મોડ ચેન્જ
+    function onUpadPaymentModeChange() {
+        let mode = document.getElementById("newUpadMode").value;
+        let grp = document.getElementById("upadRefGroup");
+        let inp = document.getElementById("newUpadRefInput");
 
-    // 💰 ઉપાડ મોડલ અને કેલ્ક્યુલેશન
+        if (mode === "cheque") {
+            grp.style.display = "block";
+            inp.placeholder = "ચેક નંબર (દા.ત. CHQ-998811) *";
+        } else if (mode === "gpay") {
+            grp.style.display = "block";
+            inp.placeholder = "GPay / UPI મોબાઇલ અથવા ટ્રાન્ઝેક્શન ID *";
+        } else {
+            grp.style.display = "none";
+            inp.value = "";
+        }
+    }
+
     function openWorkerUpadModal(wId) {
         selectedWorkerIdForUpad = wId;
         let w = cloudWorkers[wId];
         if (!w) return;
 
+        let now = new Date();
         document.getElementById("upadWorkerNameDisplay").innerText = w.name;
-        document.getElementById("newUpadDate").value = new Date().toISOString().slice(0, 10);
+        document.getElementById("newUpadDate").value = now.toISOString().slice(0, 10);
+        document.getElementById("newUpadTime").value = now.toTimeString().slice(0, 5);
         document.getElementById("newUpadAmount").value = "";
         document.getElementById("newUpadNote").value = "";
+        document.getElementById("newUpadMode").value = "cash";
+        document.getElementById("upadRefGroup").style.display = "none";
+        document.getElementById("newUpadRefInput").value = "";
 
         renderUpadModalDetails();
         document.getElementById("workerUpadModal").style.display = "flex";
@@ -1547,7 +1584,7 @@
 
     function closeWorkerUpadModal() {
         document.getElementById("workerUpadModal").style.display = "none";
-    }
+    }   
 
     function renderUpadModalDetails() {
         let w = cloudWorkers[selectedWorkerIdForUpad];
@@ -1570,11 +1607,15 @@
         }
 
         upads.forEach((u, idx) => {
-            // ❌ ઉપાડ ડિલીટ બટન (માત્ર Delete Upad પરવાનગી હોય તો જ ડિલીટ થશે)
             let delBtn = canUserDeleteUpad ? `<button type="button" onclick="deleteWorkerUpad(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ઉપાડ રદ કરો">❌</button>` : `<span style="color:#94a3b8;" title="ઉપાડ ડિલીટ અધિકાર નથી">🔒</span>`;
+            
+            let modeBadge = `<span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">${u.mode === 'cheque' ? 'ચેક' : (u.mode === 'gpay' ? 'GPay' : 'રોકડ')}</span>`;
+            let refText = u.refNumber ? ` <small style="color:#475569;">(${u.refNumber})</small>` : '';
+            let noteText = u.note ? ` - ${u.note}` : '';
+
             tbody.innerHTML += `<tr>
-                <td style="padding:6px;">${u.date}</td>
-                <td style="padding:6px;">${u.note || '-'}</td>
+                <td style="padding:6px;">${u.date} <small style="color:#64748b;">${u.time || ''}</small></td>
+                <td style="padding:6px;">${modeBadge}${refText}${noteText}</td>
                 <td style="padding:6px; text-align:right; font-weight:700; color:#ef4444;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
                 <td style="padding:6px; text-align:center;">${delBtn}</td>
             </tr>`;
@@ -1585,10 +1626,17 @@
         if (!canUserAddUpad) { alert("❌ તમારી પાસે ઉપાડ આપવાની પરવાનગી નથી! માત્ર ખાતું જોઈ શકો છો."); return; }
         let amt = parseFloat(document.getElementById("newUpadAmount").value);
         let dateVal = document.getElementById("newUpadDate").value;
+        let timeVal = document.getElementById("newUpadTime").value;
+        let mode = document.getElementById("newUpadMode").value;
+        let refNo = document.getElementById("newUpadRefInput").value.trim();
         let note = document.getElementById("newUpadNote").value.trim();
 
         if (!amt || amt <= 0) { alert("કૃપા કરીને માન્ય ઉપાડ રકમ લખો!"); return; }
         if (!dateVal) { alert("કૃપા કરીને તારીખ પસંદ કરો!"); return; }
+        if ((mode === "cheque" || mode === "gpay") && !refNo) {
+            alert(`કૃપા કરીને ${mode === "cheque" ? "ચેક નંબર" : "GPay નંબર/Txn ID"} દાખલ કરો!`);
+            return;
+        }
 
         let parts = dateVal.split("-");
         let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -1596,7 +1644,15 @@
         let w = cloudWorkers[selectedWorkerIdForUpad];
         if (!w.upads) w.upads = [];
 
-        w.upads.push({ amount: amt, date: formattedDate, note: note });
+        w.upads.push({
+            amount: amt,
+            date: formattedDate,
+            time: timeVal,
+            mode: mode,
+            refNumber: refNo,
+            note: note,
+            timestamp: Date.now()
+        });
 
         cloudWorkers[selectedWorkerIdForUpad] = w;
         localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
@@ -1607,6 +1663,7 @@
 
         document.getElementById("newUpadAmount").value = "";
         document.getElementById("newUpadNote").value = "";
+        document.getElementById("newUpadRefInput").value = "";
         renderUpadModalDetails();
         renderWorkersTable();
     }
@@ -1643,16 +1700,19 @@
 
         let upadRows = "";
         if (upads.length > 0) {
-            upads.forEach((u, i) => {
+            upads.forEach((u, i) => {  
+                let modeText = u.mode === 'cheque' ? `ચેક (${u.refNumber || '-'})` : (u.mode === 'gpay' ? `GPay (${u.refNumber || '-'})` : 'રોકડ');
+                let timeDisp = u.time ? ` ${u.time}` : '';
                 upadRows += `<tr>
                     <td style="padding:8px;">${i + 1}</td>
-                    <td style="padding:8px;">${u.date}</td>
+                    <td style="padding:8px;">${u.date}${timeDisp}</td>
+                    <td style="padding:8px;"><b>${modeText}</b></td>
                     <td style="padding:8px;">${u.note || 'ઉપાડ'}</td>
                     <td style="padding:8px; text-align:right; color:#ef4444;">(-) ₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
                 </tr>`;
             });
         } else {
-            upadRows = `<tr><td colspan="4" style="text-align:center; padding:10px; color:#64748b;">(કોઈ ઉપાડ લીધેલ નથી)</td></tr>`;
+            upadRows = `<tr><td colspan="5" style="text-align:center; padding:10px; color:#64748b;">(કોઈ ઉપાડ લીધેલ નથી)</td></tr>`;
         }
 
         printWindow.document.write(`
@@ -1684,16 +1744,16 @@
                     <b>ઉપાડ (Advance) વિગત:</b>
                     <table>
                         <thead>
-                            <tr><th>#</th><th>તારીખ</th><th>વિગત</th><th style="text-align:right;">રકમ</th></tr>
+                            <tr><th>#</th><th>તારીખ & સમય</th><th>પેમેન્ટ પ્રકાર</th><th>વિગત/નોંધ</th><th style="text-align:right;">રકમ</th></tr>
                         </thead>
                         <tbody>${upadRows}</tbody>
                         <tfoot>
                             <tr style="font-weight:bold; background:#fef2f2;">
-                                <td colspan="3" style="text-align:right;">કુલ લીધેલ ઉપાડ બાદ:</td>
+                                <td colspan="4" style="text-align:right;">કુલ લીધેલ ઉપાડ બાદ:</td>
                                 <td style="text-align:right; color:#ef4444;">₹${totalUpad.toLocaleString('en-IN')}</td>
                             </tr>
                             <tr style="font-weight:bold; background:#ecfdf5; font-size:15px;">
-                                <td colspan="3" style="text-align:right; color:#047857;">ચોખ્ખો ચૂકવવાપાત્ર બાકી પગાર (Net Balance):</td>
+                                <td colspan="4" style="text-align:right; color:#047857;">ચોખ્ખો ચૂકવવાપાત્ર બાકી પગાર (Net Balance):</td>
                                 <td style="text-align:right; color:#047857;">₹${balance.toLocaleString('en-IN')}</td>
                             </tr>
                         </tfoot>
