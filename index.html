@@ -354,7 +354,8 @@
     <div class="card" id="workerSectionCard">
         <div class="section-header">
             <div class="section-title">👷‍♂️ Step 3: વર્કર (કારીગર) પગાર અને ઉપાડ ખાતાવહી</div>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px;"> 
+                <button class="btn btn-outline" onclick="openWorkerReportModal()" style="background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; font-weight:700;">📑 તારીખ મુજબ સ્ટેટમેન્ટ (Report)</button>
                 <button class="btn btn-primary" id="addWorkerTopBtn" onclick="openAddWorkerModal()">➕ નવો વર્કર ઉમેરો</button>
             </div>
         </div>
@@ -391,15 +392,16 @@
                         <th>#</th>
                         <th>વર્કરનું નામ</th>
                         <th>મોબાઈલ</th>
-                        <th>કામ / હોદ્દો</th>
-                        <th>પગાર (₹)</th>
+                        <th>કામ / હોદ્દો</th>  
+                       <th>પગાર (₹)</th>
                         <th>કુલ ઉપાડ (₹)</th>
-                        <th>ચોખ્ખો બાકી પગાર (₹)</th>
+                        <th>ચોખ્ખો બાકી (₹)</th>
+                        <th>ચાલુ મહિનો પગાર</th>
                         <th>ક્રિયા</th>
                     </tr>
                 </thead>
                 <tbody id="workerTableBody">
-                    <tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી. ઉપરથી નવો વર્કર ઉમેરો.</td></tr>
+                    <tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી. ઉપરથી નવો વર્કર ઉમેરો.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -499,6 +501,146 @@
             <button class="btn btn-primary" onclick="printWorkerStatement()" style="justify-content:center;">🖨️ પગાર & ઉપાડ સ્ટેટમેન્ટ પ્રિન્ટ કરો</button>
             <button class="btn" onclick="sendWorkerWhatsAppStatement()" style="background:#25D366; color:white; justify-content:center;">📲 WhatsApp પર સ્લિપ મોકલો</button>
             <button class="btn btn-outline" onclick="closeWorkerUpadModal()" style="justify-content:center;">બંધ કરો</button>
+        </div>
+    </div>
+</div>
+
+<!-- 💵 Worker Monthly Salary Pay Modal (Cash / Cheque / GPay) -->
+<div class="modal" id="workerSalaryPayModal">
+    <div class="modal-content" style="max-width: 460px;">
+        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>💵 પગાર ચુકવણી: <b id="payWorkerNameDisplay" style="color:#1e1b4b;"></b></span>
+            <button class="btn btn-outline" onclick="closeSalaryPayModal()" style="padding:2px 8px; font-size:12px;">✕</button>
+        </div>
+
+        <div class="form-group">
+            <label>કયા મહિનાનો પગાર ચૂકવો છો? *</label>
+            <input type="month" id="salMonth" class="form-control" onchange="calculateSalaryPayDetails()">
+        </div>
+
+        <div style="background:#f1f5f9; border-radius:8px; padding:10px; margin-bottom:12px; font-size:13px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span>ફિક્સ પગાર:</span>
+                <b id="payBaseSalary">₹0</b>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#ef4444;">
+                <span>કુલ લીધેલ ઉપાડ બાદ:</span>
+                <b id="payTotalUpad">(-) ₹0</b>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:800; border-top:1px dashed #cbd5e1; padding-top:6px; color:#15803d;">
+                <span>ચૂકવવાપાત્ર ચોખ્ખી રકમ:</span>
+                <b id="payNetSalary">₹0</b>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>ખરેખર ચૂકવેલ રકમ (₹) *</label>
+            <input type="number" id="salActualPaid" class="form-control" placeholder="રકમ લખો">
+        </div>
+
+        <div class="form-group">
+            <label>પેમેન્ટ પ્રકાર (Payment Mode) *</label>
+            <select id="salPayMode" class="form-control" onchange="onSalaryPaymentModeChange()">
+                <option value="cash">💵 રોકડ (Cash)</option>
+                <option value="cheque">🏦 ચેક (Cheque)</option>
+                <option value="gpay">📱 Google Pay / PhonePe / UPI</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="salRefGroup" style="display:none;">
+            <label id="salRefLabel">ચેક નંબર / ટ્રાન્ઝેક્શન વિગત *</label>
+            <input type="text" id="salRefInput" class="form-control" placeholder="નંબર અથવા ટ્રાન્ઝેક્શન ID">
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div class="form-group">
+                <label>તારીખ</label>
+                <input type="date" id="salPayDate" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>સમય</label>
+                <input type="time" id="salPayTime" class="form-control">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>નોંધ / વિગત (વૈકલ્પિક)</label>
+            <input type="text" id="salNote" class="form-control" placeholder="દા.ત. દિવાળી બોનસ સાથે / પૂરો હિસાબ">
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+            <button class="btn btn-success" onclick="confirmSalaryPayment()" style="justify-content:center; padding:11px;">✅ પગાર ચૂકવાઈ ગયો (Mark as Paid)</button>
+            <button class="btn btn-outline" onclick="closeSalaryPayModal()" style="justify-content:center;">બંધ કરો</button>
+        </div>
+    </div>
+</div>
+
+<!-- 📑 Date-wise Worker Statement Report Modal (PART 1) -->
+<div class="modal" id="workerStatementReportModal">
+    <div class="modal-content" style="max-width: 750px; width:95%;">
+        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>📑 તારીખ મુજબ વર્કર ખાતાવહી રિપોર્ટ</span>
+            <button class="btn btn-outline" onclick="closeWorkerReportModal()" style="padding:2px 8px; font-size:12px;">✕</button>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px; display:grid; grid-template-columns:1.5fr 1fr 1fr auto; gap:8px; align-items:end;">
+            <div>
+                <label style="font-size:12px; font-weight:700;">કારીગર પસંદ કરો:</label>
+                <select id="rptWorkerSelect" class="form-control" style="font-size:13px; font-weight:600;">
+                    <option value="ALL">👥 બધા જ કારીગરો (All Workers)</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:12px; font-weight:700;">શરૂઆત તારીખ (From):</label>
+                <input type="date" id="rptStartDate" class="form-control" style="font-size:12px;">
+            </div>
+            <div>
+                <label style="font-size:12px; font-weight:700;">અંતિમ તારીખ (To):</label>
+                <input type="date" id="rptEndDate" class="form-control" style="font-size:12px;">
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="generateWorkerDateReport()" style="padding:9px 14px; font-size:13px;">🔍 શોધો</button>
+            </div>
+        </div>
+
+        <!-- Report Summary Cards -->
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:12px; text-align:center;">
+            <div style="background:#fef2f2; border:1px solid #fca5a5; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#991b1b; display:block;">આ સમયગાળાનો ઉપાડ (Upad)</span>
+                <b id="rptTotalUpadSum" style="font-size:16px; color:#b91c1c;">₹0</b>
+            </div>
+            <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#065f46; display:block;">ચૂકવેલો કુલ પગાર (Paid Salary)</span>
+                <b id="rptTotalSalaryPaidSum" style="font-size:16px; color:#047857;">₹0</b>
+            </div>
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#1e40af; display:block;">કુલ વ્યવહારો (Transactions)</span>
+                <b id="rptTotalTxnCount" style="font-size:16px; color:#1d4ed8;">0</b>
+            </div>
+        </div>
+
+        <!-- Report Table -->
+        <div style="max-height:280px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+            <table style="width:100%; font-size:12px;">
+                <thead style="background:#f1f5f9; position:sticky; top:0;">
+                    <tr>
+                        <th style="padding:6px;">તારીખ & સમય</th>
+                        <th style="padding:6px;">કારીગર</th>
+                        <th style="padding:6px;">પ્રકાર</th>
+                        <th style="padding:6px;">પેમેન્ટ મોડ / વિગત</th>
+                        <th style="padding:6px; text-align:right;">ઉપાડ રકમ</th>
+                        <th style="padding:6px; text-align:right;">ચૂકવેલ પગાર</th>
+                    </tr>
+                </thead>
+                <tbody id="rptTableBody">
+                    <tr><td colspan="6" style="text-align:center; padding:15px; color:#94a3b8;">તારીખ પસંદ કરી "શોધો" પર ક્લિક કરો.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; gap:8px; margin-top:14px;">
+            <button class="btn btn-primary" onclick="printWorkerDateReport()" style="flex:1; justify-content:center;">🖨️ રિપોર્ટ પ્રિન્ટ કરો</button>
+            <button class="btn btn-outline" onclick="closeWorkerReportModal()" style="padding:9px 20px;">બંધ કરો</button>
         </div>
     </div>
 </div>
@@ -940,9 +1082,11 @@
     function scrollToWorkerSection() {
         let el = document.getElementById("workerSectionCard");
         if (el) el.scrollIntoView({ behavior: 'smooth' });
-    }
+    } 
 
-    // 👷‍♂️ વર્કર ટેબલ અને બેલેન્સ શીટ રેન્ડર કરવું
+    let selectedWorkerIdForSalary = "";
+
+    // 👷‍♂️ વર્કર ટેબલ અને બેલેન્સ શીટ રેન્ડર કરવું (ચાલુ મહિનાના પગાર સ્ટેટસ સાથે)
     function renderWorkersTable() {
         let tbody = document.getElementById("workerTableBody");
         if (!tbody) return;
@@ -954,6 +1098,9 @@
         let sumSalary = 0;
         let sumUpad = 0;
         let sumNet = 0;
+
+        let now = new Date();
+        let currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
         for (let wId in cloudWorkers) {
             let w = cloudWorkers[wId];
@@ -973,9 +1120,21 @@
             sumUpad += totalUpad;
             sumNet += netBalance;
 
-            // ✏️ વર્કર એડિટ બટન (માત્ર Edit Profile પરવાનગી હોય તો જ દેખાશે)
+            // 💵 ચાલુ મહિનાનો પગાર ચૂકવાઈ ગયો છે કે બાકી?
+            let salaryPayments = w.salaryPayments || [];
+            let currentMonthPayment = salaryPayments.find(p => p.month === currentMonthKey);
+            let salaryStatusHTML = "";
+
+            if (currentMonthPayment) {
+                let modeText = currentMonthPayment.mode === "cash" ? "રોકડ" : (currentMonthPayment.mode === "cheque" ? "ચેક" : "GPay");
+                salaryStatusHTML = `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;" title="${currentMonthPayment.date} (${modeText})">🟢 ચૂકવાયેલ (${modeText})</span>`;
+            } else {
+                salaryStatusHTML = `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">🔴 બાકી</span>`;
+            }
+
+            // ✏️ વર્કર એડિટ બટન
             let editBtn = canUserEditWorkerProfile ? `<button class="btn btn-outline" style="padding:3px 7px; font-size:11px;" onclick="openEditWorkerModal('${wId}')" title="નામ/વિગત સુધારો">✏️</button>` : '';
-            // 🗑️ વર્કર ડિલીટ બટન (માત્ર Delete Worker પરવાનગી હોય તો જ દેખાશે)
+            // 🗑️ વર્કર ડિલીટ બટન
             let delBtn = canUserDeleteWorker ? `<button class="btn btn-danger" style="padding:3px 7px; font-size:11px;" onclick="deleteWorker('${wId}', '${w.name}')" title="વર્કર કાઢી નાખો">🗑️</button>` : '';
 
             let row = `<tr>
@@ -986,8 +1145,10 @@
                 <td>₹${salary.toLocaleString('en-IN')}</td>
                 <td style="color:#ef4444; font-weight:700;">₹${totalUpad.toLocaleString('en-IN')}</td>
                 <td style="color:${netBalance >= 0 ? '#10b981' : '#b91c1c'}; font-weight:800; font-size:14px;">₹${netBalance.toLocaleString('en-IN')}</td>
+                <td>${salaryStatusHTML}</td>
                 <td style="white-space:nowrap; display:flex; gap:4px;">
-                    <button class="btn btn-success" style="padding:3px 8px; font-size:11px;" onclick="openWorkerUpadModal('${wId}')">💰 ઉપાડ & સ્લિપ</button>
+                    <button class="btn btn-success" style="padding:3px 8px; font-size:11px;" onclick="openWorkerUpadModal('${wId}')">💰 ઉપાડ</button>
+                    <button class="btn" style="padding:3px 8px; font-size:11px; background:#4f46e5; color:white;" onclick="openSalaryPayModal('${wId}')">💵 પગાર ચૂકવો</button>
                     ${editBtn}
                     ${delBtn}
                 </td>
@@ -996,13 +1157,298 @@
         }
 
         if (count === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી.</td></tr>`;
         }
 
         if (document.getElementById("workerTotalCount")) document.getElementById("workerTotalCount").innerText = count;
         if (document.getElementById("workerTotalSalarySum")) document.getElementById("workerTotalSalarySum").innerText = "₹" + sumSalary.toLocaleString('en-IN');
         if (document.getElementById("workerTotalUpadSum")) document.getElementById("workerTotalUpadSum").innerText = "₹" + sumUpad.toLocaleString('en-IN');
         if (document.getElementById("workerTotalNetSum")) document.getElementById("workerTotalNetSum").innerText = "₹" + sumNet.toLocaleString('en-IN');
+    }
+
+    // 💵 PART 2: પગાર ચુકવણી મોડલ ફંક્શન્સ
+    function openSalaryPayModal(wId) {
+        selectedWorkerIdForSalary = wId;
+        let w = cloudWorkers[wId];
+        if (!w) return;
+
+        document.getElementById("payWorkerNameDisplay").innerText = w.name;
+        let now = new Date();
+        document.getElementById("salMonth").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        document.getElementById("salPayDate").value = now.toISOString().slice(0, 10);
+        document.getElementById("salPayTime").value = now.toTimeString().slice(0, 5);
+        document.getElementById("salPayMode").value = "cash";
+        document.getElementById("salRefGroup").style.display = "none";
+        document.getElementById("salRefInput").value = "";
+        document.getElementById("salNote").value = "";
+
+        calculateSalaryPayDetails();
+        document.getElementById("workerSalaryPayModal").style.display = "flex";
+    }
+
+    function closeSalaryPayModal() {
+        document.getElementById("workerSalaryPayModal").style.display = "none";
+    }
+
+    function onSalaryPaymentModeChange() {
+        let mode = document.getElementById("salPayMode").value;
+        let grp = document.getElementById("salRefGroup");
+        let lbl = document.getElementById("salRefLabel");
+        let inp = document.getElementById("salRefInput");
+
+        if (mode === "cheque") {
+            grp.style.display = "block";
+            lbl.innerText = "ચેક નંબર (Cheque Number) *";
+            inp.placeholder = "દા.ત. CHQ-885412";
+        } else if (mode === "gpay") {
+            grp.style.display = "block";
+            lbl.innerText = "GPay / UPI મોબાઇલ નંબર અથવા Txn ID *";
+            inp.placeholder = "દા.ત. 9898XXXXXX અથવા UPI-Txn ID";
+        } else {
+            grp.style.display = "none";
+            inp.value = "";
+        }
+    }
+
+    function calculateSalaryPayDetails() {
+        let w = cloudWorkers[selectedWorkerIdForSalary];
+        if (!w) return;
+
+        let baseSalary = parseFloat(w.salary || 0);
+        let upads = w.upads || [];
+        let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+        let net = Math.max(0, baseSalary - totalUpad);
+
+        document.getElementById("payBaseSalary").innerText = "₹" + baseSalary.toLocaleString('en-IN');
+        document.getElementById("payTotalUpad").innerText = "(-) ₹" + totalUpad.toLocaleString('en-IN');
+        document.getElementById("payNetSalary").innerText = "₹" + net.toLocaleString('en-IN');
+        document.getElementById("salActualPaid").value = net;
+    }
+
+    function confirmSalaryPayment() {
+        let w = cloudWorkers[selectedWorkerIdForSalary];
+        if (!w) return;
+
+        let salMonth = document.getElementById("salMonth").value;
+        let actualPaid = parseFloat(document.getElementById("salActualPaid").value) || 0;
+        let mode = document.getElementById("salPayMode").value;
+        let refNo = document.getElementById("salRefInput").value.trim();
+        let dateVal = document.getElementById("salPayDate").value;
+        let timeVal = document.getElementById("salPayTime").value;
+        let note = document.getElementById("salNote").value.trim(); 
+
+        if (!salMonth) { alert("કૃપા કરીને મહિનો પસંદ કરો!"); return; }
+        if (actualPaid <= 0) { alert("કૃપા કરીને માન્ય પગાર રકમ દાખલ કરો!"); return; }
+        if (!dateVal) { alert("કૃપા કરીને ચુકવણીની તારીખ પસંદ કરો!"); return; }
+        if ((mode === "cheque" || mode === "gpay") && !refNo) {
+            alert(`કૃપા કરીને ${mode === "cheque" ? "ચેક નંબર" : "GPay નંબર/Txn ID"} દાખલ કરો!`);
+            return;
+        }
+
+        let parts = dateVal.split("-");
+        let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+        if (!w.salaryPayments) w.salaryPayments = [];
+
+        // જૂનો તે મહિનાનો રેકોર્ડ હોય તો અપડેટ અથવા નવો ઉમેરો
+        w.salaryPayments = w.salaryPayments.filter(p => p.month !== salMonth);
+
+        w.salaryPayments.push({
+            id: "pay_" + Date.now(),
+            month: salMonth,
+            amount: actualPaid,
+            baseSalary: parseFloat(w.salary || 0),
+            mode: mode,
+            refDetails: refNo,
+            date: formattedDate,
+            time: timeVal,
+            rawDate: dateVal,
+            note: note,
+            timestamp: Date.now()
+        });
+
+        cloudWorkers[selectedWorkerIdForSalary] = w;
+        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+
+        if (navigator.onLine && currentWorkerRef) {
+            currentWorkerRef.child(selectedWorkerIdForSalary).set(w);
+        }
+
+        alert(`✅ ${w.name} નો પગાર (મહિનો: ${salMonth}) સફળતાપૂર્વક ચૂકવાઈ ગયો!`);
+        closeSalaryPayModal();
+        renderWorkersTable();
+    }
+
+    // 📑 PART 1: તારીખ મુજબ વાર્ષિક/માસિક સ્ટેટમેન્ટ રિપોર્ટ ફંક્શન્સ
+    function openWorkerReportModal() {
+        let select = document.getElementById("rptWorkerSelect");
+        select.innerHTML = `<option value="ALL">👥 બધા જ કારીગરો (All Workers)</option>`;
+        for (let wId in cloudWorkers) {
+            let w = cloudWorkers[wId];
+            if (w && w.name) {
+                select.innerHTML += `<option value="${wId}">👤 ${w.name} (${w.role || 'કારીગર'})</option>`;
+            }
+        }
+
+        let now = new Date();
+        let firstDay = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10); // વર્ષની શરૂઆત (1 જાન્યુઆરી)
+        let today = now.toISOString().slice(0, 10);
+
+        document.getElementById("rptStartDate").value = firstDay;
+        document.getElementById("rptEndDate").value = today;
+
+        generateWorkerDateReport();
+        document.getElementById("workerStatementReportModal").style.display = "flex";
+    }
+
+    function closeWorkerReportModal() {
+        document.getElementById("workerStatementReportModal").style.display = "none";
+    }
+
+    let currentReportData = [];
+
+    function generateWorkerDateReport() {
+        let targetWorkerId = document.getElementById("rptWorkerSelect").value;
+        let sDate = document.getElementById("rptStartDate").value;
+        let eDate = document.getElementById("rptEndDate").value;
+
+        if (!sDate || !eDate) { alert("કૃપા કરીને શરૂઆત અને અંતિમ તારીખ પસંદ કરો!"); return; }
+
+        let start = new Date(sDate + "T00:00:00");
+        let end = new Date(eDate + "T23:59:59");
+
+        currentReportData = [];
+        let totalUpad = 0;
+        let totalPaidSal = 0;
+
+        for (let wId in cloudWorkers) {
+            if (targetWorkerId !== "ALL" && targetWorkerId !== wId) continue;
+            let w = cloudWorkers[wId];
+            if (!w) continue;
+
+            // ૧. ઉપાડ (Upads)
+            (w.upads || []).forEach(u => {
+                let parts = u.date.split("/"); // DD/MM/YYYY
+                let uDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
+                if (uDate >= start && uDate <= end) {
+                    totalUpad += parseFloat(u.amount || 0);
+                    currentReportData.push({
+                        dateObj: uDate,
+                        dateStr: u.date,
+                        timeStr: "-",
+                        workerName: w.name,
+                        type: "ઉપાડ (Advance)",
+                        mode: "રોકડ/ઉપાડ",
+                        ref: u.note || "-",
+                        upadAmount: parseFloat(u.amount || 0),
+                        salaryAmount: 0
+                    });
+                }
+            });
+
+            // ૨. ચૂકવેલો પગાર (Salary Payments)
+            (w.salaryPayments || []).forEach(p => {
+                let pDate = p.rawDate ? new Date(p.rawDate + "T12:00:00") : new Date(p.timestamp);
+                if (pDate >= start && pDate <= end) {
+                    totalPaidSal += parseFloat(p.amount || 0);
+                    let modeText = p.mode === "cash" ? "રોકડ (Cash)" : (p.mode === "cheque" ? `ચેક (${p.refDetails})` : `GPay (${p.refDetails})`);
+                    currentReportData.push({
+                        dateObj: pDate,
+                        dateStr: p.date,
+                        timeStr: p.time || "-",
+                        workerName: w.name,
+                        type: `પગાર (${p.month})`,
+                        mode: modeText,
+                        ref: p.note || "-",
+                        upadAmount: 0,
+                        salaryAmount: parseFloat(p.amount || 0)
+                    });
+                }
+            });
+        }
+
+        // તારીખ મુજબ સોર્ટિંગ
+        currentReportData.sort((a, b) => b.dateObj - a.dateObj);
+
+        document.getElementById("rptTotalUpadSum").innerText = "₹" + totalUpad.toLocaleString('en-IN');
+        document.getElementById("rptTotalSalaryPaidSum").innerText = "₹" + totalPaidSal.toLocaleString('en-IN');
+        document.getElementById("rptTotalTxnCount").innerText = currentReportData.length;
+
+        let tbody = document.getElementById("rptTableBody");
+        tbody.innerHTML = "";
+
+        if (currentReportData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">પસંદ કરેલ સમયગાળામાં કોઈ વ્યવહાર મળ્યો નથી.</td></tr>`;
+            return;
+        }
+
+        currentReportData.forEach(item => {
+            let row = `<tr>
+                <td style="padding:6px;">${item.dateStr} <small style="color:#64748b;">${item.timeStr}</small></td>
+                <td style="padding:6px;"><b>${item.workerName}</b></td>
+                <td style="padding:6px;"><span style="background:${item.upadAmount > 0 ? '#fee2e2' : '#dcfce7'}; color:${item.upadAmount > 0 ? '#b91c1c' : '#15803d'}; padding:2px 6px; border-radius:4px; font-weight:700;">${item.type}</span></td>
+                <td style="padding:6px;">${item.mode} ${item.ref !== '-' ? `<small style="color:#64748b;">(${item.ref})</small>` : ''}</td>
+                <td style="padding:6px; text-align:right; font-weight:700; color:#ef4444;">${item.upadAmount > 0 ? '₹' + item.upadAmount.toLocaleString('en-IN') : '-'}</td>
+                <td style="padding:6px; text-align:right; font-weight:700; color:#10b981;">${item.salaryAmount > 0 ? '₹' + item.salaryAmount.toLocaleString('en-IN') : '-'}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function printWorkerDateReport() {
+        if (currentReportData.length === 0) { alert("પ્રિન્ટ કરવા માટે કોઈ ડેટા નથી!"); return; }
+
+        let sDate = document.getElementById("rptStartDate").value;
+        let eDate = document.getElementById("rptEndDate").value;
+        let workerText = document.getElementById("rptWorkerSelect").options[document.getElementById("rptWorkerSelect").selectedIndex].text;
+
+        let win = window.open('', '_blank', 'width=800,height=650');
+        if (!win) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
+
+        let rowsHTML = "";
+        currentReportData.forEach((item, idx) => {
+            rowsHTML += `<tr>
+                <td>${idx + 1}</td>
+                <td>${item.dateStr} ${item.timeStr !== '-' ? item.timeStr : ''}</td>
+                <td><b>${item.workerName}</b></td>
+                <td>${item.type}</td>
+                <td>${item.mode}</td>
+                <td style="text-align:right; color:#ef4444;">${item.upadAmount > 0 ? '₹' + item.upadAmount.toLocaleString('en-IN') : '-'}</td>
+                <td style="text-align:right; color:#10b981;">${item.salaryAmount > 0 ? '₹' + item.salaryAmount.toLocaleString('en-IN') : '-'}</td>
+            </tr>`;
+        });
+
+        win.document.write(`
+            <html>
+            <head>
+                <title>વર્કર સ્ટેટમેન્ટ રિપોર્ટ</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 25px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+                    th, td { border: 1px solid #cbd5e1; padding: 7px; text-align: left; }
+                    th { background: #f1f5f9; }
+                </style>
+            </head>
+            <body>
+                <h2 style="margin:0; color:#4f46e5; text-align:center;">${currentFarmName}</h2>
+                <h4 style="margin:5px 0 15px 0; text-align:center; color:#475569;">વર્કર પગાર & ઉપાડ ખાતાવહી રિપોર્ટ</h4>
+                <p><b>કારીગર:</b> ${workerText} | <b>સમયગાળો:</b> ${sDate} થી ${eDate}</p>
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>તારીખ & સમય</th><th>કારીગરનું નામ</th><th>પ્રકાર</th><th>પેમેન્ટ મોડ</th><th style="text-align:right;">ઉપાડ</th><th style="text-align:right;">ચૂકવેલ પગાર</th></tr>
+                    </thead>
+                    <tbody>${rowsHTML}</tbody>
+                </table>
+                <div style="margin-top:35px; display:flex; justify-content:space-between;">
+                    <div>તપાસનાર સહી: ____________</div>
+                    <div>ઓફિસ / માલિક સહી: ____________</div>
+                </div>
+            </body>
+            </html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
     }
 
     // વર્કર ઉમેરવા/એડિટ કરવાના ફંક્શન્સ
@@ -1048,6 +1494,8 @@
         let wId = document.getElementById("editWorkerId").value || ("worker_" + Date.now());
         let existingUpads = (cloudWorkers[wId] && cloudWorkers[wId].upads) ? cloudWorkers[wId].upads : [];
 
+        let existingSalaryPayments = (cloudWorkers[wId] && cloudWorkers[wId].salaryPayments) ? cloudWorkers[wId].salaryPayments : [];
+
         let workerData = {
             id: wId,
             name: name,
@@ -1055,7 +1503,8 @@
             role: document.getElementById("wRole").value.trim() || "કારીગર",
             salary: salary,
             salaryType: document.getElementById("wSalaryType").value,
-            upads: existingUpads
+            upads: existingUpads,
+            salaryPayments: existingSalaryPayments
         };
 
         cloudWorkers[wId] = workerData;
