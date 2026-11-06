@@ -799,14 +799,33 @@
     } 
       window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
-    updateNetworkStatus(); // 🚀 પેજ ખુલતાં જ નેટવર્ક ચેક કરો અને પેન્ડિંગ ડેટા સિન્ક કરો
+    updateNetworkStatus(); // 🚀 પેજ ખુલતાં જ નેટવર્ક ચેક કરો અને પેન્ડિંગ ડેટા સિન્ક કરો  
 
-    // સ્ટાફ લિસ્ટ ક્લાઉડમાંથી લાઈવ વાંચવી અને LocalStorage માં સાચવવી
+        // સ્ટાફ લિસ્ટ ક્લાઉડમાંથી લાઈવ વાંચવી અને LocalStorage માં સાચવવી (લાઈવ પરવાનગી સિન્ક સાથે)
     staffPermRef.on('value', (snap) => {
         staffListObj = snap.val() || {};
         localStorage.setItem("cached_staff_list", JSON.stringify(staffListObj));
         updateLoginUserDropdown();
         renderStaffPermissionsUI();
+
+        // 🚀 જો સ્ટાફ લોગિન હોય, તો એડમિન ટીક કરશે કે તરત જ તેની સ્ક્રીન પર લાઈવ ડિલીટ બટન અને ઉપાડ શરૂ થઈ જશે!
+        if (currentUserRole && currentUserRole !== "admin") {
+            let staff = staffListObj[currentUserRole];
+            if (staff) {
+                currentStaffConfig = staff;
+                canUserEdit = staff.canEdit === true;
+                canUserDelete = staff.canDelete === true;
+                canUserViewWorkers = staff.canViewWorkers === true;
+                canUserEditWorkerProfile = (staff.canEditWorkerProfile === true) || (staff.canEditWorkers === true);
+                canUserAddUpad = (staff.canAddUpad === true) || (staff.canEditWorkers === true);
+                canUserDeleteWorker = (staff.canDeleteWorker === true) || (staff.canDeleteWorkers === true);
+                canUserDeleteUpad = (staff.canDeleteUpad === true) || (staff.canDeleteWorkers === true);
+
+                setupUserView();
+                renderWorkersTable();
+                filterData();
+            }
+        }
     });
 
     // લોગિન સ્ક્રીનમાં સ્ટાફના નામ આપોઆપ લોડ કરવા
@@ -1333,7 +1352,7 @@
                 canUserEdit = true;
                 canUserDelete = true;
                 canUserViewWorkers = true;
-                canUserEditWorkerProfile = true; // Admin ને પૂરો અધિકાર
+                canUserEditWorkerProfile = true;
                 canUserAddUpad = true;
                 canUserDeleteWorker = true;
                 canUserDeleteUpad = true;
@@ -1343,7 +1362,7 @@
                 return;
             }
         } else {
-            // સ્ટાફ લોગિન તપાસવું
+            // સ્ટાફ લોગિન તપાસવું (જૂની અને નવી તમામ પરવાનગીઓ સાથે)
             let staff = staffListObj[role];
             if (staff && staff.pass === pass) {
                 currentUserRole = role;
@@ -1351,10 +1370,10 @@
                 canUserEdit = staff.canEdit === true;
                 canUserDelete = staff.canDelete === true; 
                 canUserViewWorkers = staff.canViewWorkers === true; 
-                canUserEditWorkerProfile = staff.canEditWorkerProfile === true; // અલગ પરવાનગી
-                canUserAddUpad = staff.canAddUpad === true;                     // અલગ પરવાનગી
-                canUserDeleteWorker = staff.canDeleteWorker === true;           // અલગ પરવાનગી
-                canUserDeleteUpad = staff.canDeleteUpad === true;               // અલગ પરવાનગી
+                canUserEditWorkerProfile = (staff.canEditWorkerProfile === true) || (staff.canEditWorkers === true);
+                canUserAddUpad = (staff.canAddUpad === true) || (staff.canEditWorkers === true);
+                canUserDeleteWorker = (staff.canDeleteWorker === true) || (staff.canDeleteWorkers === true);
+                canUserDeleteUpad = (staff.canDeleteUpad === true) || (staff.canDeleteWorkers === true);
             } else {
                 error.innerText = "❌ ખોટો સ્ટાફ પાસવર્ડ!";
                 return;
@@ -2403,8 +2422,7 @@
             }
         });
     }
-
-    // પેજ લોડ વખતે સેશન સેટિંગ્સ
+            // પેજ લોડ વખતે સેશન સેટિંગ્સ
     window.onload = function() {
         let savedRole = sessionStorage.getItem("loggedUserRole");
         if (savedRole) {
@@ -2428,10 +2446,10 @@
                         canUserEdit = staff.canEdit === true;
                         canUserDelete = staff.canDelete === true;
                         canUserViewWorkers = staff.canViewWorkers === true;
-                        canUserEditWorkerProfile = staff.canEditWorkerProfile === true;
-                        canUserAddUpad = staff.canAddUpad === true;
-                        canUserDeleteWorker = staff.canDeleteWorker === true;
-                        canUserDeleteUpad = staff.canDeleteUpad === true;
+                        canUserEditWorkerProfile = (staff.canEditWorkerProfile === true) || (staff.canEditWorkers === true);
+                        canUserAddUpad = (staff.canAddUpad === true) || (staff.canEditWorkers === true);
+                        canUserDeleteWorker = (staff.canDeleteWorker === true) || (staff.canDeleteWorkers === true);
+                        canUserDeleteUpad = (staff.canDeleteUpad === true) || (staff.canDeleteWorkers === true);
                         setupUserView();
                     } else {
                         logout();
