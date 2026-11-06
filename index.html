@@ -765,12 +765,21 @@
 
         const expensesRef = firebase.database().ref("company_expenses");
         const capitalRef = firebase.database().ref("company_capital");
-        let cloudExpenses = {};
-        let cloudCapital = {};
-        let cachedAllFarmBookings = {};
-        let cachedAllFarmWorkers = {};
 
-        // Realtime Listeners
+        // 🌐 ૧. ઑફલાઇન હોય ત્યારે LocalStorage માંથી તુરંત ડેટા લોડ કરવો (A to Z Offline Visibility)
+        let cloudExpenses = JSON.parse(localStorage.getItem("cached_company_expenses") || "{}");
+        let cloudCapital = JSON.parse(localStorage.getItem("cached_company_capital") || "{}");
+        let cachedAllFarmBookings = JSON.parse(localStorage.getItem("cached_all_farm_bookings") || "{}");
+        let cachedAllFarmWorkers = JSON.parse(localStorage.getItem("cached_all_farm_workers") || "{}");
+
+        // ઑફલાઇન હોય તો પણ ટેબલ અને સમરી તરત ચાલુ થઈ જશે
+        setTimeout(() => {
+            renderExpensesTable();
+            renderCapitalTable();
+            updateAccountsOverviewSummary();
+        }, 200);
+
+        // Realtime Listeners (ક્લાઉડમાંથી આવતાં જ LocalStorage માં સેવ થશે)
         expensesRef.on('value', (snap) => {
             cloudExpenses = snap.val() || {};
             localStorage.setItem("cached_company_expenses", JSON.stringify(cloudExpenses));
@@ -788,11 +797,13 @@
         // Sync all farm bookings and workers for consolidated P&L
         firebase.database().ref("farm_bookings").on('value', (snap) => {
             cachedAllFarmBookings = snap.val() || {};
+            localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
             updateAccountsOverviewSummary();
         });
 
         firebase.database().ref("farm_workers").on('value', (snap) => {
             cachedAllFarmWorkers = snap.val() || {};
+            localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
             updateAccountsOverviewSummary();
         });
 
@@ -2126,9 +2137,9 @@
     function updateLoginUserDropdown() {
         let select = document.getElementById("loginRole");
         let currentVal = select.value;
-        select.innerHTML = `<option value="admin">Admin (માલિક - પૂરો અધિકાર)</option>`;
+        select.innerHTML = `<option value="admin">Admin (માલિક - પૂરો અધિકાર)</option>`; 
         
-        for (let sId in staffListObj) {
+      for (let sId in staffListObj) {
             let opt = document.createElement("option");
             opt.value = sId;
             opt.innerText = `${staffListObj[sId].name} (સ્ટાફ)`;
@@ -2136,6 +2147,28 @@
         }
         select.value = currentVal;
     }
+
+    // ➕ [નવી લાઈન ઉમેરી]: નેટ બંધ (ઑફલાઇન) હોય ત્યારે LocalStorage માંથી ફાર્મ તરત લોડ કરવું
+    try {
+        let cachedFarms = localStorage.getItem("cached_farms");
+        if (cachedFarms) {
+            let cFarmsData = JSON.parse(cachedFarms);
+            let selectOffline = document.getElementById("farmSelect");
+            if (selectOffline && selectOffline.options.length === 0) {
+                for (let fId in cFarmsData) {
+                    let opt = document.createElement("option");
+                    opt.value = fId;
+                    opt.innerText = cFarmsData[fId].name;
+                    selectOffline.appendChild(opt);
+                }
+                if (selectOffline.options.length > 0) {
+                    currentFarmId = selectOffline.options[0].value;
+                    currentFarmName = selectOffline.options[0].text;
+                    listenToFarmBookings();
+                }
+            }
+        }
+    } catch(e) {}
 
     // ૧. ક્લાઉડમાંથી ફાર્મનું લિસ્ટ લોડ કરવું
     farmsRef.on('value', (snapshot) => {
@@ -2153,6 +2186,9 @@
             farmsRef.set(defaultFarms);
             return;
         }  
+
+        // ➕ [નવી લાઈન ઉમેરી]: ફાર્મ લિસ્ટ LocalStorage માં સેવ કરવું જેથી ઑફલાઇન પણ હંમેશા દેખાય
+        localStorage.setItem("cached_farms", JSON.stringify(farmsData));
 
         for (let fId in farmsData) {
             // જો સ્ટાફ હોય, તો માત્ર પરવાનગી આપેલું ફાર્મ જ ડ્રોપડાઉનમાં બતાવો
@@ -3148,10 +3184,10 @@
         let addWorkerBtn = document.getElementById("addWorkerTopBtn");
         if (addWorkerBtn) addWorkerBtn.style.display = canUserEditWorkerProfile ? "inline-flex" : "none";
 
-        // ફાર્મ ડ્રોપડાઉન રીફ્રેશ કરવું
-        farmsRef.once('value', (snap) => {
-            let farmsData = snap.val() || {};
+       // ૧. ફાર્મ રેન્ડર કરવા માટેનું કોમન ફંક્શન
+        function populateFarmDropdownUI(farmsData) {
             let select = document.getElementById("farmSelect");
+            if (!select) return;
             select.innerHTML = "";
             for (let fId in farmsData) {
                 if (currentUserRole !== 'admin' && currentStaffConfig) {
@@ -3164,14 +3200,32 @@
                 select.appendChild(opt);
             }
             if (select.options.length > 0) {
-                currentFarmId = select.options[0].value;
-                currentFarmName = select.options[0].text;
+                if (!currentFarmId || !select.querySelector(`option[value="${currentFarmId}"]`)) {
+                    currentFarmId = select.options[0].value;
+                }
+                select.value = currentFarmId;
+                currentFarmName = select.options[select.selectedIndex].text;
                 listenToFarmBookings();
             } else {
                 cloudBookings = {};
                 generateCalendar();
             }
-        });
+        }
+
+        // 💾 ઑફલાઇન હોય ત્યારે LocalStorage માંથી તુરંત ફાર્મ લોડ કરવા
+        let localFarms = {};
+        try { localFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
+        if (Object.keys(localFarms).length > 0) {
+            populateFarmDropdownUI(localFarms);
+        }
+
+        // 🌐 ઓનલાઇન હોય ત્યારે Firebase માંથી તાજું લિસ્ટ લેવું
+        if (navigator.onLine) {
+            farmsRef.once('value', (snap) => {
+                let farmsData = snap.val() || {};
+                populateFarmDropdownUI(farmsData);
+            });
+        }
    
         populateYears();
         goToToday();
@@ -3705,29 +3759,118 @@
         window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
     }
 
-    // 💾 ૧. બેકઅપ ફોન મેમરીમાં ડાઉનલોડ થશે
+   // 💾 ૧. સંપૂર્ણ માસ્ટર બેકઅપ (All Data: બુકિંગ, પાર્ટી, કારીગર, રોજમેળ, વેન્ડર, સ્ટોક, ખર્ચા)
     function downloadBackupJSON() {
-        if (!cloudBookings || Object.keys(cloudBookings).length === 0) {
-            alert("બેકઅપ લેવા માટે ક્લાઉડમાં કોઈ ડેટા નથી!");
-            return;
+        // ૧. તમામ ડેટા LocalStorage અને મેમરીમાંથી એકત્રિત કરવો
+        let allFarms = {};
+        try { allFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
+
+        let allBookings = {};
+        try { allBookings = JSON.parse(localStorage.getItem("cached_all_farm_bookings") || "{}"); } catch(e){}
+        if (currentFarmId && cloudBookings) {
+            allBookings[currentFarmId] = cloudBookings;
+        }
+        for (let i = 0; i < localStorage.length; i++) {
+            let k = localStorage.key(i);
+            if (k && k.startsWith("cached_bookings_")) {
+                let fId = k.replace("cached_bookings_", "");
+                try { allBookings[fId] = JSON.parse(localStorage.getItem(k)); } catch(e){}
+            }
         }
 
-        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cloudBookings, null, 2));
+        let allWorkers = {};
+        try { allWorkers = JSON.parse(localStorage.getItem("cached_all_farm_workers") || "{}"); } catch(e){}
+        if (currentFarmId && cloudWorkers) {
+            allWorkers[currentFarmId] = cloudWorkers;
+        }
+        for (let i = 0; i < localStorage.length; i++) {
+            let k = localStorage.key(i);
+            if (k && k.startsWith("cached_workers_")) {
+                let fId = k.replace("cached_workers_", "");
+                try { allWorkers[fId] = JSON.parse(localStorage.getItem(k)); } catch(e){}
+            }
+        }
+
+        let allExpenses = {};
+        try { allExpenses = JSON.parse(localStorage.getItem("cached_company_expenses") || "{}"); } catch(e){}
+        if (typeof cloudExpenses !== "undefined" && Object.keys(cloudExpenses).length > 0) allExpenses = cloudExpenses;
+
+        let allCapital = {};
+        try { allCapital = JSON.parse(localStorage.getItem("cached_company_capital") || "{}"); } catch(e){}
+        if (typeof cloudCapital !== "undefined" && Object.keys(cloudCapital).length > 0) allCapital = cloudCapital;
+
+        let allRojmel = {};
+        try { allRojmel = JSON.parse(localStorage.getItem("cached_daily_rojmel") || "{}"); } catch(e){}
+        if (typeof cloudRojmel !== "undefined" && Object.keys(cloudRojmel).length > 0) allRojmel = cloudRojmel;
+
+        let allVendors = {};
+        try { allVendors = JSON.parse(localStorage.getItem("cached_vendors") || "{}"); } catch(e){}
+        if (typeof cloudVendors !== "undefined" && Object.keys(cloudVendors).length > 0) allVendors = cloudVendors;
+
+        let allInventory = {};
+        try { allInventory = JSON.parse(localStorage.getItem("cached_inventory") || "{}"); } catch(e){}
+        if (typeof cloudInventory !== "undefined" && Object.keys(cloudInventory).length > 0) allInventory = cloudInventory;
+
+        let allCategories = {};
+        try { allCategories = JSON.parse(localStorage.getItem("cached_expense_categories") || "{}"); } catch(e){}
+        if (typeof cloudCustomCats !== "undefined" && Object.keys(cloudCustomCats).length > 0) allCategories = cloudCustomCats;
+
+        let allStaff = {};
+        try { allStaff = JSON.parse(localStorage.getItem("cached_staff_list") || "{}"); } catch(e){}
+        if (typeof staffListObj !== "undefined" && Object.keys(staffListObj).length > 0) allStaff = staffListObj;
+
+        let adminPass = localStorage.getItem("cached_admin_pass") || currentAdminPass || "1234";
+
+        // તારીખ અને ૧૨-કલાક AM / PM ટાઈમ સ્ટેમ્પ તૈયાર કરવો
         let now = new Date();
-        let timeStamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
-        
+        let dd = String(now.getDate()).padStart(2, '0');
+        let mm = String(now.getMonth() + 1).padStart(2, '0');
+        let yyyy = now.getFullYear();
+        let hours = now.getHours();
+        let minutes = String(now.getMinutes()).padStart(2, '0');
+        let seconds = String(now.getSeconds()).padStart(2, '0');
+        let ampm = hours >= 12 ? 'PM' : 'AM';
+        let h12 = hours % 12;
+        h12 = h12 ? h12 : 12;
+        let h12Str = String(h12).padStart(2, '0');
+
+        let timeStamp = `${dd}-${mm}-${yyyy}_${h12Str}-${minutes}-${seconds}_${ampm}`;
+
+        let masterBackupData = {
+            app: "PartyPlotManagement_MasterBackup",
+            version: "3.0",
+            backupDate: `${dd}/${mm}/${yyyy}`,
+            backupTime: `${h12Str}:${minutes}:${seconds} ${ampm}`,
+            farms: allFarms,
+            farm_bookings: allBookings,
+            farm_workers: allWorkers,
+            company_expenses: allExpenses,
+            company_capital: allCapital,
+            daily_rojmel: allRojmel,
+            vendors: allVendors,
+            inventory: allInventory,
+            expense_categories: allCategories,
+            staff_permissions: allStaff,
+            admin_config: { password: adminPass }
+        };
+
+        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(masterBackupData, null, 2));
         let dlAnchor = document.createElement('a');
         dlAnchor.setAttribute("href", dataStr);
-        dlAnchor.setAttribute("download", `Booking_Backup_${timeStamp}.json`);
+        dlAnchor.setAttribute("download", `સંપૂર્ણ_સોફ્ટવેર_બેકઅપ_${timeStamp}.json`);
         document.body.appendChild(dlAnchor);
         dlAnchor.click();
         dlAnchor.remove();
+
+        // ડિવાઇસના LocalStorage માં પણ છેલ્લો બેકઅપ સેવ રાખવો
+        localStorage.setItem("master_backup_last", JSON.stringify(masterBackupData));
+        alert(`✅ સંપૂર્ણ સોફ્ટવેર બેકઅપ સફળતાપૂર્વક લેવાઈ ગયું છે!\nતારીખ: ${dd}/${mm}/${yyyy} | સમય: ${h12Str}:${minutes}:${seconds} ${ampm}\n(બુકિંગ, પાર્ટી, કારીગર, રોજમેળ, વેન્ડર, સ્ટોક અને તમામ હિસાબ સુરક્ષિત થઈ ગયો છે)`);
     }
 
-    // 📂 ૨. ફોનમાંથી ફાઈલ પસંદ કરી ક્લાઉડ (Firebase) માં રિસ્ટોર થશે
+    // 📂 ૨. સંપૂર્ણ માસ્ટર બેકઅપ રિસ્ટોર (LocalStorage + Firebase બંનેમાં ૧૦૦% રિસ્ટોર)
     function handleRestoreJSON(event) {
         if (currentUserRole !== 'admin') {
-            alert("માત્ર Admin પાસે બેકઅપ રિસ્ટોર કરવાનો અધિકાર છે!");
+            alert("❌ માત્ર Admin પાસે બેકઅપ રિસ્ટોર કરવાનો અધિકાર છે!");
             return;
         }
 
@@ -3737,14 +3880,64 @@
         let reader = new FileReader();
         reader.onload = function(e) {
             try {
-                let data = JSON.parse(e.target.result); 
-                currentBookingRef.set(data, function(error) {
-                    if (error) {
-                        alert("❌ ક્લાઉડમાં ડેટા સેવ કરવામાં ભૂલ થઈ!");
-                    } else {
-                        alert(`✅ સફળતાપૂર્વક બેકઅપ "${currentFarmName}" માં રિસ્ટોર થઈ ગયું છે! બધા ૨૦ યુઝર્સને હવે આ દેખાશે.`);
+                let data = JSON.parse(e.target.result);
+                let isMaster = (data.app === "PartyPlotManagement_MasterBackup" || data.daily_rojmel || data.farm_bookings);
+
+                if (isMaster) {
+                    // ૧. ઑફલાઇન પણ બધું તરત દેખાય તે માટે LocalStorage માં સેવ કરવું
+                    if (data.farms) localStorage.setItem("cached_farms", JSON.stringify(data.farms));
+                    if (data.farm_bookings) {
+                        localStorage.setItem("cached_all_farm_bookings", JSON.stringify(data.farm_bookings));
+                        for (let fId in data.farm_bookings) {
+                            localStorage.setItem("cached_bookings_" + fId, JSON.stringify(data.farm_bookings[fId]));
+                        }
                     }
-                });
+                    if (data.farm_workers) {
+                        localStorage.setItem("cached_all_farm_workers", JSON.stringify(data.farm_workers));
+                        for (let fId in data.farm_workers) {
+                            localStorage.setItem("cached_workers_" + fId, JSON.stringify(data.farm_workers[fId]));
+                        }
+                    }
+                    if (data.company_expenses) localStorage.setItem("cached_company_expenses", JSON.stringify(data.company_expenses));
+                    if (data.company_capital) localStorage.setItem("cached_company_capital", JSON.stringify(data.company_capital));
+                    if (data.daily_rojmel) localStorage.setItem("cached_daily_rojmel", JSON.stringify(data.daily_rojmel));
+                    if (data.vendors) localStorage.setItem("cached_vendors", JSON.stringify(data.vendors));
+                    if (data.inventory) localStorage.setItem("cached_inventory", JSON.stringify(data.inventory));
+                    if (data.expense_categories) localStorage.setItem("cached_expense_categories", JSON.stringify(data.expense_categories));
+                    if (data.staff_permissions) localStorage.setItem("cached_staff_list", JSON.stringify(data.staff_permissions));
+                    if (data.admin_config && data.admin_config.password) localStorage.setItem("cached_admin_pass", data.admin_config.password);
+
+                    // ૨. ઇન્ટરનેટ હોય તો ક્લાઉડ Firebase માં પણ બધો ડેટા અપડેટ કરવો
+                    if (navigator.onLine && typeof firebase !== "undefined" && firebase.apps.length) {
+                        let rootRef = firebase.database().ref();
+                        let updates = {};
+                        if (data.farms) updates["farms"] = data.farms;
+                        if (data.farm_bookings) updates["farm_bookings"] = data.farm_bookings;
+                        if (data.farm_workers) updates["farm_workers"] = data.farm_workers;
+                        if (data.company_expenses) updates["company_expenses"] = data.company_expenses;
+                        if (data.company_capital) updates["company_capital"] = data.company_capital;
+                        if (data.daily_rojmel) updates["daily_rojmel"] = data.daily_rojmel;
+                        if (data.vendors) updates["vendors"] = data.vendors;
+                        if (data.inventory) updates["inventory"] = data.inventory;
+                        if (data.expense_categories) updates["expense_categories"] = data.expense_categories;
+                        if (data.staff_permissions) updates["staff_permissions"] = data.staff_permissions;
+                        if (data.admin_config) updates["admin_config"] = data.admin_config;
+                        rootRef.update(updates);
+                    }
+
+                    alert("✅ અભિનંદન! સંપૂર્ણ સોફ્ટવેર બેકઅપ સફળતાપૂર્વક રિસ્ટોર થઈ ગયું છે!\nબુકિંગ, પાર્ટી, કારીગર, રોજમેળ, વેન્ડર, સ્ટોક અને તમામ રિપોર્ટ્સ અપડેટ થઈ ગયા છે.");
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    if (currentBookingRef) {
+                        currentBookingRef.set(data, function(error) {
+                            if (error) alert("❌ ક્લાઉડમાં સેવ કરવામાં ભૂલ!");
+                            else {
+                                alert(`✅ બુકિંગ ડેટા સફળતાપૂર્વક રિસ્ટોર થઈ ગયો!`);
+                                location.reload();
+                            }
+                        });
+                    }
+                }
             } catch (err) {
                 alert("❌ ફાઇલ વાંચવામાં ભૂલ! કૃપા કરીને સાચી બેકઅપ ફાઇલ પસંદ કરો.");
             }
@@ -4283,25 +4476,43 @@
                 canUserDeleteUpad = true;
                 currentStaffConfig = null;
                 setupUserView();
-            } else {
-                staffPermRef.once('value', (snap) => {
-                    staffListObj = snap.val() || {};
-                    let staff = staffListObj[currentUserRole];
-                    if (staff) {
-                        currentStaffConfig = staff;
-                        canUserEdit = staff.canEdit === true;
-                        canUserDelete = staff.canDelete === true;
-                        canUserViewWorkers = staff.canViewWorkers === true;  
-                        canUserEditWorkerProfile = staff.canEditWorkerProfile === true;
-                        canUserAddUpad = staff.canAddUpad === true;
-                        canUserDeleteWorker = staff.canDeleteWorker === true;
-                        canUserDeleteUpad = staff.canDeleteUpad === true;
-                        setupUserView();
-                        renderWorkersTable();
-                    } else {
-                        logout();   
-                    }
-                });
+            } else { 
+                // 💾 ૧. સ્ટાફ માટે પહેલા LocalStorage માંથી ચેક કરવું (જેથી નેટ વગર લોગઆઉટ ન થાય)
+                let staff = staffListObj[currentUserRole];
+                if (staff) {
+                    currentStaffConfig = staff;
+                    canUserEdit = staff.canEdit === true;
+                    canUserDelete = staff.canDelete === true;
+                    canUserViewWorkers = staff.canViewWorkers === true;  
+                    canUserEditWorkerProfile = staff.canEditWorkerProfile === true;
+                    canUserAddUpad = staff.canAddUpad === true;
+                    canUserDeleteWorker = staff.canDeleteWorker === true;
+                    canUserDeleteUpad = staff.canDeleteUpad === true;
+                    setupUserView();
+                    renderWorkersTable();
+                }
+
+                // 🌐 ૨. ઇન્ટરનેટ હોય ત્યારે જ ક્લાઉડમાંથી તાજી પરવાનગી ચકાસવી
+                if (navigator.onLine) {
+                    staffPermRef.once('value', (snap) => {
+                        staffListObj = snap.val() || {};
+                        let liveStaff = staffListObj[currentUserRole];
+                        if (liveStaff) {
+                            currentStaffConfig = liveStaff;
+                            canUserEdit = liveStaff.canEdit === true;
+                            canUserDelete = liveStaff.canDelete === true;
+                            canUserViewWorkers = liveStaff.canViewWorkers === true;  
+                            canUserEditWorkerProfile = liveStaff.canEditWorkerProfile === true;
+                            canUserAddUpad = liveStaff.canAddUpad === true;
+                            canUserDeleteWorker = liveStaff.canDeleteWorker === true;
+                            canUserDeleteUpad = liveStaff.canDeleteUpad === true;
+                            setupUserView();
+                            renderWorkersTable();
+                        } else if (!staff) {
+                            logout();   
+                        }
+                    });
+                }
             }
         }
     };
@@ -4552,19 +4763,20 @@
 </div>
 
 <!-- 🚀 JavaScript Engine: રોજમેળ, વેન્ડર, સ્ટોક, કેટેગરી કસ્ટમાઇઝ & WhatsApp રીમાઇન્ડર -->
-<script>
-    // Firebase References
+<script> 
+   // Firebase References
     const rojmelRef = firebase.database().ref("daily_rojmel");
     const vendorRef = firebase.database().ref("vendors");
     const inventoryRef = firebase.database().ref("inventory");
     const customCatsRef = firebase.database().ref("expense_categories");
 
-    let cloudRojmel = {};
-    let cloudVendors = {};
-    let cloudInventory = {};
-    let cloudCustomCats = {};
+    // 🌐 ઑફલાઇન હોય ત્યારે LocalStorage માંથી તુરંત ડેટા લોડ કરવો (જેથી સ્ક્રીન ખાલી ન દેખાય)
+    let cloudRojmel = JSON.parse(localStorage.getItem("cached_daily_rojmel") || "{}");
+    let cloudVendors = JSON.parse(localStorage.getItem("cached_vendors") || "{}");
+    let cloudInventory = JSON.parse(localStorage.getItem("cached_inventory") || "{}");
+    let cloudCustomCats = JSON.parse(localStorage.getItem("cached_expense_categories") || "{}");
 
-    // ડિફોલ્ટ કેટેગરીઓ (જો ડેટાબેઝમાં ન હોય તો)
+    // ડિફોલ્ટ કેટેગરીઓ
     const defaultExpenseCategories = [
         "ટ્રાન્સપોર્ટ (વાહન ભાડું)",
         "ડીઝલ / પેટ્રોલ",
@@ -4576,19 +4788,22 @@
         "અન્ય પરચૂરણ ખર્ચ"
     ];
 
-    // Realtime Listeners
+    // Realtime Cloud Listeners (ક્લાઉડમાંથી આવતાં જ LocalStorage માં આપોઆપ સેવ થશે)
     rojmelRef.on('value', (snap) => {
         cloudRojmel = snap.val() || {};
+        localStorage.setItem("cached_daily_rojmel", JSON.stringify(cloudRojmel));
         renderRojmelData();
     });
 
     vendorRef.on('value', (snap) => {
         cloudVendors = snap.val() || {};
+        localStorage.setItem("cached_vendors", JSON.stringify(cloudVendors));
         renderVendorsTable();
     });
 
     inventoryRef.on('value', (snap) => {
         cloudInventory = snap.val() || {};
+        localStorage.setItem("cached_inventory", JSON.stringify(cloudInventory));
         renderInventoryTable();
     });
 
@@ -4601,10 +4816,20 @@
             });
         } else {
             cloudCustomCats = val;
+            localStorage.setItem("cached_expense_categories", JSON.stringify(cloudCustomCats));
             updateExpenseCategoryDropdowns();
             renderCustomCategoriesTable();
         }
     });
+
+    // ઑફલાઇન પ્રારંભિક રેન્ડરિંગ
+    setTimeout(() => {
+        updateExpenseCategoryDropdowns();
+        renderCustomCategoriesTable();
+        renderRojmelData();
+        renderVendorsTable();
+        renderInventoryTable();
+    }, 300);
 
     // ==========================================
     // ૧. ડાયનેમિક ખર્ચ કેટેગરી મેનેજર
@@ -4621,24 +4846,36 @@
         let name = document.getElementById("newCustomCatName").value.trim();
         if (!name) { alert("કૃપા કરીને કેટેગરીનું નામ લખો!"); return; }
         let id = "cat_" + Date.now();
-        customCatsRef.child(id).set({ id: id, name: name }, (err) => {
-            if (!err) {
-                document.getElementById("newCustomCatName").value = "";
-                alert("✅ નવી ખર્ચ કેટેગરી ઉમેરાઈ ગઈ!");
-            }
-        });
+        let catObj = { id: id, name: name };
+
+        cloudCustomCats[id] = catObj;
+        localStorage.setItem("cached_expense_categories", JSON.stringify(cloudCustomCats));
+        renderCustomCategoriesTable();
+        updateExpenseCategoryDropdowns();
+
+        if (navigator.onLine) { customCatsRef.child(id).set(catObj); }
+        document.getElementById("newCustomCatName").value = "";
+        alert("✅ નવી ખર્ચ કેટેગરી ઉમેરાઈ ગઈ!");
     }
 
     function editCustomExpenseCategory(catId, oldName) {
         let newName = prompt("કેટેગરીનું નવું નામ લખો:", oldName);
         if (newName && newName.trim() !== "" && newName !== oldName) {
-            customCatsRef.child(catId).update({ name: newName.trim() });
+            cloudCustomCats[catId].name = newName.trim();
+            localStorage.setItem("cached_expense_categories", JSON.stringify(cloudCustomCats));
+            renderCustomCategoriesTable();
+            updateExpenseCategoryDropdowns();
+            if (navigator.onLine) customCatsRef.child(catId).update({ name: newName.trim() });
         }
     }
 
     function deleteCustomExpenseCategory(catId, name) {
         if (confirm(`શું તમે ખર્ચ કેટેગરી "${name}" ડિલીટ કરવા માંગો છો?`)) {
-            customCatsRef.child(catId).remove();
+            delete cloudCustomCats[catId];
+            localStorage.setItem("cached_expense_categories", JSON.stringify(cloudCustomCats));
+            renderCustomCategoriesTable();
+            updateExpenseCategoryDropdowns();
+            if (navigator.onLine) customCatsRef.child(catId).remove();
         }
     }
 
@@ -4679,7 +4916,7 @@
     }
 
     // ==========================================
-    // ૨. 📖 દૈનિક રોજમેળ (Daily Rojmel) Engine
+    // ૨. 📖 દૈનિક રોજમેળ (Daily Rojmel) Engine (ઓનલાઇન & ઑફલાઇન)
     // ==========================================
     function openRojmelModal() {
         let now = new Date();
@@ -4714,16 +4951,27 @@
             timestamp: Date.now()
         };
 
-        rojmelRef.child(rId).set(rData, () => {
-            document.getElementById("rojmelAmount").value = "";
-            document.getElementById("rojmelDetails").value = "";
-            alert("✅ રોજમેળ એન્ટ્રી સફળતાપૂર્વક થઈ ગઈ!");
-        });
+        // ૧. LocalStorage માં તરત જ સેવ કરવું
+        cloudRojmel[rId] = rData;
+        localStorage.setItem("cached_daily_rojmel", JSON.stringify(cloudRojmel));
+        renderRojmelData();
+
+        // ૨. ક્લાઉડ Firebase માં મોકલવું
+        if (navigator.onLine) {
+            rojmelRef.child(rId).set(rData);
+        }
+
+        document.getElementById("rojmelAmount").value = "";
+        document.getElementById("rojmelDetails").value = "";
+        alert("✅ રોજમેળ એન્ટ્રી સફળતાપૂર્વક થઈ ગઈ!");
     }
 
     function deleteRojmelEntry(rId) {
         if (confirm("શું તમે આ રોજમેળ એન્ટ્રી રદ કરવા માંગો છો?")) {
-            rojmelRef.child(rId).remove();
+            delete cloudRojmel[rId];
+            localStorage.setItem("cached_daily_rojmel", JSON.stringify(cloudRojmel));
+            renderRojmelData();
+            if (navigator.onLine) rojmelRef.child(rId).remove();
         }
     }
 
@@ -4774,7 +5022,7 @@
         }
     }
 
-     // 🖨️ A4 સાઈઝ દેશી નામા પ્રિન્ટ (ડાબી બાજુ જમા, જમણી બાજુ ઉધાર, વચ્ચે ઊભી લાઈન)
+    // 🖨️ A4 સાઈઝ દેશી નામા પ્રિન્ટ (ડાબી બાજુ જમા, જમણી બાજુ ઉધાર, વચ્ચે ઊભી લાઈન)
     function printRojmelA4TwoColumn() {
         let sDate = document.getElementById("rojmelFilterStart").value;
         let eDate = document.getElementById("rojmelFilterEnd").value;
@@ -4902,7 +5150,7 @@
     }
 
     // ==========================================
-    // ૩. 🤝 વેન્ડર ખાતાવહી (Vendor Management)
+    // ૩. 🤝 વેન્ડર ખાતાવહી (Vendor Management - ઓનલાઇન & ઑફલાઇન)
     // ==========================================
     function openVendorModal() {
         document.getElementById("vendorModal").style.display = "flex";
@@ -4931,12 +5179,19 @@
             timestamp: Date.now()
         };
 
-        vendorRef.child(vId).set(vData, () => {
-            document.getElementById("vendName").value = "";
-            document.getElementById("vendMobile").value = "";
-            document.getElementById("vendBillAmt").value = "";
-            alert("✅ વેન્ડર સફળતાપૂર્વક ઉમેરાઈ ગયો!");
-        });
+        // LocalStorage માં તરત સેવ કરવું
+        cloudVendors[vId] = vData;
+        localStorage.setItem("cached_vendors", JSON.stringify(cloudVendors));
+        renderVendorsTable();
+
+        if (navigator.onLine) {
+            vendorRef.child(vId).set(vData);
+        }
+
+        document.getElementById("vendName").value = "";
+        document.getElementById("vendMobile").value = "";
+        document.getElementById("vendBillAmt").value = "";
+        alert("✅ વેન્ડર સફળતાપૂર્વક ઉમેરાઈ ગયો!");
     }
 
     function payVendorAmount(vId) {
@@ -4946,13 +5201,19 @@
         amt = parseFloat(amt);
         if (amt && amt > 0) {
             let newPaid = parseFloat(v.paidAmount || 0) + amt;
-            vendorRef.child(vId).update({ paidAmount: newPaid });
+            cloudVendors[vId].paidAmount = newPaid;
+            localStorage.setItem("cached_vendors", JSON.stringify(cloudVendors));
+            renderVendorsTable();
+            if (navigator.onLine) vendorRef.child(vId).update({ paidAmount: newPaid });
         }
     }
 
     function deleteVendor(vId, name) {
         if (confirm(`શું તમે વેન્ડર "${name}" નું ખાતું ડિલીટ કરવા માંગો છો?`)) {
-            vendorRef.child(vId).remove();
+            delete cloudVendors[vId];
+            localStorage.setItem("cached_vendors", JSON.stringify(cloudVendors));
+            renderVendorsTable();
+            if (navigator.onLine) vendorRef.child(vId).remove();
         }
     }
 
@@ -5014,7 +5275,7 @@
     }
 
     // ==========================================
-    // ૪. 📦 ઇન્વેન્ટરી & સ્ટોક મેનેજમેન્ટ
+    // ૪. 📦 ઇન્વેન્ટરી & સ્ટોક મેનેજમેન્ટ (ઓનલાઇન & ઑફલાઇન)
     // ==========================================
     function openInventoryModal() {
         document.getElementById("inventoryModal").style.display = "flex";
@@ -5043,12 +5304,19 @@
             timestamp: Date.now()
         };
 
-        inventoryRef.child(itemId).set(itemData, () => {
-            document.getElementById("invItemName").value = "";
-            document.getElementById("invTotalQty").value = "";
-            document.getElementById("invLocation").value = "";
-            alert("✅ સામાન સ્ટોકમાં ઉમેરાઈ ગયો!");
-        });
+        // LocalStorage માં તરત સેવ કરવું
+        cloudInventory[itemId] = itemData;
+        localStorage.setItem("cached_inventory", JSON.stringify(cloudInventory));
+        renderInventoryTable();
+
+        if (navigator.onLine) {
+            inventoryRef.child(itemId).set(itemData);
+        }
+
+        document.getElementById("invItemName").value = "";
+        document.getElementById("invTotalQty").value = "";
+        document.getElementById("invLocation").value = "";
+        alert("✅ સામાન સ્ટોકમાં ઉમેરાઈ ગયો!");
     }
 
     function changeItemStock(itemId, action) {
@@ -5065,12 +5333,19 @@
         } else {
             curOut = Math.max(0, curOut - qty);
         }
-        inventoryRef.child(itemId).update({ outQty: curOut });
+        cloudInventory[itemId].outQty = curOut;
+        localStorage.setItem("cached_inventory", JSON.stringify(cloudInventory));
+        renderInventoryTable();
+
+        if (navigator.onLine) inventoryRef.child(itemId).update({ outQty: curOut });
     }
 
     function deleteInventoryItem(itemId, name) {
         if (confirm(`શું તમે સામાન "${name}" સ્ટોકમાંથી ડિલીટ કરવા માંગો છો?`)) {
-            inventoryRef.child(itemId).remove();
+            delete cloudInventory[itemId];
+            localStorage.setItem("cached_inventory", JSON.stringify(cloudInventory));
+            renderInventoryTable();
+            if (navigator.onLine) inventoryRef.child(itemId).remove();
         }
     }
 
