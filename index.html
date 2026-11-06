@@ -2861,7 +2861,7 @@
         }
     }
 
-    // 📑 Excel એક્સપોર્ટ (પેમેન્ટ મોડ, ચેક નંબર અને GPay ID સાથે)
+    // 📑 Excel એક્સપોર્ટ (રોકડ / ચેક નંબર / GPay ID અને સમય સ્પષ્ટ દેખાશે)
     function exportExcel() {
         let bookings = getAllBookings();
         if (bookings.length === 0) {
@@ -2869,31 +2869,49 @@
             return;
         }  
 
-        let csv = "\uFEFFતારીખ,શિફ્ટ,કસ્ટમરનું નામ,મોબાઈલ,ઇવેન્ટ,મહેમાનો,કુલ રકમ,એડવાન્સ,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી (મોડ/વિગત),સ્ટેટસ\n";
+        let csv = "\uFEFFતારીખ,શિફ્ટ,કસ્ટમરનું નામ,મોબાઈલ,ઇવેન્ટ,મહેમાનો,કુલ પેકેજ રકમ,કુલ એડવાન્સ,બાકી રકમ,પેમેન્ટ વિગત (મોડ - ચેક નં / GPay ID - તારીખ & સમય),સ્ટેટસ\n";
+        
         bookings.forEach(b => {
             let parts = b.dateKey.replace(STORAGE_PREFIX, "").split("_");
             let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`; 
             let slotName = (b.slot === 'fullday') ? 'આખો દિવસ' : ((b.slot === 'evening') ? 'સાંજ' : 'સવાર');
             
+            // 💰 દરેક હપ્તાની વિગતવાર હિસ્ટ્રી (રોકડ, ચેક નંબર, GPay ID સાથે)
             let pHistoryText = "";
-            if (b.payments && Array.isArray(b.payments)) {
+            if (b.payments && Array.isArray(b.payments) && b.payments.length > 0) {
                 pHistoryText = b.payments.map((p, i) => {
-                    let m = p.mode === 'cheque' ? `ચેક (${p.refNumber || ''})` : (p.mode === 'gpay' ? `GPay (${p.refNumber || ''})` : 'રોકડ');
-                    let t = p.time ? ` [${p.time}]` : '';
-                    return `હપ્તો ${i+1}: ₹${p.amount} (${m}) ${p.date}${t}`;
-                }).join(" | ");
+                    let m = "રોકડ (Cash)";
+                    if (p.mode === 'cheque') {
+                        m = `ચેક [નં: ${p.refNumber || 'N/A'}]`;
+                    } else if (p.mode === 'gpay') {
+                        m = `GPay [ID: ${p.refNumber || 'N/A'}]`;
+                    }
+                    let t = p.time ? ` (${p.time})` : '';
+                    let note = p.note ? ` - ${p.note}` : '';
+                    return `હપ્તો ${i + 1}: ₹${p.amount} [${m}] તા: ${p.date}${t}${note}`;
+                }).join(" ; ");
             } else if (b.advanceAmount > 0) {
-                pHistoryText = `₹${b.advanceAmount} (રોકડ)`;
+                pHistoryText = `₹${b.advanceAmount} [રોકડ (Cash)]`;
+            } else {
+                pHistoryText = "(કોઈ એડવાન્સ મળેલ નથી)";
             }
 
-            csv += `"${formattedDate}","${slotName}","${b.customerName}","${b.mobile}","${b.event}","${b.guests}","${b.totalAmount}","${b.advanceAmount}","${b.balanceAmount}","${pHistoryText}","${b.status}"\n`;
+            // CSV માટે સ્પેશિયલ કેરેક્ટર સાફ કરવું જેથી Excel માં ખાનું તૂટે નહીં
+            let cleanHistory = pHistoryText.replace(/"/g, '""');
+            let cleanCust = (b.customerName || '').replace(/"/g, '""');
+            let cleanEvent = (b.event || '-').replace(/"/g, '""');
+            let statusText = b.status === 'ok' ? 'ઓકે (OK)' : (b.status === 'paid' ? 'પૂર્ણ (Paid)' : 'બાકી (Pending)');
+
+            csv += `"${formattedDate}","${slotName}","${cleanCust}","${b.mobile || ''}","${cleanEvent}","${b.guests || '-'}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${cleanHistory}","${statusText}"\n`;
         });
 
         let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         let link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `Booking_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.download = `${currentFarmName || 'Farm'}_બુકિંગ_રિપોર્ટ_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     }
 
     // 🔒 Admin Password Modal
