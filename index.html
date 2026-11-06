@@ -407,7 +407,1106 @@
         </div>
     </div>
 
-</div>
+    <!-- Step 4: Company Accounts, Expenses & Profit-Loss (Admin Only) -->
+    <div class="card" id="companyAccountSection" style="display:none; border: 2px solid #6366f1; background: #fafafa;">
+        <div class="section-header" style="border-bottom: 2px solid #e0e7ff;">
+            <div class="section-title" style="color: #4338ca;">
+                🏢 Step 4: કંપની એકાઉન્ટિંગ, ખર્ચ, સરવૈયું & નફા-નુકસાન (Admin Only)
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn" onclick="openExpenseModal()" style="background:#dc2626; color:white;">➕ નવો ખર્ચ (Expense)</button>
+                <button class="btn" onclick="openCapitalModal()" style="background:#0284c7; color:white;">🏦 મૂડી / બેંક ખાતું</button>
+                <button class="btn" onclick="openPartyStatementModal()" style="background:#7c3aed; color:white;">📑 પાર્ટી ખાતાવહી</button>
+                <button class="btn" onclick="openPnlReportModal()" style="background:#059669; color:white; font-weight:700;">📊 નફા-નુકસાન સરવૈયું (P&L)</button>
+            </div>
+        </div>
+
+        <!-- Accounts Summary -->
+        <div class="summary-grid">
+            <div class="stat-card" style="border-left-color: #0284c7;">
+                <span class="stat-title">કુલ મૂડી / બેંક સિલક (Capital/Bank)</span>
+                <span class="stat-value" id="accTotalCapitalSum" style="color:#0284c7;">₹0</span>
+            </div>
+            <div class="stat-card green">
+                <span class="stat-title">કુલ બુકિંગ આવક (Revenue)</span>
+                <span class="stat-value" id="accTotalIncomeSum">₹0</span>
+            </div>
+            <div class="stat-card red">
+                <span class="stat-title">કુલ જાવક / ખર્ચા (Expenses + Salary)</span>
+                <span class="stat-value" id="accTotalExpenseSum">₹0</span>
+            </div>
+            <div class="stat-card yellow" id="pnlNetProfitCard">
+                <span class="stat-title">ચોખ્ખો ચોખ્ખો નફો / ખોટ (Net P&L)</span>
+                <span class="stat-value" id="accNetPnlSum" style="font-size:22px;">₹0</span>
+            </div>
+        </div>
+
+        <!-- Expense Filter Bar -->
+        <div class="controls-row" style="background:#f1f5f9; padding:12px; border-radius:8px; margin-bottom:15px;">
+            <label style="font-size:13px; font-weight:700;">ખર્ચ ફિલ્ટર:</label>
+            <select id="expFilterFarm" class="form-control" style="width:190px;" onchange="renderExpensesTable()">
+                <option value="ALL">🏰 બધા ફાર્મ & જનરલ</option>
+            </select>
+            <select id="expFilterCategory" class="form-control" style="width:160px;" onchange="renderExpensesTable()">
+                <option value="ALL">બધી કેટેગરી</option>
+                <option value="Transport">ટ્રાન્સપોર્ટ</option>
+                <option value="Diesel/Fuel">ડીઝલ / ઈંધણ</option>
+                <option value="Maintenance">રિપેરિંગ / મેન્ટેનન્સ</option>
+                <option value="Electricity">લાઈટબિલ / પાવર</option>
+                <option value="Kitchen/Grocery">કરિયાણું / રસોડું</option>
+                <option value="Labour">મજૂરી / લેબર</option>
+                <option value="Other">અન્ય ખર્ચ</option>
+            </select>
+            <input type="text" id="expSearchInput" class="form-control" onkeyup="renderExpensesTable()" placeholder="નોંધ, વાહન નંબર કે વિગત શોધો..." style="flex:1; min-width:200px;">
+        </div>
+
+        <!-- Expenses Table -->
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>તારીખ & સમય</th>
+                        <th>ફાર્મ / બ્રાન્ચ</th>
+                        <th>કેટેગરી</th>
+                        <th>પેમેન્ટ મોડ / વિગત</th>
+                        <th>રકમ (₹)</th>
+                        <th>નોંધ / વિગત</th>
+                        <th>ક્રિયા</th>
+                    </tr>
+                </thead>
+                <tbody id="expenseTableBody">
+                    <tr><td colspan="8" style="text-align:center; padding:16px; color:#94a3b8;">કોઈ ખર્ચ નોંધાયેલ નથી.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ➕ Modal: Add / Edit Expense -->
+    <div class="modal" id="expenseModal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span id="expModalTitle">➕ નવો ખર્ચ (Expense) ઉમેરો</span>
+                <button class="btn btn-outline" onclick="closeExpenseModal()" style="padding:2px 8px; font-size:12px;">✕</button>
+            </div>
+            <input type="hidden" id="editExpenseId">
+
+            <div class="form-group">
+                <label>કયા ફાર્મનો ખર્ચ છે? *</label>
+                <select id="expFarmSelect" class="form-control"></select>
+            </div>
+
+            <div class="form-group">
+                <label>ખર્ચનો પ્રકાર (Category) *</label>
+                <select id="expCategory" class="form-control">
+                    <option value="Transport">🚛 ટ્રાન્સપોર્ટ (વાહન ભાડું)</option>
+                    <option value="Diesel/Fuel">⛽ ડીઝલ / પેટ્રોલ</option>
+                    <option value="Maintenance">🛠️ રિપેરિંગ / મેન્ટેનન્સ</option>
+                    <option value="Electricity">💡 લાઈટબિલ / જનરેટર</option>
+                    <option value="Kitchen/Grocery">🍲 કરિયાણું / રસોડું</option>
+                    <option value="Labour">👷‍♂️ મજૂરી / અન્ય લેબર</option>
+                    <option value="Other">📝 અન્ય પરચૂરણ ખર્ચ</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>ખર્ચ રકમ (₹) *</label>
+                <input type="number" id="expAmount" class="form-control" placeholder="રકમ દાખલ કરો">
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                <div class="form-group">
+                    <label>તારીખ *</label>
+                    <input type="date" id="expDate" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>સમય</label>
+                    <input type="time" id="expTime" class="form-control">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>પેમેન્ટ મોડ (Payment Mode) *</label>
+                <select id="expPaymentMode" class="form-control" onchange="onExpenseModeChange()">
+                    <option value="cash">💵 રોકડ (Cash)</option>
+                    <option value="cheque">🏦 ચેક (Cheque)</option>
+                    <option value="gpay">📱 Google Pay / PhonePe / UPI</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="expRefGroup" style="display:none;">
+                <label id="expRefLabel">ચેક નંબર / UPI ટ્રાન્ઝેક્શન ID *</label>
+                <input type="text" id="expRefNumber" class="form-control" placeholder="નંબર દાખલ કરો">
+            </div>
+
+            <div class="form-group">
+                <label>નોંધ / બિલ નંબર / વિગત</label>
+                <input type="text" id="expNote" class="form-control" placeholder="દા.ત. ટ્રેક્ટર ડીઝલ, ટેમ્પો ભાડું, બિલ નં ૪૨">
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+                <button class="btn btn-success" onclick="saveExpense()" style="justify-content:center; padding:10px;">💾 ખર્ચ સેવ કરો</button>
+                <button class="btn btn-outline" onclick="closeExpenseModal()" style="justify-content:center;">બંધ કરો</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏦 Modal: Capital & Bank Management -->
+    <div class="modal" id="capitalModal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>🏦 મૂડી રોકાણ & બેંક ખાતું (Capital & Bank Ledger)</span>
+                <button class="btn btn-outline" onclick="closeCapitalModal()" style="padding:2px 8px; font-size:12px;">✕</button>
+            </div>
+
+            <!-- Capital Add Form -->
+            <div style="background:#f0f9ff; border:1.5px solid #bae6fd; border-radius:8px; padding:12px; margin-bottom:12px;">
+                <b style="font-size:13px; color:#0369a1; display:block; margin-bottom:6px;">➕ નવું મૂડી રોકાણ / ઉપાડ નોંધો:</b>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+                    <select id="capType" class="form-control">
+                        <option value="IN">📥 મૂડી લાવી (Capital In)</option>
+                        <option value="OUT">📤 મૂડી ઉપાડ (Capital Out)</option>
+                    </select>
+                    <input type="number" id="capAmount" class="form-control" placeholder="રકમ (₹) *">
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+                    <input type="text" id="capAccountName" class="form-control" placeholder="ખાતાનું નામ (દા.ત. SBI, કેશ બોક્સ)">
+                    <input type="date" id="capDate" class="form-control">
+                </div>
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:6px;">
+                    <input type="text" id="capNote" class="form-control" placeholder="વિગત (દા.ત. પાર્ટનર રોકાણ)">
+                    <button class="btn btn-primary" onclick="saveCapitalEntry()" style="justify-content:center;">+ ઉમેરો</button>
+                </div>
+            </div>
+
+            <!-- Capital Entries Table -->
+            <div style="max-height:220px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                <table style="width:100%; font-size:12px;">
+                    <thead style="background:#f1f5f9; position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:6px;">તારીખ</th>
+                            <th style="padding:6px;">પ્રકાર</th>
+                            <th style="padding:6px;">ખાતું / નોંધ</th>
+                            <th style="padding:6px; text-align:right;">રકમ</th>
+                            <th style="padding:6px; text-align:center;">ક્રિયા</th>
+                        </tr>
+                    </thead>
+                    <tbody id="capitalHistoryBody">
+                        <tr><td colspan="5" style="text-align:center; padding:10px; color:#94a3b8;">કોઈ મૂડી એન્ટ્રી નથી.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top:14px; text-align:right;">
+                <button class="btn btn-outline" onclick="closeCapitalModal()">બંધ કરો</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📊 Modal: Profit & Loss Statement (સરવૈયું) -->
+    <div class="modal" id="pnlModal">
+        <div class="modal-content" style="max-width: 780px; width:95%;">
+            <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>📊 નફા-નુકસાન ખાતું (Profit & Loss Statement)</span>
+                <button class="btn btn-outline" onclick="closePnlModal()" style="padding:2px 8px; font-size:12px;">✕</button>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px; display:grid; grid-template-columns: 1.4fr 1fr 1fr auto; gap:8px; align-items:end;">
+                <div>
+                    <label style="font-size:12px; font-weight:700;">ફાર્મ પસંદ કરો:</label>
+                    <select id="pnlFarmSelect" class="form-control" style="font-size:13px; font-weight:600;">
+                        <option value="ALL">🏰 બધા જ ફાર્મનો ભેગો રિપોર્ટ (Consolidated)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700;">શરૂઆત તારીખ:</label>
+                    <input type="date" id="pnlStartDate" class="form-control" style="font-size:12px;">
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700;">અંતિમ તારીખ:</label>
+                    <input type="date" id="pnlEndDate" class="form-control" style="font-size:12px;">
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="calculatePnlStatement()" style="padding:9px 16px;">🔍 ગણતરી</button>
+                </div>
+            </div>
+
+            <!-- P&L Comparison Cards -->
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:14px; text-align:center;">
+                <div style="background:#ecfdf5; border:1.5px solid #a7f3d0; padding:12px; border-radius:8px;">
+                    <span style="font-size:12px; color:#065f46; font-weight:700; display:block;">કુલ આવક (Total Inflow)</span>
+                    <b id="pnlInflowDisplay" style="font-size:20px; color:#047857;">₹0</b>
+                    <small style="display:block; color:#64748b; margin-top:4px;">(બુકિંગ એડવાન્સ & પેમેન્ટ્સ)</small>
+                </div>
+                <div style="background:#fef2f2; border:1.5px solid #fca5a5; padding:12px; border-radius:8px;">
+                    <span style="font-size:12px; color:#991b1b; font-weight:700; display:block;">કુલ જાવક (Total Outflow)</span>
+                    <b id="pnlOutflowDisplay" style="font-size:20px; color:#b91c1c;">₹0</b>
+                    <small style="display:block; color:#64748b; margin-top:4px;">(વર્કર પગાર/ઉપાડ + ખર્ચા)</small>
+                </div>
+                <div id="pnlNetStatusBox" style="background:#f8fafc; border:1.5px solid #cbd5e1; padding:12px; border-radius:8px;">
+                    <span style="font-size:12px; font-weight:700; display:block;" id="pnlNetStatusTitle">ચોખ્ખો નફો / ખોટ</span>
+                    <b id="pnlNetValueDisplay" style="font-size:22px;">₹0</b>
+                    <small style="display:block; color:#64748b; margin-top:4px;" id="pnlNetStatusSub">સરવૈયું સ્થિતિ</small>
+                </div>
+            </div>
+
+            <!-- P&L Detailed Breakdown Grid -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; max-height:260px; overflow-y:auto; margin-bottom:14px;">
+                <!-- Left: Income Breakdown -->
+                <div style="border:1px solid #a7f3d0; border-radius:8px; padding:10px; background:#fff;">
+                    <b style="color:#047857; font-size:13px; display:block; border-bottom:1px solid #d1fae5; padding-bottom:4px; margin-bottom:6px;">📥 આવક વિગતો (Income)</b>
+                    <table style="width:100%; font-size:12px;">
+                        <tbody id="pnlIncomeBreakdownBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- Right: Expenses Breakdown -->
+                <div style="border:1px solid #fca5a5; border-radius:8px; padding:10px; background:#fff;">
+                    <b style="color:#b91c1c; font-size:13px; display:block; border-bottom:1px solid #fee2e2; padding-bottom:4px; margin-bottom:6px;">📤 જાવક વિગતો (Expenses)</b>
+                    <table style="width:100%; font-size:12px;">
+                        <tbody id="pnlExpenseBreakdownBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; gap:8px;">
+                <button class="btn btn-primary" onclick="printPnlReport()" style="flex:1; justify-content:center;">🖨️ નફા-નુકસાન રિપોર્ટ પ્રિન્ટ કરો</button>
+                <button class="btn btn-outline" onclick="closePnlModal()" style="padding:9px 20px;">બંધ કરો</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📑 Modal: Party Ledger Statement (તારીખ મુજબ) -->
+    <div class="modal" id="partyLedgerModal">
+        <div class="modal-content" style="max-width: 820px; width:95%;">
+            <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>📑 પાર્ટી ખાતાવહી સ્ટેટમેન્ટ (Party Ledger Statement)</span>
+                <button class="btn btn-outline" onclick="closePartyStatementModal()" style="padding:2px 8px; font-size:12px;">✕</button>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px; display:grid; grid-template-columns: 1.4fr 1fr 1fr auto; gap:8px; align-items:end;">
+                <div>
+                    <label style="font-size:12px; font-weight:700;">ગ્રાહક (Party):</label>
+                    <input type="text" id="partySearchInput" class="form-control" placeholder="નામ અથવા મોબાઈલ (ખાલી = બધા જ)">
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700;">શરૂઆત તારીખ:</label>
+                    <input type="date" id="partyStartDate" class="form-control" style="font-size:12px;">
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700;">અંતિમ તારીખ:</label>
+                    <input type="date" id="partyEndDate" class="form-control" style="font-size:12px;">
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="generatePartyStatement()" style="padding:9px 16px;">🔍 શોધો</button>
+                </div>
+            </div>
+
+            <!-- Party Summary Strips -->
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:12px; text-align:center;">
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:8px; border-radius:8px;">
+                    <span style="font-size:11px; color:#1e40af; display:block;">કુલ બિલિંગ રકમ</span>
+                    <b id="partyRptTotalBill" style="font-size:16px; color:#1d4ed8;">₹0</b>
+                </div>
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:8px; border-radius:8px;">
+                    <span style="font-size:11px; color:#065f46; display:block;">કુલ જમા એડવાન્સ</span>
+                    <b id="partyRptTotalAdv" style="font-size:16px; color:#047857;">₹0</b>
+                </div>
+                <div style="background:#fef2f2; border:1px solid #fca5a5; padding:8px; border-radius:8px;">
+                    <span style="font-size:11px; color:#991b1b; display:block;">કુલ બાકી લેણી રકમ</span>
+                    <b id="partyRptTotalBal" style="font-size:16px; color:#b91c1c;">₹0</b>
+                </div>
+            </div>
+
+            <!-- Party Table -->
+            <div style="max-height:280px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:14px;">
+                <table style="width:100%; font-size:12px;">
+                    <thead style="background:#f1f5f9; position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:6px;">ઇવેન્ટ તારીખ</th>
+                            <th style="padding:6px;">પાર્ટીનું નામ & મોબાઈલ</th>
+                            <th style="padding:6px;">ફાર્મ & શિફ્ટ</th>
+                            <th style="padding:6px; text-align:right;">કુલ પેકેજ</th>
+                            <th style="padding:6px; text-align:right;">જમા એડવાન્સ</th>
+                            <th style="padding:6px; text-align:right;">બાકી રકમ</th>
+                            <th style="padding:6px; text-align:center;">હપ્તા મોડ વિગત</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partyReportTableBody">
+                        <tr><td colspan="7" style="text-align:center; padding:15px; color:#94a3b8;">તારીખ પસંદ કરી "શોધો" પર ક્લિક કરો.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; gap:8px;">
+                <button class="btn btn-primary" onclick="printPartyStatementReport()" style="flex:1; justify-content:center;">🖨️ સ્ટેટમેન્ટ પ્રિન્ટ કરો</button>
+                <button class="btn" onclick="sendPartyStatementWhatsApp()" style="background:#25D366; color:white; justify-content:center; padding:9px 18px;">📲 WhatsApp પર મોકલો</button>
+                <button class="btn btn-outline" onclick="closePartyStatementModal()">બંધ કરો</button>
+            </div>
+        </div>
+    </div>
+
+  <!-- Step 4 Engine Scripts (Capital, Expenses, Ledger & P&L - FULLY VERIFIED & BUG FREE) -->
+    <script>
+        // ૧. Firebase સુરક્ષિત શરૂઆત
+        if (typeof firebase !== "undefined" && !firebase.apps.length) {
+            firebase.initializeApp({
+                apiKey: "AIzaSyA6iJtcv5Uegh0PMQmeoMbM3b8S2sTmOko",
+                authDomain: "party-plot-software.firebaseapp.com",
+                databaseURL: "https://party-plot-software-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "party-plot-software",
+                storageBucket: "party-plot-software.firebasestorage.app",
+                messagingSenderId: "136125878805",
+                appId: "1:136125878805:web:390d7d3427e2ce9750f41c"
+            });
+        }
+
+        const expensesRef = firebase.database().ref("company_expenses");
+        const capitalRef = firebase.database().ref("company_capital");
+        let cloudExpenses = {};
+        let cloudCapital = {};
+        let cachedAllFarmBookings = {};
+        let cachedAllFarmWorkers = {};
+
+        // Realtime Listeners
+        expensesRef.on('value', (snap) => {
+            cloudExpenses = snap.val() || {};
+            localStorage.setItem("cached_company_expenses", JSON.stringify(cloudExpenses));
+            renderExpensesTable();
+            updateAccountsOverviewSummary();
+        });
+
+        capitalRef.on('value', (snap) => {
+            cloudCapital = snap.val() || {};
+            localStorage.setItem("cached_company_capital", JSON.stringify(cloudCapital));
+            renderCapitalTable();
+            updateAccountsOverviewSummary();
+        });
+
+        // Sync all farm bookings and workers for consolidated P&L
+        firebase.database().ref("farm_bookings").on('value', (snap) => {
+            cachedAllFarmBookings = snap.val() || {};
+            updateAccountsOverviewSummary();
+        });
+
+        firebase.database().ref("farm_workers").on('value', (snap) => {
+            cachedAllFarmWorkers = snap.val() || {};
+            updateAccountsOverviewSummary();
+        });
+
+        // Open/Close Modals
+        function openExpenseModal() {
+            if (currentUserRole !== 'admin') { alert("❌ માત્ર Admin ને ખર્ચ ઉમેરવાનો અધિકાર છે!"); return; }
+            document.getElementById("editExpenseId").value = "";
+            document.getElementById("expModalTitle").innerText = "➕ નવો ખર્ચ ઉમેરો";
+            let now = new Date();
+            document.getElementById("expDate").value = now.toISOString().slice(0, 10);
+            document.getElementById("expTime").value = now.toTimeString().slice(0, 5);
+            document.getElementById("expAmount").value = "";
+            document.getElementById("expCategory").value = "Transport";
+            document.getElementById("expPaymentMode").value = "cash";
+            document.getElementById("expRefGroup").style.display = "none";
+            document.getElementById("expRefNumber").value = "";
+            document.getElementById("expNote").value = "";
+
+            populateExpenseFarmDropdowns();
+            document.getElementById("expenseModal").style.display = "flex";
+        }
+
+        function closeExpenseModal() { document.getElementById("expenseModal").style.display = "none"; }
+
+        function onExpenseModeChange() {
+            let m = document.getElementById("expPaymentMode").value;
+            let grp = document.getElementById("expRefGroup");
+            let lbl = document.getElementById("expRefLabel");
+            let inp = document.getElementById("expRefNumber");
+            if (m === "cheque") {
+                grp.style.display = "block";
+                lbl.innerText = "ચેક નંબર (Cheque Number) *";
+                inp.placeholder = "દા.ત. CHQ-552410";
+            } else if (m === "gpay") {
+                grp.style.display = "block";
+                lbl.innerText = "GPay / UPI ટ્રાન્ઝેક્શન ID અથવા નંબર *";
+                inp.placeholder = "દા.ત. UPI-Ref-9898XXXXXX";
+            } else {
+                grp.style.display = "none";
+                inp.value = "";
+            }
+        }
+
+        // ફાર્મ લિસ્ટ સીધું Firebase માંથી સુરક્ષિત લોડ કરવું
+        function populateExpenseFarmDropdowns() {
+            firebase.database().ref("farms").once('value', (snap) => {
+                let farmsData = snap.val() || {};
+                let sel = document.getElementById("expFarmSelect");
+                let filterSel = document.getElementById("expFilterFarm");
+                let pnlSel = document.getElementById("pnlFarmSelect");
+
+                let farmOpts = `<option value="COMPANY_GENERAL">🏢 કંપની જનરલ (બધા ફાર્મનો સામાન્ય ખર્ચ)</option>`;
+                for (let fId in farmsData) {
+                    farmOpts += `<option value="${fId}">🏰 ${farmsData[fId].name}</option>`;
+                }
+                if (sel) sel.innerHTML = farmOpts;
+
+                if (filterSel) {
+                    let cur = filterSel.value;
+                    filterSel.innerHTML = `<option value="ALL">🏰 બધા ફાર્મ & જનરલ</option>` + farmOpts;
+                    filterSel.value = cur || "ALL";
+                }
+
+                if (pnlSel) {
+                    let curPnl = pnlSel.value;
+                    pnlSel.innerHTML = `<option value="ALL">🏰 બધા જ ફાર્મનો ભેગો રિપોર્ટ (Consolidated)</option>` + farmOpts;
+                    pnlSel.value = curPnl || "ALL";
+                }
+            });
+        }
+
+        function saveExpense() {
+            if (currentUserRole !== 'admin') { alert("❌ અધિકાર નથી!"); return; }
+            let amt = parseFloat(document.getElementById("expAmount").value) || 0;
+            let dateVal = document.getElementById("expDate").value;
+            let timeVal = document.getElementById("expTime").value;
+            let farmSel = document.getElementById("expFarmSelect");
+            let farmId = farmSel ? farmSel.value : "COMPANY_GENERAL";
+            let farmName = (farmSel && farmSel.selectedIndex >= 0) ? farmSel.options[farmSel.selectedIndex].text : "કંપની જનરલ";
+            let cat = document.getElementById("expCategory").value;
+            let mode = document.getElementById("expPaymentMode").value;
+            let refNo = document.getElementById("expRefNumber").value.trim();
+            let note = document.getElementById("expNote").value.trim();
+
+            if (amt <= 0 || !dateVal) { alert("કૃપા કરીને રકમ અને તારીખ દાખલ કરો!"); return; }
+            if ((mode === "cheque" || mode === "gpay") && !refNo) {
+                alert(`કૃપા કરીને ${mode === 'cheque' ? 'ચેક નંબર' : 'GPay/UPI વિગત'} દાખલ કરો!`);
+                return;
+            }
+
+            let parts = dateVal.split("-");
+            let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+            let expId = document.getElementById("editExpenseId").value || ("exp_" + Date.now());
+            let expData = {
+                id: expId,
+                farmId: farmId,
+                farmName: farmName,
+                category: cat,
+                amount: amt,
+                date: formattedDate,
+                rawDate: dateVal,
+                time: timeVal,
+                mode: mode,
+                refNumber: refNo,
+                note: note,
+                timestamp: Date.now()
+            };
+
+            cloudExpenses[expId] = expData;
+            localStorage.setItem("cached_company_expenses", JSON.stringify(cloudExpenses));
+            if (navigator.onLine) { expensesRef.child(expId).set(expData); }
+
+            alert("✅ ખર્ચ સફળતાપૂર્વક સેવ થઈ ગયો!");
+            closeExpenseModal();
+            renderExpensesTable();
+            updateAccountsOverviewSummary();
+        }
+
+        function editExpense(expId) {
+            let e = cloudExpenses[expId];
+            if (!e) return;
+            document.getElementById("editExpenseId").value = expId;
+            document.getElementById("expModalTitle").innerText = "✏️ ખર્ચ સુધારો (Edit Expense)";
+            populateExpenseFarmDropdowns();
+            setTimeout(() => {
+                if (document.getElementById("expFarmSelect")) document.getElementById("expFarmSelect").value = e.farmId || "COMPANY_GENERAL";
+            }, 100);
+            document.getElementById("expCategory").value = e.category || "Other";
+            document.getElementById("expAmount").value = e.amount;
+            document.getElementById("expDate").value = e.rawDate || "";
+            document.getElementById("expTime").value = e.time || "";
+            document.getElementById("expPaymentMode").value = e.mode || "cash";
+            onExpenseModeChange();
+            document.getElementById("expRefNumber").value = e.refNumber || "";
+            document.getElementById("expNote").value = e.note || "";
+            document.getElementById("expenseModal").style.display = "flex";
+        }
+
+        function deleteExpense(expId, note) {
+            if (currentUserRole !== 'admin') { alert("❌ માત્ર Admin ખર્ચ ડિલીટ કરી શકે છે!"); return; }
+            if (confirm(`શું તમે આ ખર્ચ (${note || 'એન્ટ્રી'}) રદ/ડિલીટ કરવા માંગો છો?`)) {
+                delete cloudExpenses[expId];
+                localStorage.setItem("cached_company_expenses", JSON.stringify(cloudExpenses));
+                if (navigator.onLine) { expensesRef.child(expId).remove(); }
+                renderExpensesTable();
+                updateAccountsOverviewSummary();
+            }
+        }
+
+        function renderExpensesTable() {
+            let tbody = document.getElementById("expenseTableBody");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            let farmFilter = document.getElementById("expFilterFarm") ? document.getElementById("expFilterFarm").value : "ALL";
+            let catFilter = document.getElementById("expFilterCategory") ? document.getElementById("expFilterCategory").value : "ALL";
+            let search = document.getElementById("expSearchInput") ? document.getElementById("expSearchInput").value.toLowerCase().trim() : "";
+
+            let count = 0;
+            let list = Object.values(cloudExpenses);
+            list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            list.forEach(e => {
+                if (farmFilter !== "ALL" && e.farmId !== farmFilter) return;
+                if (catFilter !== "ALL" && e.category !== catFilter) return;
+                if (search && !(e.note || "").toLowerCase().includes(search) && !(e.refNumber || "").toLowerCase().includes(search) && !(e.category || "").toLowerCase().includes(search)) return;
+
+                count++;
+                let modeText = e.mode === 'cheque' ? `🏦 ચેક (${e.refNumber || ''})` : (e.mode === 'gpay' ? `📱 GPay (${e.refNumber || ''})` : '💵 રોકડ');
+
+                let row = `<tr>
+                    <td>${count}</td>
+                    <td>${e.date} <small style="color:#64748b;">${e.time || ''}</small></td>
+                    <td><b>${e.farmName || 'કંપની જનરલ'}</b></td>
+                    <td><span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:12px; font-weight:700; font-size:11px;">${e.category}</span></td>
+                    <td>${modeText}</td>
+                    <td style="color:#dc2626; font-weight:800; font-size:14px;">₹${parseFloat(e.amount || 0).toLocaleString('en-IN')}</td>
+                    <td>${e.note || '-'}</td>
+                    <td style="white-space:nowrap;">
+                        <button class="btn btn-outline" style="padding:2px 7px; font-size:11px;" onclick="editExpense('${e.id}')">✏️</button>
+                        <button class="btn btn-danger" style="padding:2px 7px; font-size:11px;" onclick="deleteExpense('${e.id}', '${e.note || e.category}')">🗑️</button>
+                    </td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+
+            if (count === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:16px; color:#94a3b8;">કોઈ ખર્ચ મળ્યો નથી.</td></tr>`;
+            }
+        }
+
+        // Capital & Bank Management Functions
+        function openCapitalModal() {
+            if (currentUserRole !== 'admin') { alert("❌ માત્ર Admin!"); return; }
+            let now = new Date();
+            document.getElementById("capDate").value = now.toISOString().slice(0, 10);
+            document.getElementById("capAmount").value = "";
+            document.getElementById("capAccountName").value = "SBI બેંક ખાતું";
+            document.getElementById("capNote").value = "";
+            renderCapitalTable();
+            document.getElementById("capitalModal").style.display = "flex";
+        }
+        function closeCapitalModal() { document.getElementById("capitalModal").style.display = "none"; }
+
+        function saveCapitalEntry() {
+            let amt = parseFloat(document.getElementById("capAmount").value) || 0;
+            let type = document.getElementById("capType").value;
+            let acc = document.getElementById("capAccountName").value.trim() || "કેશ / બેંક";
+            let dateVal = document.getElementById("capDate").value;
+            let note = document.getElementById("capNote").value.trim();
+
+            if (amt <= 0 || !dateVal) { alert("કૃપા કરીને રકમ અને તારીખ દાખલ કરો!"); return; }
+
+            let cId = "cap_" + Date.now();
+            let cData = { id: cId, type: type, amount: amt, account: acc, date: dateVal, note: note, timestamp: Date.now() };
+
+            cloudCapital[cId] = cData;
+            localStorage.setItem("cached_company_capital", JSON.stringify(cloudCapital));
+            if (navigator.onLine) { capitalRef.child(cId).set(cData); }
+
+            document.getElementById("capAmount").value = "";
+            document.getElementById("capNote").value = "";
+            renderCapitalTable();
+            updateAccountsOverviewSummary();
+        }
+
+        function deleteCapitalEntry(cId) {
+            if (confirm("શું તમે આ મૂડી એન્ટ્રી કાઢી નાખવા માંગો છો?")) {
+                delete cloudCapital[cId];
+                localStorage.setItem("cached_company_capital", JSON.stringify(cloudCapital));
+                if (navigator.onLine) { capitalRef.child(cId).remove(); }
+                renderCapitalTable();
+                updateAccountsOverviewSummary();
+            }
+        }
+
+        function renderCapitalTable() {
+            let tbody = document.getElementById("capitalHistoryBody");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            let list = Object.values(cloudCapital);
+            list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            let totalCap = 0;
+            list.forEach(c => {
+                let isAdd = c.type === "IN";
+                let amt = parseFloat(c.amount || 0);
+                if (isAdd) totalCap += amt; else totalCap -= amt;
+
+                let row = `<tr>
+                    <td style="padding:6px;">${c.date}</td>
+                    <td style="padding:6px;"><span style="background:${isAdd ? '#dcfce7' : '#fee2e2'}; color:${isAdd ? '#15803d' : '#b91c1c'}; padding:2px 6px; border-radius:4px; font-weight:700;">${isAdd ? '📥 મૂડી જમા' : '📤 ઉપાડ'}</span></td>
+                    <td style="padding:6px;"><b>${c.account}</b> <small style="color:#64748b;">(${c.note || '-'})</small></td>
+                    <td style="padding:6px; text-align:right; font-weight:700; color:${isAdd ? '#10b981' : '#ef4444'};">${isAdd ? '+' : '-'}₹${amt.toLocaleString('en-IN')}</td>
+                    <td style="padding:6px; text-align:center;"><button onclick="deleteCapitalEntry('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer;">❌</button></td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:10px; color:#94a3b8;">કોઈ મૂડી એન્ટ્રી નથી.</td></tr>`;
+            }
+            if (document.getElementById("accTotalCapitalSum")) {
+                document.getElementById("accTotalCapitalSum").innerText = "₹" + totalCap.toLocaleString('en-IN');
+            }
+        }
+
+        // Overview Summary Calculations (All Inflow vs All Outflow)
+        function updateAccountsOverviewSummary() {
+            let role = currentUserRole || sessionStorage.getItem("loggedUserRole");
+            if (role !== 'admin') return;
+
+            // 1. Total Booking Income
+            let totalRevenue = 0;
+            for (let fId in cachedAllFarmBookings) {
+                let farmB = cachedAllFarmBookings[fId] || {};
+                for (let bKey in farmB) {
+                    let b = farmB[bKey];
+                    if (b && b.customerName) {
+                        totalRevenue += parseFloat(b.advanceAmount || 0);
+                    }
+                }
+            }
+
+            // 2. Total Workers Expense
+            let totalWorkerExpenses = 0;
+            for (let fId in cachedAllFarmWorkers) {
+                let farmW = cachedAllFarmWorkers[fId] || {};
+                for (let wId in farmW) {
+                    let w = farmW[wId];
+                    if (w) {
+                        (w.upads || []).forEach(u => totalWorkerExpenses += parseFloat(u.amount || 0));
+                        (w.salaryPayments || []).forEach(p => totalWorkerExpenses += parseFloat(p.amount || 0));
+                    }
+                }
+            }
+
+            // 3. Total Company Expenses
+            let totalOtherExpenses = 0;
+            for (let eId in cloudExpenses) {
+                totalOtherExpenses += parseFloat(cloudExpenses[eId].amount || 0);
+            }
+
+            let grandTotalExpenses = totalWorkerExpenses + totalOtherExpenses;
+            let netPnl = totalRevenue - grandTotalExpenses;
+
+            if (document.getElementById("accTotalIncomeSum")) {
+                document.getElementById("accTotalIncomeSum").innerText = "₹" + totalRevenue.toLocaleString('en-IN');
+            }
+            if (document.getElementById("accTotalExpenseSum")) {
+                document.getElementById("accTotalExpenseSum").innerText = "₹" + grandTotalExpenses.toLocaleString('en-IN');
+            }
+            if (document.getElementById("accNetPnlSum")) {
+                let pnlEl = document.getElementById("accNetPnlSum");
+                pnlEl.innerText = (netPnl >= 0 ? "+ ₹" : "- ₹") + Math.abs(netPnl).toLocaleString('en-IN');
+                pnlEl.style.color = netPnl >= 0 ? "#10b981" : "#ef4444";
+            }
+        }
+
+        // 📊 Profit & Loss (P&L) Statement Generator
+        let currentPnlExportData = null;
+
+        function openPnlReportModal() {
+            if (currentUserRole !== 'admin') { alert("❌ માત્ર Admin!"); return; }
+            let now = new Date();
+            let firstDay = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+            let today = now.toISOString().slice(0, 10);
+
+            document.getElementById("pnlStartDate").value = firstDay;
+            document.getElementById("pnlEndDate").value = today;
+            populateExpenseFarmDropdowns();
+            calculatePnlStatement();
+            document.getElementById("pnlModal").style.display = "flex";
+        }
+        function closePnlModal() { document.getElementById("pnlModal").style.display = "none"; }
+
+        function calculatePnlStatement() {
+            let farmSel = document.getElementById("pnlFarmSelect");
+            let targetFarm = farmSel ? farmSel.value : "ALL";
+            let sDate = document.getElementById("pnlStartDate").value;
+            let eDate = document.getElementById("pnlEndDate").value;
+
+            if (!sDate || !eDate) { alert("કૃપા કરીને શરૂઆત અને અંતિમ તારીખ પસંદ કરો!"); return; }
+
+            let start = new Date(sDate + "T00:00:00");
+            let end = new Date(eDate + "T23:59:59");
+
+            let totalIncome = 0;
+            let incomeItems = {};
+            let totalWorkersExp = 0;
+            let categoryExpenses = {};
+
+            // 1. Inflow from Bookings
+            for (let fId in cachedAllFarmBookings) {
+                if (targetFarm !== "ALL" && fId !== targetFarm) continue;
+                let farmB = cachedAllFarmBookings[fId] || {};
+
+                for (let bKey in farmB) {
+                    let b = farmB[bKey];
+                    if (!b || !b.customerName) continue;
+
+                    if (b.payments && Array.isArray(b.payments)) {
+                        b.payments.forEach(p => {
+                            let parts = (p.date || "").split("/");
+                            if (parts.length === 3) {
+                                let pDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
+                                if (pDate >= start && pDate <= end) {
+                                    let amt = parseFloat(p.amount || 0);
+                                    totalIncome += amt;
+                                    let farmLabel = b.farmName || fId;
+                                    incomeItems[farmLabel] = (incomeItems[farmLabel] || 0) + amt;
+                                }
+                            }
+                        });
+                    } else if (b.advanceAmount > 0) {
+                        let parts = (b.dateKey || "").replace("bk_", "").split("_");
+                        if (parts.length >= 3) {
+                            let bDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T12:00:00`);
+                            if (bDate >= start && bDate <= end) {
+                                let amt = parseFloat(b.advanceAmount || 0);
+                                totalIncome += amt;
+                                let farmLabel = b.farmName || fId;
+                                incomeItems[farmLabel] = (incomeItems[farmLabel] || 0) + amt;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Outflow: Workers Salary & Upads
+            for (let fId in cachedAllFarmWorkers) {
+                if (targetFarm !== "ALL" && fId !== targetFarm) continue;
+                let farmW = cachedAllFarmWorkers[fId] || {};
+
+                for (let wId in farmW) {
+                    let w = farmW[wId];
+                    if (!w) continue;
+
+                    (w.upads || []).forEach(u => {
+                        let parts = (u.date || "").split("/");
+                        if (parts.length === 3) {
+                            let uDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
+                            if (uDate >= start && uDate <= end) {
+                                totalWorkersExp += parseFloat(u.amount || 0);
+                            }
+                        }
+                    });
+
+                    (w.salaryPayments || []).forEach(p => {
+                        let pDate = p.rawDate ? new Date(p.rawDate + "T12:00:00") : new Date(p.timestamp);
+                        if (pDate >= start && pDate <= end) {
+                            totalWorkersExp += parseFloat(p.amount || 0);
+                        }
+                    });
+                }
+            }
+
+            // 3. Outflow: Direct Expenses
+            let totalDirectExp = 0;
+            for (let eId in cloudExpenses) {
+                let e = cloudExpenses[eId];
+                if (!e) continue;
+                if (targetFarm !== "ALL" && e.farmId !== targetFarm && e.farmId !== "COMPANY_GENERAL") continue;
+
+                let eDate = e.rawDate ? new Date(e.rawDate + "T12:00:00") : new Date(e.timestamp);
+                if (eDate >= start && eDate <= end) {
+                    let amt = parseFloat(e.amount || 0);
+                    totalDirectExp += amt;
+                    let cat = e.category || "Other";
+                    categoryExpenses[cat] = (categoryExpenses[cat] || 0) + amt;
+                }
+            }
+
+            let grandTotalExpenses = totalWorkersExp + totalDirectExp;
+            let netPnl = totalIncome - grandTotalExpenses;
+
+            // Render UI
+            document.getElementById("pnlInflowDisplay").innerText = "₹" + totalIncome.toLocaleString('en-IN');
+            document.getElementById("pnlOutflowDisplay").innerText = "₹" + grandTotalExpenses.toLocaleString('en-IN');
+
+            let netBox = document.getElementById("pnlNetStatusBox");
+            let netVal = document.getElementById("pnlNetValueDisplay");
+            let netTitle = document.getElementById("pnlNetStatusTitle");
+
+            if (netPnl >= 0) {
+                netBox.style.background = "#ecfdf5";
+                netBox.style.borderColor = "#86efac";
+                netVal.style.color = "#047857";
+                netVal.innerText = "+ ₹" + netPnl.toLocaleString('en-IN');
+                netTitle.innerText = "🟢 ચોખ્ખો નફો (Net Profit)";
+                netTitle.style.color = "#065f46";
+            } else {
+                netBox.style.background = "#fef2f2";
+                netBox.style.borderColor = "#fca5a5";
+                netVal.style.color = "#b91c1c";
+                netVal.innerText = "- ₹" + Math.abs(netPnl).toLocaleString('en-IN');
+                netTitle.innerText = "🔴 ચોખ્ખો નુકસાન (Net Loss)";
+                netTitle.style.color = "#991b1b";
+            }
+
+            // Tables
+            let inBody = document.getElementById("pnlIncomeBreakdownBody");
+            inBody.innerHTML = "";
+            for (let farm in incomeItems) {
+                inBody.innerHTML += `<tr><td>${farm}</td><td style="text-align:right; font-weight:700; color:#047857;">₹${incomeItems[farm].toLocaleString('en-IN')}</td></tr>`;
+            }
+            if (Object.keys(incomeItems).length === 0) {
+                inBody.innerHTML = `<tr><td colspan="2" style="text-align:center; color:#94a3b8;">કોઈ આવક નથી</td></tr>`;
+            }
+
+            let exBody = document.getElementById("pnlExpenseBreakdownBody");
+            exBody.innerHTML = "";
+            if (totalWorkersExp > 0) {
+                exBody.innerHTML += `<tr><td>👷‍♂️ કારીગર પગાર & ઉપાડ</td><td style="text-align:right; font-weight:700; color:#b91c1c;">₹${totalWorkersExp.toLocaleString('en-IN')}</td></tr>`;
+            }
+            for (let cat in categoryExpenses) {
+                exBody.innerHTML += `<tr><td>📝 ${cat}</td><td style="text-align:right; font-weight:700; color:#b91c1c;">₹${categoryExpenses[cat].toLocaleString('en-IN')}</td></tr>`;
+            }
+            if (grandTotalExpenses === 0) {
+                exBody.innerHTML = `<tr><td colspan="2" style="text-align:center; color:#94a3b8;">કોઈ ખર્ચ નથી</td></tr>`;
+            }
+
+            let farmNameStr = (farmSel && farmSel.selectedIndex >= 0) ? farmSel.options[farmSel.selectedIndex].text : "બધા ફાર્મ";
+            currentPnlExportData = {
+                farm: farmNameStr,
+                sDate, eDate, totalIncome, grandTotalExpenses, totalWorkersExp, categoryExpenses, incomeItems, netPnl
+            };
+        }
+
+        function printPnlReport() {
+            if (!currentPnlExportData) return;
+            let d = currentPnlExportData;
+            let win = window.open('', '_blank', 'width=800,height=700');
+
+            let incRows = "";
+            for (let k in d.incomeItems) {
+                incRows += `<tr><td>${k}</td><td style="text-align:right; color:#047857;">₹${d.incomeItems[k].toLocaleString('en-IN')}</td></tr>`;
+            }
+            let expRows = d.totalWorkersExp > 0 ? `<tr><td>કારીગર પગાર & ઉપાડ</td><td style="text-align:right; color:#b91c1c;">₹${d.totalWorkersExp.toLocaleString('en-IN')}</td></tr>` : "";
+            for (let k in d.categoryExpenses) {
+                expRows += `<tr><td>${k}</td><td style="text-align:right; color:#b91c1c;">₹${d.categoryExpenses[k].toLocaleString('en-IN')}</td></tr>`;
+            }
+
+            win.document.write(`
+                <html>
+                <head>
+                    <title>નફા-નુકસાન રિપોર્ટ (P&L)</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 25px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px; }
+                        th { background: #f8fafc; text-align: left; }
+                    </style>
+                </head>
+                <body>
+                    <h2 style="margin:0; text-align:center; color:#4f46e5;">નફા-નુકસાન ખાતાવહી સરવૈયું</h2>
+                    <h4 style="margin:4px 0 16px 0; text-align:center; color:#475569;">${d.farm}</h4>
+                    <p><b>સમયગાળો:</b> ${d.sDate} થી ${d.eDate}</p>
+                    <div style="display:flex; justify-content:space-between; gap:20px;">
+                        <div style="flex:1;">
+                            <h4 style="color:#047857; margin-bottom:4px;">📥 કુલ આવક: ₹${d.totalIncome.toLocaleString('en-IN')}</h4>
+                            <table><tr><th>આવક સ્ત્રોત</th><th style="text-align:right;">રકમ</th></tr>${incRows || '<tr><td colspan="2">-</td></tr>'}</table>
+                        </div>
+                        <div style="flex:1;">
+                            <h4 style="color:#b91c1c; margin-bottom:4px;">📤 કુલ જાવક: ₹${d.grandTotalExpenses.toLocaleString('en-IN')}</h4>
+                            <table><tr><th>ખર્ચ વિગત</th><th style="text-align:right;">રકમ</th></tr>${expRows || '<tr><td colspan="2">-</td></tr>'}</table>
+                        </div>
+                    </div>
+                    <div style="margin-top:25px; padding:15px; border:2px solid ${d.netPnl >= 0 ? '#10b981' : '#ef4444'}; background:${d.netPnl >= 0 ? '#ecfdf5' : '#fef2f2'}; border-radius:8px; text-align:center;">
+                        <h3 style="margin:0; color:${d.netPnl >= 0 ? '#047857' : '#b91c1c'};">${d.netPnl >= 0 ? 'ચોખ્ખો નફો (NET PROFIT): ₹' : 'ચોખ્ખો નુકસાન (NET LOSS): ₹'}${Math.abs(d.netPnl).toLocaleString('en-IN')}</h3>
+                    </div>
+                    <div style="margin-top:50px; display:flex; justify-content:space-between;">
+                        <div>તૈયાર કરનાર: ____________</div>
+                        <div>ઓડિટર / માલિક સહી: ____________</div>
+                    </div>
+                </body>
+                </html>
+            `);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+
+        // 📑 Party Ledger Statement Functions
+        let currentPartyStatementList = [];
+
+        function openPartyStatementModal() {
+            let now = new Date();
+            let firstDay = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+            let today = now.toISOString().slice(0, 10);
+            document.getElementById("partyStartDate").value = firstDay;
+            document.getElementById("partyEndDate").value = today;
+            document.getElementById("partySearchInput").value = "";
+            generatePartyStatement();
+            document.getElementById("partyLedgerModal").style.display = "flex";
+        }
+        function closePartyStatementModal() { document.getElementById("partyLedgerModal").style.display = "none"; }
+
+        function generatePartyStatement() {
+            let sDate = document.getElementById("partyStartDate").value;
+            let eDate = document.getElementById("partyEndDate").value;
+            let search = document.getElementById("partySearchInput").value.toLowerCase().trim();
+
+            if (!sDate || !eDate) { alert("કૃપા કરીને તારીખ પસંદ કરો!"); return; }
+
+            let start = new Date(sDate + "T00:00:00");
+            let end = new Date(eDate + "T23:59:59");
+
+            currentPartyStatementList = [];
+            let sumBill = 0, sumAdv = 0, sumBal = 0;
+
+            for (let fId in cachedAllFarmBookings) {
+                let farmB = cachedAllFarmBookings[fId] || {};
+                for (let bKey in farmB) {
+                    let b = farmB[bKey];
+                    if (!b || !b.customerName) continue;
+
+                    let parts = (b.dateKey || "").replace("bk_", "").split("_");
+                    if (parts.length < 3) continue;
+                    let bDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T12:00:00`);
+
+                    if (bDate >= start && bDate <= end) {
+                        if (search && !b.customerName.toLowerCase().includes(search) && !(b.mobile || "").includes(search)) continue;
+
+                        let bill = parseFloat(b.totalAmount || 0);
+                        let adv = parseFloat(b.advanceAmount || 0);
+                        let bal = parseFloat(b.balanceAmount || 0);
+
+                        sumBill += bill; sumAdv += adv; sumBal += bal;
+
+                        let modes = (b.payments || []).map(p => {
+                            let m = p.mode === 'cheque' ? 'ચેક' : (p.mode === 'gpay' ? 'GPay' : 'રોકડ');
+                            return `${m} (₹${p.amount})`;
+                        }).join(", ") || "રોકડ";
+
+                        currentPartyStatementList.push({
+                            date: `${parts[2]}/${parts[1]}/${parts[0]}`,
+                            name: b.customerName,
+                            mobile: b.mobile || "-",
+                            farmName: b.farmName || fId,
+                            shift: b.slot === 'fullday' ? 'આખો દિવસ' : (b.slot === 'evening' ? 'સાંજ' : 'સવાર'),
+                            bill, adv, bal, modes, status: b.status
+                        });
+                    }
+                }
+            }
+
+            document.getElementById("partyRptTotalBill").innerText = "₹" + sumBill.toLocaleString('en-IN');
+            document.getElementById("partyRptTotalAdv").innerText = "₹" + sumAdv.toLocaleString('en-IN');
+            document.getElementById("partyRptTotalBal").innerText = "₹" + sumBal.toLocaleString('en-IN');
+
+            let tbody = document.getElementById("partyReportTableBody");
+            tbody.innerHTML = "";
+
+            if (currentPartyStatementList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:15px; color:#94a3b8;">આ સમયગાળામાં કોઈ પાર્ટી રેકોર્ડ મળ્યો નથી.</td></tr>`;
+                return;
+            }
+
+            currentPartyStatementList.forEach(item => {
+                let row = `<tr>
+                    <td style="padding:6px;">${item.date}</td>
+                    <td style="padding:6px;"><b>${item.name}</b> <small style="color:#64748b;">(${item.mobile})</small></td>
+                    <td style="padding:6px;">${item.farmName} (${item.shift})</td>
+                    <td style="padding:6px; text-align:right;">₹${item.bill.toLocaleString('en-IN')}</td>
+                    <td style="padding:6px; text-align:right; color:#10b981; font-weight:700;">₹${item.adv.toLocaleString('en-IN')}</td>
+                    <td style="padding:6px; text-align:right; color:${item.bal > 0 ? '#ef4444' : '#10b981'}; font-weight:700;">₹${item.bal.toLocaleString('en-IN')}</td>
+                    <td style="padding:6px; font-size:11px; text-align:center;">${item.modes}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function printPartyStatementReport() {
+            if (currentPartyStatementList.length === 0) return;
+            let sDate = document.getElementById("partyStartDate").value;
+            let eDate = document.getElementById("partyEndDate").value;
+            let win = window.open('', '_blank', 'width=850,height=650');
+
+            let rows = "";
+            currentPartyStatementList.forEach((p, idx) => {
+                rows += `<tr>
+                    <td>${idx + 1}</td>
+                    <td>${p.date}</td>
+                    <td><b>${p.name}</b> (${p.mobile})</td>
+                    <td>${p.farmName}</td>
+                    <td style="text-align:right;">₹${p.bill.toLocaleString('en-IN')}</td>
+                    <td style="text-align:right; color:#10b981;">₹${p.adv.toLocaleString('en-IN')}</td>
+                    <td style="text-align:right; color:#ef4444;">₹${p.bal.toLocaleString('en-IN')}</td>
+                </tr>`;
+            });
+
+            win.document.write(`
+                <html>
+                <head>
+                    <title>પાર્ટી ખાતાવહી સ્ટેટમેન્ટ</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 25px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 7px; text-align: left; }
+                        th { background: #f1f5f9; }
+                    </style>
+                </head>
+                <body>
+                    <h2 style="margin:0; text-align:center; color:#4f46e5;">પાર્ટી ખાતાવહી & બુકિંગ સ્ટેટમેન્ટ</h2>
+                    <p style="text-align:center; margin:4px 0 16px 0;">સમયગાળો: ${sDate} થી ${eDate}</p>
+                    <table>
+                        <thead>
+                            <tr><th>#</th><th>તારીખ</th><th>ગ્રાહક નામ</th><th>ફાર્મ</th><th style="text-align:right;">કુલ બિલ</th><th style="text-align:right;">જમા</th><th style="text-align:right;">બાકી</th></tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </body>
+                </html>
+            `);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+
+        function sendPartyStatementWhatsApp() {
+            let s = document.getElementById("partySearchInput").value.trim();
+            if (!s || currentPartyStatementList.length === 0) {
+                alert("WhatsApp મોકલવા માટે પહેલા ગ્રાહકનું નામ અથવા મોબાઈલ સર્ચ કરો!");
+                return;
+            }
+            let p = currentPartyStatementList[0];
+            let cleanMob = (p.mobile || '').replace(/[^0-9]/g, '');
+            if (cleanMob.length === 10) cleanMob = '91' + cleanMob;
+
+            let msg = `*પાર્ટી ખાતાવહી સ્ટેટમેન્ટ*\nગ્રાહક: ${p.name}\nતારીખ: ${p.date}\nફાર્મ: ${p.farmName}\n-----------------------\nકુલ પેકેજ: ₹${p.bill.toLocaleString('en-IN')}\nજમા એડવાન્સ: ₹${p.adv.toLocaleString('en-IN')}\nબાકી રકમ: ₹${p.bal.toLocaleString('en-IN')}\n-----------------------\nઆભાર!`;
+            window.open(`https://wa.me/${cleanMob}?text=${encodeURIComponent(msg)}`);
+        }
+
+        // ✅ પેજ શરૂ થતાં જ ફાર્મ ડ્રોપડાઉન લોડ કરી લેશે
+        setTimeout(populateExpenseFarmDropdowns, 1000);
+
+        // Automatic Admin Visibility Hook (લાઈવ સિન્ક સાથે)
+        setInterval(() => {
+            let role = currentUserRole || sessionStorage.getItem("loggedUserRole");
+            let sec = document.getElementById("companyAccountSection");
+            if (sec) {
+                let shouldShow = (role === 'admin');
+                if (shouldShow && sec.style.display !== 'block') {
+                    sec.style.display = 'block';
+                    updateAccountsOverviewSummary();
+                    populateExpenseFarmDropdowns();
+                } else if (!shouldShow) {
+                    sec.style.display = 'none';
+                }
+            }
+        }, 800);
+    </script>
+</div>   
 
 <!-- ➕ Add / Edit Worker Modal -->
 <div class="modal" id="workerModal">
