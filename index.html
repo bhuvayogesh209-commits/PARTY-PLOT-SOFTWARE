@@ -841,8 +841,7 @@
 
             populateExpenseFarmDropdowns();
             document.getElementById("expenseModal").style.display = "flex";
-        }
-
+        }   
         function closeExpenseModal() { document.getElementById("expenseModal").style.display = "none"; }
 
         function onExpenseModeChange() {
@@ -958,14 +957,18 @@
             document.getElementById("expRefNumber").value = e.refNumber || "";
             document.getElementById("expNote").value = e.note || "";
             document.getElementById("expenseModal").style.display = "flex";
-        }
+        }  
 
         function deleteExpense(expId, note) {
             if (currentUserRole !== 'admin') { alert("❌ માત્ર Admin ખર્ચ ડિલીટ કરી શકે છે!"); return; }
             if (confirm(`શું તમે આ ખર્ચ (${note || 'એન્ટ્રી'}) રદ/ડિલીટ કરવા માંગો છો?`)) {
                 delete cloudExpenses[expId];
                 localStorage.setItem("cached_company_expenses", JSON.stringify(cloudExpenses));
-                if (navigator.onLine) { expensesRef.child(expId).remove(); }
+                if (navigator.onLine) { 
+                    expensesRef.child(expId).remove(); 
+                } else {
+                    if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "company_expenses/" + expId, action: "remove" });
+                }
                 renderExpensesTable();
                 updateAccountsOverviewSummary();
             }
@@ -1052,7 +1055,11 @@
             if (confirm("શું તમે આ મૂડી એન્ટ્રી કાઢી નાખવા માંગો છો?")) {
                 delete cloudCapital[cId];
                 localStorage.setItem("cached_company_capital", JSON.stringify(cloudCapital));
-                if (navigator.onLine) { capitalRef.child(cId).remove(); }
+                if (navigator.onLine) { 
+                    capitalRef.child(cId).remove(); 
+                } else {
+                    if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "company_capital/" + cId, action: "remove" });
+                }
                 renderCapitalTable();
                 updateAccountsOverviewSummary();
             }
@@ -2073,20 +2080,26 @@
         if (cachedStaff) staffListObj = JSON.parse(cachedStaff);
     } catch(e) { console.log("Cache Read Error", e); } 
 
-     // 🔄 ઑફલાઇન સિન્ક કતાર (Offline Queue) માં ડેટા ઉમેરવો
+     // 🔄 ઑફલાઇન સિન્ક કતાર (Offline Queue) માં ડેટા ઉમેરવો 
+   // 🔄 સર્વગ્રાહી ઑફલાઇન સિન્ક કતાર (બધા મોડ્યુલ્સ માટે સુસંગત)
     function addToSyncQueue(actionItem) {
         let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
-        // જૂની પેન્ડિંગ એન્ટ્રી હોય તો રીપ્લેસ કરવી
-        queue = queue.filter(item => !(item.farmId === actionItem.farmId && item.dateKey === actionItem.dateKey));
+        // જો જૂની રીત (farmId + dateKey) હોય તો path આપોઆપ બનાવી લેશે
+        let targetPath = actionItem.path || (actionItem.farmId && actionItem.dateKey ? `farm_bookings/${actionItem.farmId}/${actionItem.dateKey}` : "");
+        if (!targetPath) return;
+        actionItem.path = targetPath;
+
+        queue = queue.filter(item => {
+            let itemPath = item.path || (item.farmId && item.dateKey ? `farm_bookings/${item.farmId}/${item.dateKey}` : "");
+            return itemPath !== targetPath;
+        });
         queue.push(actionItem);
         localStorage.setItem("offline_sync_queue", JSON.stringify(queue));
     }
 
-    // 🚀 ઇન્ટરનેટ આવતાં Firebase માં ઓટોમેટિક ડેટા મોકલવાનું ફંક્શન
+    // 🚀 ઇન્ટરનેટ આવતાં Firebase માં ઓટોમેટિક તમામ મોડ્યુલ્સ (બુકિંગ, ખર્ચા, વર્કર, રોજમેળ) સિન્ક કરવાનું માસ્ટર ફંક્શન
     function processSyncQueue() {
         if (!navigator.onLine) return;
-        let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
-        if (queue.length === 0) return;
 
         let badge = document.getElementById("networkStatusBadge");
         if (badge) {
@@ -2095,14 +2108,49 @@
             badge.style.color = "#b45309";
         }
 
-        let syncPromises = queue.map(item => {
-            let ref = firebase.database().ref("farm_bookings").child(item.farmId).child(item.dateKey);
-            if (item.action === "set") {
-                return ref.set(item.data);
-            } else if (item.action === "remove") {
-                return ref.remove();
+        let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
+        let syncPromises = [];
+
+        // ૧. કતારમાં રહેલ ડેટા (બુકિંગ વગેરે) સિન્ક કરો
+        if (queue.length > 0) {
+            queue.forEach(item => {
+                let targetPath = item.path || (item.farmId && item.dateKey ? `farm_bookings/${item.farmId}/${item.dateKey}` : "");
+                if (targetPath) {
+                    let ref = firebase.database().ref(targetPath);
+                    if (item.action === "set") {
+                        syncPromises.push(ref.set(item.data));
+                    } else if (item.action === "remove") {
+                        syncPromises.push(ref.remove());
+                    } else if (item.action === "update") {
+                        syncPromises.push(ref.update(item.data));
+                    }
+                }
+            });
+        }
+
+        // ૨. ઑફલાઇન સેવ થયેલા ખર્ચા, વર્કર, રોજમેળ, વેન્ડર અને સ્ટોક પણ ઓટોમેટિક Firebase માં અપલોડ કરો
+        try {
+            if (typeof cloudExpenses !== "undefined" && Object.keys(cloudExpenses).length > 0) {
+                syncPromises.push(firebase.database().ref("company_expenses").update(cloudExpenses));
             }
-        });
+            if (typeof cloudWorkers !== "undefined" && currentFarmId && Object.keys(cloudWorkers).length > 0) {
+                syncPromises.push(firebase.database().ref("farm_workers").child(currentFarmId).update(cloudWorkers));
+            }
+            if (typeof cloudRojmel !== "undefined" && Object.keys(cloudRojmel).length > 0) {
+                syncPromises.push(firebase.database().ref("daily_rojmel").update(cloudRojmel));
+            }
+            if (typeof cloudVendors !== "undefined" && Object.keys(cloudVendors).length > 0) {
+                syncPromises.push(firebase.database().ref("vendors").update(cloudVendors));
+            }
+            if (typeof cloudInventory !== "undefined" && Object.keys(cloudInventory).length > 0) {
+                syncPromises.push(firebase.database().ref("inventory").update(cloudInventory));
+            }
+            if (typeof cloudCapital !== "undefined" && Object.keys(cloudCapital).length > 0) {
+                syncPromises.push(firebase.database().ref("company_capital").update(cloudCapital));
+            }
+        } catch(e) {
+            console.log("Auto cache sync err:", e);
+        }
 
         Promise.all(syncPromises).then(() => {
             localStorage.removeItem("offline_sync_queue");
@@ -2113,7 +2161,12 @@
                 setTimeout(updateNetworkStatus, 3000);
             }
         }).catch(err => {
-            console.error("Sync error:", err);
+            console.error("Master Sync error:", err);
+            if (badge) {
+                badge.innerText = "🟢 ઓનલાઇન";
+                badge.style.background = "#dcfce7";
+                badge.style.color = "#15803d";
+            }
         });
     }
 
@@ -2747,6 +2800,8 @@
             renderWorkersTable();
             if (navigator.onLine && currentWorkerRef) {
                 currentWorkerRef.child(wId).remove();
+            } else {
+                addToSyncQueue({ path: `farm_workers/${currentFarmId}/${wId}`, action: "remove" });
             }
         }
     }
@@ -2969,6 +3024,8 @@
 
         if (navigator.onLine && currentWorkerRef) {
             currentWorkerRef.child(selectedWorkerIdForUpad).set(w);
+        } else {
+            addToSyncQueue({ path: `farm_workers/${currentFarmId}/${selectedWorkerIdForUpad}`, action: "set", data: w });
         }
         renderUpadModalDetails();
         renderWorkersTable();
@@ -3736,9 +3793,19 @@
 
         cloudBookings[fullKey] = bookingData;
         localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
+
+        // ➕ ઑફલાઇન P&L અને સ્ટેટમેન્ટમાં નવું બુકિંગ તરત દેખાય તે માટે
+        try {
+            if (typeof cachedAllFarmBookings !== "undefined") {
+                if (!cachedAllFarmBookings[currentFarmId]) cachedAllFarmBookings[currentFarmId] = {};
+                cachedAllFarmBookings[currentFarmId][fullKey] = bookingData;
+                localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
+            }
+        } catch(e){}
+
         generateCalendar();
 
-        if (navigator.onLine && currentBookingRef) {
+        if (navigator.onLine && currentBookingRef) {   
             currentBookingRef.child(fullKey).set(bookingData);
         } else {
             addToSyncQueue({ action: "set", farmId: currentFarmId, dateKey: fullKey, data: bookingData });
@@ -5013,7 +5080,11 @@
             delete cloudRojmel[rId];
             localStorage.setItem("cached_daily_rojmel", JSON.stringify(cloudRojmel));
             renderRojmelData();
-            if (navigator.onLine) rojmelRef.child(rId).remove();
+            if (navigator.onLine) {
+                rojmelRef.child(rId).remove();
+            } else {
+                if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "daily_rojmel/" + rId, action: "remove" });
+            }
         }
     }
 
@@ -5255,7 +5326,11 @@
             delete cloudVendors[vId];
             localStorage.setItem("cached_vendors", JSON.stringify(cloudVendors));
             renderVendorsTable();
-            if (navigator.onLine) vendorRef.child(vId).remove();
+            if (navigator.onLine) {
+                vendorRef.child(vId).remove();
+            } else {
+                if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "vendors/" + vId, action: "remove" });
+            }
         }
     }
 
@@ -5387,7 +5462,11 @@
             delete cloudInventory[itemId];
             localStorage.setItem("cached_inventory", JSON.stringify(cloudInventory));
             renderInventoryTable();
-            if (navigator.onLine) inventoryRef.child(itemId).remove();
+            if (navigator.onLine) {
+                inventoryRef.child(itemId).remove();
+            } else {
+                if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "inventory/" + itemId, action: "remove" });
+            }
         }
     }
 
