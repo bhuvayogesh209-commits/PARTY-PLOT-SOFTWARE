@@ -486,13 +486,18 @@
                     <option value="gpay">📱 GPay / UPI</option>
                 </select>
                 <input type="text" id="newUpadNote" class="form-control" placeholder="નોંધ (દા.ત. ઘર ખર્ચ)">
-            </div>
+            </div>  
 
             <div id="upadRefGroup" style="display:none; margin-bottom:6px;">
                 <input type="text" id="newUpadRefInput" class="form-control" placeholder="ચેક નંબર અથવા GPay ID *">
             </div>
 
-            <button type="button" class="btn btn-danger" onclick="addWorkerUpad()" style="width:100%; justify-content:center; padding:9px;">- ઉપાડ આપો & સેવ કરો</button>
+            <!-- 💰 ઉપાડ માટેના ૩ ઓપ્શન બટન: ખાલી સેવ, પ્રિન્ટ અને WhatsApp -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+                <button type="button" class="btn btn-success" onclick="addWorkerUpad('save')" style="justify-content:center; padding:9px 4px; font-size:12px; font-weight:700;">💾 ખાલી સેવ</button>
+                <button type="button" class="btn btn-primary" onclick="addWorkerUpad('print')" style="justify-content:center; padding:9px 4px; font-size:12px; font-weight:700;">🖨️ સેવ & પ્રિન્ટ</button>
+                <button type="button" class="btn" onclick="addWorkerUpad('whatsapp')" style="background:#25D366; color:white; justify-content:center; padding:9px 4px; font-size:12px; font-weight:700;">📲 સેવ & WhatsApp</button>
+            </div>
         </div>
 
         <!-- Upad Ledger History Table -->
@@ -700,23 +705,44 @@
             <input type="number" id="totalAmount" class="form-control" oninput="calculateBalance()" placeholder="કુલ રકમ દાખલ કરો">
         </div>
 
-        <!-- 4-5 વાર ટુકડે ટુકડે પેમેન્ટ ઉમેરવા માટેનું બોક્સ -->
+        <!-- 4-5 વાર ટુકડે ટુકડે પેમેન્ટ ઉમેરવા માટેનું બોક્સ (Cash / Cheque / GPay & સમય સાથે) -->
         <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:14px;">
-            <label style="font-weight:700; color:#1e293b; font-size:13px; display:block; margin-bottom:6px;">💰 નવું પેમેન્ટ જમા કરો (ઇન્સ્ટોલમેન્ટ):</label>
-            <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:6px; align-items:center;">
-                <input type="number" id="newPaymentAmount" class="form-control" placeholder="રકમ (₹)">
-                <input type="date" id="newPaymentDate" class="form-control">
-                <button type="button" class="btn btn-success" onclick="addNewPayment()" style="padding:9px 12px;">+ ઉમેરો</button>
+            <label style="font-weight:700; color:#1e293b; font-size:13px; display:block; margin-bottom:6px;">💰 નવું પેમેન્ટ જમા કરો (રોકડ / ચેક / GPay & સમય સાથે):</label>
+            
+            <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap:6px; margin-bottom:6px;">
+                <input type="number" id="newPaymentAmount" class="form-control" placeholder="રકમ (₹) *">
+                <input type="date" id="newPaymentDate" class="form-control" title="તારીખ">
+                <input type="time" id="newPaymentTime" class="form-control" title="સમય">
             </div>
 
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+                <select id="newPaymentMode" class="form-control" onchange="onBookingPaymentModeChange()">
+                    <option value="cash">💵 રોકડ (Cash)</option>
+                    <option value="cheque">🏦 ચેક (Cheque)</option>
+                    <option value="gpay">📱 GPay / UPI</option>
+                </select>
+                <input type="text" id="newPaymentNote" class="form-control" placeholder="નોંધ (દા.ત. પહેલો હપ્તો / બાકી હિસાબ)">
+            </div>
+
+            <div id="bookingPayRefGroup" style="display:none; margin-bottom:6px;">
+                <input type="text" id="newPaymentRefInput" class="form-control" placeholder="ચેક નંબર અથવા GPay ટ્રાન્ઝેક્શન ID *">
+            </div>
+
+            <button type="button" class="btn btn-success" onclick="addNewPayment()" style="width:100%; justify-content:center; padding:9px; font-weight:700;">+ પેમેન્ટ જમા કરો (Add Payment)</button>
+
             <!-- પેમેન્ટ હિસ્ટ્રી બોક્સ -->
-            <div style="margin-top:10px; max-height:110px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff;">
+            <div style="margin-top:10px; max-height:120px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff;">
                 <table style="width:100%; font-size:12px;">
                     <thead style="background:#f1f5f9; position:sticky; top:0;">
-                        <tr><th style="padding:6px;">તારીખ</th><th style="padding:6px;">રકમ (₹)</th><th style="padding:6px; text-align:center;">ક્રિયા</th></tr>
+                        <tr>
+                            <th style="padding:6px;">તારીખ & સમય</th>
+                            <th style="padding:6px;">પેમેન્ટ મોડ / વિગત</th>
+                            <th style="padding:6px; text-align:right;">રકમ (₹)</th>
+                            <th style="padding:6px; text-align:center;">ક્રિયા</th>
+                        </tr>
                     </thead>
                     <tbody id="paymentHistoryBody">
-                        <tr><td colspan="3" style="text-align:center; padding:8px; color:#94a3b8;">હજુ સુધી કોઈ પેમેન્ટ મળ્યું નથી.</td></tr>
+                        <tr><td colspan="4" style="text-align:center; padding:8px; color:#94a3b8;">હજુ સુધી કોઈ પેમેન્ટ મળ્યું નથી.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1622,7 +1648,7 @@
         });
     }
 
-    function addWorkerUpad() {
+    function addWorkerUpad(action = 'save') {
         if (!canUserAddUpad) { alert("❌ તમારી પાસે ઉપાડ આપવાની પરવાનગી નથી! માત્ર ખાતું જોઈ શકો છો."); return; }
         let amt = parseFloat(document.getElementById("newUpadAmount").value);
         let dateVal = document.getElementById("newUpadDate").value;
@@ -1644,7 +1670,7 @@
         let w = cloudWorkers[selectedWorkerIdForUpad];
         if (!w.upads) w.upads = [];
 
-        w.upads.push({
+        let upadEntry = {
             amount: amt,
             date: formattedDate,
             time: timeVal,
@@ -1652,7 +1678,9 @@
             refNumber: refNo,
             note: note,
             timestamp: Date.now()
-        });
+        };
+
+        w.upads.push(upadEntry);
 
         cloudWorkers[selectedWorkerIdForUpad] = w;
         localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
@@ -1666,6 +1694,88 @@
         document.getElementById("newUpadRefInput").value = "";
         renderUpadModalDetails();
         renderWorkersTable();
+
+        let salary = parseFloat(w.salary || 0);
+        let totalUpad = w.upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+        let balance = salary - totalUpad;
+        let modeText = mode === 'cheque' ? `ચેક (${refNo})` : (mode === 'gpay' ? `GPay (${refNo})` : 'રોકડ (Cash)');
+
+        // ૧. ખાલી સેવ બટન દબાવ્યું હોય તો:
+        if (action === 'save') {
+            alert(`✅ ${w.name} ને ₹${amt.toLocaleString('en-IN')} નો ઉપાડ સફળતાપૂર્વક સેવ થઈ ગયો!`);
+        }
+        // ૨. સેવ અને પ્રિન્ટ બટન દબાવ્યું હોય તો:
+        else if (action === 'print') {
+            printInstantUpadReceipt(w, upadEntry, balance, modeText);
+        }
+        // ૩. સેવ અને WhatsApp બટન દબાવ્યું હોય તો:
+        else if (action === 'whatsapp') {
+            sendInstantUpadWhatsApp(w, upadEntry, balance, modeText);
+        }
+    }
+
+    // 🖨️ તુરંત ઉપાડ પહોંચ પ્રિન્ટ કરવી
+    function printInstantUpadReceipt(w, u, balance, modeText) {
+        let win = window.open('', '_blank', 'width=650,height=550');
+        if (!win) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
+
+        win.document.write(`
+            <html>
+            <head>
+                <title>ઉપાડ પહોંચ - ${w.name}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 25px; color: #333; }
+                    .card { border: 2px solid #1e293b; padding: 20px; border-radius: 8px; max-width: 520px; margin: auto; }
+                    .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                    th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="header">
+                        <h2 style="margin:0; color:#4f46e5;">${currentFarmName}</h2>
+                        <h4 style="margin:4px 0; color:#b45309;">ઉપાડ (Advance Payment) પહોંચ</h4>
+                    </div>
+                    <p><b>તારીખ & સમય:</b> ${u.date} ${u.time || ''}</p>
+                    <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role || 'કારીગર'}</p>
+                    <table>
+                        <tr><th style="background:#f1f5f9; text-align:left;">આપેલો ઉપાડ (રકમ):</th><td style="font-size:16px; font-weight:bold; color:#ef4444; text-align:right;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td></tr>
+                        <tr><th style="background:#f1f5f9; text-align:left;">પેમેન્ટ પ્રકાર:</th><td><b>${modeText}</b></td></tr>
+                        <tr><th style="background:#f1f5f9; text-align:left;">ઉપાડની નોંધ / વિગત:</th><td>${u.note || '-'}</td></tr>
+                        <tr><th style="background:#ecfdf5; text-align:left; color:#047857;">હવે ચોખ્ખો બાકી પગાર:</th><td style="font-size:15px; font-weight:bold; color:#047857; text-align:right;">₹${balance.toLocaleString('en-IN')}</td></tr>
+                    </table>
+                    <div style="margin-top:40px; display:flex; justify-content:space-between;">
+                        <div>કારીગર સહી: ___________</div>
+                        <div>આપનાર / માલિક સહી: ___________</div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    }
+
+    // 📲 તુરંત ઉપાડ WhatsApp કરવો
+    function sendInstantUpadWhatsApp(w, u, balance, modeText) {
+        if (!w.mobile || w.mobile.length < 10) {
+            alert("વર્કરનો 10 આંકડાનો સાચો મોબાઈલ નંબર નથી!");
+            return;
+        }
+        let cleanMobile = w.mobile.replace(/[^0-9]/g, '');
+        if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile;
+
+        let msg = `નમસ્તે ${w.name},\nતમને ${currentFarmName} તરફથી ઉપાડ ચૂકવેલ છે:\n\n` +
+                  `💰 આપેલ ઉપાડ: ₹${parseFloat(u.amount).toLocaleString('en-IN')}\n` +
+                  `📅 તારીખ & સમય: ${u.date} ${u.time || ''}\n` +
+                  `💳 પેમેન્ટ મોડ: ${modeText}\n` +
+                  `📝 નોંધ: ${u.note || '-'}\n` +
+                  `---------------------------\n` +
+                  `✅ હવે ચોખ્ખો બાકી પગાર: ₹${balance.toLocaleString('en-IN')}\n\nઆભાર!`;
+
+        window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`);
     }
 
     function deleteWorkerUpad(index) {
@@ -2119,20 +2229,45 @@
         }
     }
 
+    // 💳 બુકિંગ પેમેન્ટ મોડ ચેન્જ ફંક્શન (રોકડ / ચેક / GPay)
+    function onBookingPaymentModeChange() {
+        let mode = document.getElementById("newPaymentMode").value;
+        let grp = document.getElementById("bookingPayRefGroup");
+        let inp = document.getElementById("newPaymentRefInput");
+
+        if (mode === "cheque") {
+            grp.style.display = "block";
+            inp.placeholder = "ચેક નંબર (દા.ત. CHQ-885412) *";
+        } else if (mode === "gpay") {
+            grp.style.display = "block";
+            inp.placeholder = "GPay / UPI મોબાઇલ નંબર અથવા Txn ID *";
+        } else {
+            grp.style.display = "none";
+            inp.value = "";
+        }
+    }
+
     function renderPaymentHistory() {
         let tbody = document.getElementById("paymentHistoryBody");
         tbody.innerHTML = "";
 
         if (currentPaymentsList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:8px; color:#94a3b8;">હજુ સુધી કોઈ પેમેન્ટ મળ્યું નથી.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:8px; color:#94a3b8;">હજુ સુધી કોઈ પેમેન્ટ મળ્યું નથી.</td></tr>`;
             calculateBalance(true);
             return;
         }
 
         currentPaymentsList.forEach((pay, idx) => {
+            let mode = pay.mode || 'cash';
+            let modeBadge = `<span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">${mode === 'cheque' ? 'ચેક' : (mode === 'gpay' ? 'GPay' : 'રોકડ')}</span>`;
+            let refText = pay.refNumber ? ` <small style="color:#475569;">(${pay.refNumber})</small>` : '';
+            let noteText = pay.note ? ` - ${pay.note}` : '';
+            let timeText = pay.time ? ` <small style="color:#64748b;">${pay.time}</small>` : '';
+
             let row = `<tr>
-                <td style="padding:6px;">${pay.date}</td>
-                <td style="padding:6px; font-weight:600; color:#16a34a;">₹${parseFloat(pay.amount).toLocaleString('en-IN')}</td>
+                <td style="padding:6px;">${pay.date}${timeText}</td>
+                <td style="padding:6px;">${modeBadge}${refText}${noteText}</td>
+                <td style="padding:6px; text-align:right; font-weight:700; color:#16a34a;">₹${parseFloat(pay.amount).toLocaleString('en-IN')}</td>
                 <td style="padding:6px; text-align:center;">    
                       ${canUserDelete ? `<button type="button" onclick="removePayment(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="પેમેન્ટ ડિલીટ કરો">❌</button>` : `<span style="color:#94a3b8;" title="ડિલીટ પરવાનગી નથી">🔒</span>`}
                 </td>
@@ -2146,8 +2281,17 @@
     function addNewPayment() {
         let amountInput = document.getElementById("newPaymentAmount");
         let dateInput = document.getElementById("newPaymentDate");
+        let timeInput = document.getElementById("newPaymentTime");
+        let modeInput = document.getElementById("newPaymentMode");
+        let refInput = document.getElementById("newPaymentRefInput");
+        let noteInput = document.getElementById("newPaymentNote");
+
         let amt = parseFloat(amountInput.value);
         let dateVal = dateInput.value;
+        let timeVal = timeInput.value;
+        let mode = modeInput.value;
+        let refNo = refInput.value.trim();
+        let note = noteInput.value.trim();
 
         if (!amt || amt <= 0) {
             alert("કૃપા કરીને માન્ય રકમ દાખલ કરો!");
@@ -2157,13 +2301,29 @@
             alert("કૃપા કરીને પેમેન્ટની તારીખ પસંદ કરો!");
             return;
         }
+        if ((mode === "cheque" || mode === "gpay") && !refNo) {
+            alert(`કૃપા કરીને ${mode === "cheque" ? "ચેક નંબર" : "GPay નંબર/Txn ID"} દાખલ કરો!`);
+            return;
+        }
 
-        // તારીખને DD/MM/YYYY ફોર્મેટમાં ફેરવો
         let parts = dateVal.split("-");
         let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
 
-        currentPaymentsList.push({ amount: amt, date: formattedDate });
+        currentPaymentsList.push({
+            amount: amt,
+            date: formattedDate,
+            time: timeVal,
+            mode: mode,
+            refNumber: refNo,
+            note: note,
+            timestamp: Date.now()
+        }); 
+
         amountInput.value = "";
+        refInput.value = "";
+        noteInput.value = "";
+        modeInput.value = "cash";
+        document.getElementById("bookingPayRefGroup").style.display = "none";
         renderPaymentHistory();
     }
 
@@ -2198,8 +2358,14 @@
         let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let data = cloudBookings[fullKey] || (selectedSlot === 'fullday' && cloudBookings[selectedDateBaseKey] && cloudBookings[selectedDateBaseKey].slot === 'fullday' ? cloudBookings[selectedDateBaseKey] : null) || (selectedSlot === 'morning' ? cloudBookings[selectedDateBaseKey] : null);
 
-        document.getElementById("newPaymentDate").value = new Date().toISOString().slice(0, 10);
+        let now = new Date();
+        document.getElementById("newPaymentDate").value = now.toISOString().slice(0, 10);
+        document.getElementById("newPaymentTime").value = now.toTimeString().slice(0, 5);
         document.getElementById("newPaymentAmount").value = "";
+        document.getElementById("newPaymentMode").value = "cash";
+        document.getElementById("newPaymentNote").value = "";
+        document.getElementById("newPaymentRefInput").value = "";
+        document.getElementById("bookingPayRefGroup").style.display = "none";
 
         if (data && data.customerName) {
             document.getElementById("customerName").value = data.customerName || "";
@@ -2212,7 +2378,7 @@
             if (data.payments && Array.isArray(data.payments)) {
                 currentPaymentsList = [...data.payments];
             } else if (data.advanceAmount > 0) {
-                currentPaymentsList = [{ amount: data.advanceAmount, date: document.getElementById("modalDateDisplay").innerText }];
+                currentPaymentsList = [{ amount: data.advanceAmount, date: document.getElementById("modalDateDisplay").innerText, mode: 'cash' }];
             } else {
                 currentPaymentsList = [];
             }
@@ -2238,10 +2404,10 @@
         document.getElementById("bookingModal").style.display = "flex";
         applyLockSystemToModal();
     } 
-
+ 
     // લોક સિસ્ટમ: પરવાનગી ન હોય તો ફોર્મ લોક કરવું
     function applyLockSystemToModal() {
-        const fields = ["customerName", "mobile", "event", "guests", "totalAmount", "bookingStatus", "newPaymentAmount", "newPaymentDate", "bookingSlot"];
+        const fields = ["customerName", "mobile", "event", "guests", "totalAmount", "bookingStatus", "newPaymentAmount", "newPaymentDate", "newPaymentTime", "newPaymentMode", "newPaymentNote", "newPaymentRefInput", "bookingSlot"];
         fields.forEach(fId => {
             let el = document.getElementById(fId);
             if (el) el.disabled = !canUserEdit;
@@ -2376,18 +2542,18 @@
         alert("✅ બુકિંગ સફળતાપૂર્વક સેવ/અપડેટ થઈ ગયું છે!");
         closeModal();
     }
-
-    // 📲 WhatsApp મેસેજ મોકલવા માટેનું ફંક્શન
+ 
+    // 📲 WhatsApp મેસેજ મોકલવા માટેનું ફંક્શન (કુલ પેકેજ, એડવાન્સ વિગત & બાકી પેમેન્ટ સાથે)
     function sendWhatsAppReceipt() {
         let name = document.getElementById("customerName").value.trim();
         let mobile = document.getElementById("mobile").value.trim();
         let event = document.getElementById("event").value.trim() || "ઇવેન્ટ";  
         let date = document.getElementById("modalDateDisplay").innerText; 
         let total = parseFloat(document.getElementById("totalAmount").value) || 0;
+        let advance = parseFloat(document.getElementById("advanceAmount").value) || 0;
         let balance = parseFloat(document.getElementById("balanceAmount").value) || 0;
-        let shiftText = (selectedSlot === 'evening') ? '🌙 સાંજ (Evening)' : '🌅 સવાર (Morning)';
 
-       if (!mobile || mobile.length < 10) {
+        if (!mobile || mobile.length < 10) {
             alert("કૃપા કરીને સાચો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો!");
             return;
         }
@@ -2396,11 +2562,39 @@
         if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile; 
 
         let shiftName = (selectedSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((selectedSlot === 'evening') ? '🌙 સાંજ (Evening)' : '🌅 સવાર (Morning)');
-        let msg = `નમસ્તે ${name}, તમારું ${event} માટેનું બુકિંગ (${currentFarmName}) તારીખ ${date} [સમય: ${shiftName}] માટે કન્ફર્મ થયું છે. કુલ રકમ: ₹${total.toLocaleString('en-IN')}, બાકી રકમ: ₹${balance.toLocaleString('en-IN')}. આભાર!`;
+
+        // હપ્તાવાર પેમેન્ટ હિસ્ટ્રી (Cash, Cheque No, GPay ID અને સમય સાથે)
+        let advanceBreakdown = "";
+        if (currentPaymentsList && currentPaymentsList.length > 0) {
+            currentPaymentsList.forEach((pay, idx) => {
+                let mText = pay.mode === 'cheque' ? `🏦 ચેક (નં: ${pay.refNumber || '-'})` : (pay.mode === 'gpay' ? `📱 GPay (ID: ${pay.refNumber || '-'})` : '💵 રોકડ (Cash)');
+                let timeStr = pay.time ? ` [${pay.time}]` : '';
+                advanceBreakdown += `  ↳ હપ્તો #${idx + 1}: ₹${parseFloat(pay.amount).toLocaleString('en-IN')} (${mText}) - તા: ${pay.date}${timeStr}\n`;
+            });
+        } else {
+            advanceBreakdown = `  (કોઈ એડવાન્સ જમા મળેલ નથી)\n`;
+        }
+
+        // તમે માંગેલા ફોર્મેટ મુજબ તૈયાર કરેલો મેસેજ:
+        let msg = `*${currentFarmName}*\n` +
+                  `બુકિંગ કન્ફર્મેશન રસીદ\n\n` +
+                  `👤 કસ્ટમરનું નામ: ${name}\n` +
+                  `📅 ઇવેન્ટ તારીખ: ${date}\n` +
+                  `⏰ સમય / શિફ્ટ: ${shiftName}\n` +
+                  `🎉 ઇવેન્ટ વિગત: ${event}\n` +
+                  `------------------------------------------\n` +
+                  `કુલ પેકેજ રકમ (Total Package) : ₹${total.toLocaleString('en-IN')}\n\n` +
+                  `પાર્ટીનું એડવાન્સ જમા (Advance Paid) : ₹${advance.toLocaleString('en-IN')}\n` +
+                  advanceBreakdown +
+                  `__________________________________________\n` +
+                  `કુલ બાકી પેમેન્ટ (Total Due Balance) : ₹${balance.toLocaleString('en-IN')}\n` +
+                  `------------------------------------------\n` +
+                  `આપનો ખૂબ ખૂબ આભાર!\n*${currentFarmName}*`;
+
         window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
     }
 
-      // 💾 ૧. બેકઅપ ફોન મેમરીમાં ડાઉનલોડ થશે
+    // 💾 ૧. બેકઅપ ફોન મેમરીમાં ડાઉનલોડ થશે
     function downloadBackupJSON() {
         if (!cloudBookings || Object.keys(cloudBookings).length === 0) {
             alert("બેકઅપ લેવા માટે ક્લાઉડમાં કોઈ ડેટા નથી!");
@@ -2433,7 +2627,6 @@
         reader.onload = function(e) {
             try {
                 let data = JSON.parse(e.target.result); 
-                // પસંદ કરેલા ફાર્મમાં સંપૂર્ણ ડેટા ઓવરરાઈટ અપડેટ
                 currentBookingRef.set(data, function(error) {
                     if (error) {
                         alert("❌ ક્લાઉડમાં ડેટા સેવ કરવામાં ભૂલ થઈ!");
@@ -2449,6 +2642,7 @@
         event.target.value = "";
     }
 
+    // 🖨️ બુકિંગ પહોંચ પ્રિન્ટ (Invoice Print - Cash/Cheque No/GPay ID સાથે)
     function printInvoice() {
         let name = document.getElementById("customerName").value || "N/A";
         let mobile = document.getElementById("mobile").value || "N/A";
@@ -2465,13 +2659,15 @@
             return;
         }
 
-        // ૪-૫ વાર મળેલા તમામ હપ્તાઓની યાદી રસીદમાં ઉમેરવા માટે
         let paymentBreakdown = "";
         if (currentPaymentsList && currentPaymentsList.length > 0) {
             currentPaymentsList.forEach((pay, i) => {
+                let mText = pay.mode === 'cheque' ? `ચેક (નં: ${pay.refNumber || '-'})` : (pay.mode === 'gpay' ? `GPay (ID: ${pay.refNumber || '-'})` : 'રોકડ (Cash)');
+                let timeStr = pay.time ? ` [${pay.time}]` : '';
+                let noteStr = pay.note ? ` - ${pay.note}` : '';
                 paymentBreakdown += `<tr>
-                    <td style="padding-left:20px; color:#16a34a;">↳ જમા હપ્તો #${i + 1} (${pay.date})</td>
-                    <td style="text-align:right; color:#16a34a;">(-) ₹${parseFloat(pay.amount).toLocaleString('en-IN')}</td>
+                    <td style="padding-left:20px; color:#16a34a;">↳ જમા હપ્તો #${i + 1} (${pay.date}${timeStr}) [<b>${mText}</b>]${noteStr}</td>
+                    <td style="text-align:right; color:#16a34a; font-weight:700;">(-) ₹${parseFloat(pay.amount).toLocaleString('en-IN')}</td>
                 </tr>`;
             });
         } else {
@@ -2510,12 +2706,12 @@
                         </thead>
                         <tbody>
                             <tr style="font-weight:bold; background:#f9fafb;">
-                                <td>કુલ પેકેજ રકમ</td>
+                                <td>કુલ પેકેજ રકમ (Total Package)</td>
                                 <td style="text-align:right;">₹${total.toLocaleString('en-IN')}</td>
                             </tr>
                             ${paymentBreakdown}
                             <tr style="font-weight:bold; background:#f0fdf4;">
-                                <td>કુલ જમા મળેલ રકમ</td>
+                                <td>કુલ જમા મળેલ રકમ (Advance Paid)</td>
                                 <td style="text-align:right; color:#16a34a;">₹${advance.toLocaleString('en-IN')}</td>
                             </tr>
                             <tr style="font-weight:bold; background:#fef2f2;">
@@ -2546,7 +2742,6 @@
                 bookings.push(item);
             }
         }
-        // તારીખ મુજબ ગોઠવણી (Sort by date)
         bookings.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
         return bookings;
     }
@@ -2568,10 +2763,9 @@
         let monthCounts = {};
 
         all.forEach((item, index) => {
-            // key format: bk_YYYY_MM_DD
             let parts = item.dateKey.replace(STORAGE_PREFIX, "").split("_");
             let y = parts[0];
-            let m = String(parseInt(parts[1]) - 1); // 0-indexed month
+            let m = String(parseInt(parts[1]) - 1);
             let d = parts[2];
 
             monthCounts[m] = (monthCounts[m] || 0) + 1;
@@ -2595,7 +2789,6 @@
             let slotLabel = (item.slot === 'fullday') ? '☀️ આખો દિવસ' : ((item.slot === 'evening') ? '🌙 સાંજ' : '🌅 સવાર');
             let itemSlot = item.slot || 'morning'; 
 
-            // લિસ્ટમાંથી સીધું તે શિફ્ટનું પેમેન્ટ જમા કરવા માટેનું બટન
             let editBtn = `<button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="openModal(${y}, ${parseInt(m) + 1}, ${parseInt(d)}, '${itemSlot}')">✏️ પેમેન્ટ</button>`;
   
             let deleteBtn = canUserDelete
@@ -2641,14 +2834,13 @@
         document.getElementById("peakMonthDisplay").innerText = peakText;
     }
 
-    // ૩. ક્લાઉડ (Firebase) માંથી કાયમ માટે ડિલીટ કરવા (મેમરી સાફ રહે)
+    // ૩. ક્લાઉડ (Firebase) માંથી કાયમ માટે ડિલીટ કરવા
     function deleteBooking(key) {  
-             if (!canUserDelete) {
+        if (!canUserDelete) {
             alert("❌ તમારી પાસે ડેટા ડિલીટ કરવાનો અધિકાર નથી!");
             return;
         }
         if (confirm("શું તમે આ બુકિંગ કાયમ માટે ડિલીટ કરવા માંગો છો?")) {
-            // લોકલ સ્ક્રીનમાંથી તુરંત હટાવો
             delete cloudBookings[key];
             localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
             generateCalendar();
@@ -2669,6 +2861,7 @@
         }
     }
 
+    // 📑 Excel એક્સપોર્ટ (પેમેન્ટ મોડ, ચેક નંબર અને GPay ID સાથે)
     function exportExcel() {
         let bookings = getAllBookings();
         if (bookings.length === 0) {
@@ -2676,12 +2869,24 @@
             return;
         }  
 
-        let csv = "\uFEFFતારીખ,શિફ્ટ,કસ્ટમરનું નામ,મોબાઈલ,ઇવેન્ટ,મહેમાનો,કુલ રકમ,એડવાન્સ,બાકી રકમ,સ્ટેટસ\n";
+        let csv = "\uFEFFતારીખ,શિફ્ટ,કસ્ટમરનું નામ,મોબાઈલ,ઇવેન્ટ,મહેમાનો,કુલ રકમ,એડવાન્સ,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી (મોડ/વિગત),સ્ટેટસ\n";
         bookings.forEach(b => {
             let parts = b.dateKey.replace(STORAGE_PREFIX, "").split("_");
             let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`; 
             let slotName = (b.slot === 'fullday') ? 'આખો દિવસ' : ((b.slot === 'evening') ? 'સાંજ' : 'સવાર');
-            csv += `"${formattedDate}","${slotName}","${b.customerName}","${b.mobile}","${b.event}","${b.guests}","${b.totalAmount}","${b.advanceAmount}","${b.balanceAmount}","${b.status}"\n`;
+            
+            let pHistoryText = "";
+            if (b.payments && Array.isArray(b.payments)) {
+                pHistoryText = b.payments.map((p, i) => {
+                    let m = p.mode === 'cheque' ? `ચેક (${p.refNumber || ''})` : (p.mode === 'gpay' ? `GPay (${p.refNumber || ''})` : 'રોકડ');
+                    let t = p.time ? ` [${p.time}]` : '';
+                    return `હપ્તો ${i+1}: ₹${p.amount} (${m}) ${p.date}${t}`;
+                }).join(" | ");
+            } else if (b.advanceAmount > 0) {
+                pHistoryText = `₹${b.advanceAmount} (રોકડ)`;
+            }
+
+            csv += `"${formattedDate}","${slotName}","${b.customerName}","${b.mobile}","${b.event}","${b.guests}","${b.totalAmount}","${b.advanceAmount}","${b.balanceAmount}","${pHistoryText}","${b.status}"\n`;
         });
 
         let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -2689,7 +2894,7 @@
         link.href = URL.createObjectURL(blob);
         link.download = `Booking_Report_${new Date().toISOString().slice(0, 10)}.csv`;
         link.click();
-    } 
+    }
 
     // 🔒 Admin Password Modal
     function openAdminSettingsModal() {
