@@ -1582,7 +1582,7 @@
 
 <!-- 💰 Worker Upad Modal -->
 <div class="modal" id="workerUpadModal">
-    <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-content" style="width: 550px; max-width: 95%;">
         <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
             <span>💰 ઉપાડ ખાતાવહી: <span id="upadWorkerNameDisplay"></span></span>
             <button class="btn btn-outline" onclick="closeWorkerUpadModal()" style="padding:2px 8px; font-size:12px;">✕</button>
@@ -1604,31 +1604,50 @@
             </div>
         </div>
 
-            <!-- Add Upad Form (Cash / Cheque / GPay & Time સાથે) -->
-        <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px;">
-            <b style="font-size:13px; color:#b45309; display:block; margin-bottom:8px;">➕ નવો ઉપાડ (Advance) આપો:</b>
+        <!-- Add Upad Form (લેપટોપ/PC માં રકમનું ખાનું મોટું અને પહોળું) -->
+        <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:12px;">
+            <b style="font-size:13px; color:#b45309; display:block; margin-bottom:10px;">➕ નવો ઉપાડ (Advance) આપો:</b>
             
-            <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap:6px; margin-bottom:6px;">
-                <input type="number" id="newUpadAmount" class="form-control" placeholder="રકમ (₹) *">
-                <input type="date" id="newUpadDate" class="form-control" title="તારીખ">
-                <input type="time" id="newUpadTime" class="form-control" title="સમય">
+            <!-- ૧. રકમનું ખાનું આખી લાઈનમાં મોટું અને બોલ્ડ -->
+            <div style="margin-bottom:10px;">
+                <label style="font-size:12px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">ઉપાડ રકમ (₹) *</label>
+                <input type="number" id="newUpadAmount" class="form-control" placeholder="રકમ દાખલ કરો (દા.ત. 50000, 100000...)" style="font-size:16px; font-weight:700; color:#b91c1c; width:100%; padding:10px 14px;">
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
-                <select id="newUpadMode" class="form-control" onchange="onUpadPaymentModeChange()">
-                    <option value="cash">💵 રોકડ (Cash)</option>
-                    <option value="cheque">🏦 ચેક (Cheque)</option>
-                    <option value="gpay">📱 GPay / UPI</option>
-                </select>
-                <input type="text" id="newUpadNote" class="form-control" placeholder="નોંધ (દા.ત. ઘર ખર્ચ)">
+            <!-- ૨. તારીખ અને સમય નીચે બે અલગ સરખા ખાનામાં -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+                <div>
+                    <label style="font-size:11px; font-weight:600; color:#475569; display:block; margin-bottom:3px;">તારીખ *</label>
+                    <input type="date" id="newUpadDate" class="form-control" title="તારીખ">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:600; color:#475569; display:block; margin-bottom:3px;">સમય</label>
+                    <input type="time" id="newUpadTime" class="form-control" title="સમય">
+                </div>
+            </div>
+
+            <!-- ૩. પેમેન્ટ મોડ અને નોંધ -->
+            <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:8px; margin-bottom:8px;">
+                <div>
+                    <label style="font-size:11px; font-weight:600; color:#475569; display:block; margin-bottom:3px;">પેમેન્ટ મોડ *</label>
+                    <select id="newUpadMode" class="form-control" onchange="onUpadPaymentModeChange()">
+                        <option value="cash">💵 રોકડ (Cash)</option>
+                        <option value="cheque">🏦 ચેક (Cheque)</option>
+                        <option value="gpay">📱 GPay / UPI</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:600; color:#475569; display:block; margin-bottom:3px;">નોંધ / વિગત</label>
+                    <input type="text" id="newUpadNote" class="form-control" placeholder="દા.ત. ઘર ખર્ચ, તહેવાર">
+                </div>
             </div>  
 
-            <div id="upadRefGroup" style="display:none; margin-bottom:6px;">
+            <div id="upadRefGroup" style="display:none; margin-bottom:8px;">
                 <input type="text" id="newUpadRefInput" class="form-control" placeholder="ચેક નંબર અથવા GPay ID *">
             </div>
 
-            <!-- 💰 ઉપાડ માટેના ૩ ઓપ્શન બટન: ખાલી સેવ, પ્રિન્ટ અને WhatsApp -->
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+            <!-- 💰 ઉપાડ માટેના ૩ ઓપ્શન બટન -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:10px;">
                 <button type="button" class="btn btn-success" onclick="addWorkerUpad('save')" style="justify-content:center; padding:9px 4px; font-size:12px; font-weight:700;">💾 ખાલી સેવ</button>
                 <button type="button" class="btn btn-primary" onclick="addWorkerUpad('print')" style="justify-content:center; padding:9px 4px; font-size:12px; font-weight:700;">🖨️ સેવ & પ્રિન્ટ</button>
                 <button type="button" class="btn" onclick="addWorkerUpad('whatsapp')" style="background:#25D366; color:white; justify-content:center; padding:9px 4px; font-size:12px; font-weight:700;">📲 સેવ & WhatsApp</button>
@@ -3161,6 +3180,9 @@
             }
         }
 
+       // 💾 કાયમી લોગિન માટે localStorage માં સાચવો (જેથી વારંવાર પાસવર્ડ ન નાખવો પડે)
+        localStorage.setItem("persistentLoggedUserRole", currentUserRole);
+        localStorage.setItem("persistentUserPass", pass);
         sessionStorage.setItem("loggedUserRole", currentUserRole);
         setupUserView();
         renderWorkersTable();
@@ -3245,9 +3267,13 @@
     }
         
     function logout() {
+        // જ્યારે જાતે લોગઆઉટ બટન દબાવે ત્યારે જ કાયમી લોગિન ભૂંસાશે
+        localStorage.removeItem("persistentLoggedUserRole");
+        localStorage.removeItem("persistentUserPass");
         sessionStorage.removeItem("loggedUserRole");
         location.reload();
     }
+
 
     function populateYears() {
         const yearSelect = document.getElementById("yearSelect");
@@ -4474,9 +4500,10 @@
             }
         });
     }
-            // પેજ લોડ વખતે સેશન સેટિંગ્સ
-    window.onload = function() {
-        let savedRole = sessionStorage.getItem("loggedUserRole");
+            // પેજ લોડ વખતે સેશન સેટિંગ્સ  
+  window.onload = function() {
+        // 🚀 કાયમી સેવ થયેલ યુઝર આપોઆપ લોગિન થઈ જશે (વારંવાર પાસવર્ડ નાખવાની જરૂર નથી)
+        let savedRole = localStorage.getItem("persistentLoggedUserRole") || sessionStorage.getItem("loggedUserRole");
         if (savedRole) {
             currentUserRole = savedRole; 
             if (currentUserRole === "admin") {
@@ -4490,7 +4517,7 @@
                 currentStaffConfig = null;
                 setupUserView();
             } else { 
-                // 💾 ૧. સ્ટાફ માટે પહેલા LocalStorage માંથી ચેક કરવું (જેથી નેટ વગર લોગઆઉટ ન થાય)
+                // 💾 સ્ટાફ માટે લોકલ કેશમાંથી પરવાનગી લોડ કરવી
                 let staff = staffListObj[currentUserRole];
                 if (staff) {
                     currentStaffConfig = staff;
@@ -4505,8 +4532,8 @@
                     renderWorkersTable();
                 }
 
-                // 🌐 ૨. ઇન્ટરનેટ હોય ત્યારે જ ક્લાઉડમાંથી તાજી પરવાનગી ચકાસવી
-                if (navigator.onLine) {
+                // ક્લાઉડમાંથી તાજી પરવાનગી અપડેટ
+                if (navigator.onLine && typeof staffPermRef !== "undefined") {
                     staffPermRef.once('value', (snap) => {
                         staffListObj = snap.val() || {};
                         let liveStaff = staffListObj[currentUserRole];
@@ -4522,9 +4549,11 @@
                             setupUserView();
                             renderWorkersTable();
                         } else if (!staff) {
-                            logout();   
+                            logout(); // જો એડમિને સ્ટાફને ડિલીટ કરી દીધો હોય તો ઓટો-લોગઆઉટ
                         }
                     });
+                } else if (!staff) {
+                    setupUserView();
                 }
             }
         }
