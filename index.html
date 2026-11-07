@@ -2100,6 +2100,27 @@
             </div>
         </div>
 
+      <!-- 📌 વિશેષ નોંધ / શરતો (Note 1, Note 2, Note 3) -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:12px;">
+            <label style="font-weight:800; color:#334155; font-size:13.5px; display:block; margin-bottom:8px;">
+                📌 વિશેષ નોંધ / શરતો (Special Notes / Terms):
+            </label>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:grid; grid-template-columns: 80px 1fr; gap:6px; align-items:center;">
+                    <span style="font-weight:700; color:#475569; font-size:12px;">નોંધ ૧ :</span>
+                    <input type="text" id="bookingNote1" class="form-control" placeholder="નોંધ ૧ (દા.ત. સમય મર્યાદા / લાઇટિંગ / નિયમ)">
+                </div>
+                <div style="display:grid; grid-template-columns: 80px 1fr; gap:6px; align-items:center;">
+                    <span style="font-weight:700; color:#475569; font-size:12px;">નોંધ ૨ :</span>
+                    <input type="text" id="bookingNote2" class="form-control" placeholder="નોંધ ૨ (દા.ત. કેટરિંગ / સાફ-સફાઈ વિગત)">
+                </div>
+                <div style="display:grid; grid-template-columns: 80px 1fr; gap:6px; align-items:center;">
+                    <span style="font-weight:700; color:#475569; font-size:12px;">નોંધ ૩ :</span>
+                    <input type="text" id="bookingNote3" class="form-control" placeholder="નોંધ ૩ (દા.ત. અન્ય વિશેષ શરતો / કરાર)">
+                </div>
+            </div>
+        </div>
+
         <!-- સુધારો ૪: ઘાટો પીળો/નારંગી બેજ સાથે સ્ટેટસ -->
         <div class="form-group">
             <label style="font-weight:700;">બુકિંગ સ્ટેટસ (Status)</label>
@@ -4087,7 +4108,7 @@
         loadSlotData();
     } 
 
-    // ✏️ મંડપના ૩ ખાના, વોચમેન ખાતું & રસીદ નંબર મોડલમાં લોડ કરવું
+    // ✏️ મંડપના ૩ ખાના, વોચમેન ખાતું, રસીદ નંબર & ૩ નોંધ (Note 1, 2, 3) મોડલમાં લોડ કરવું
     function loadSlotData() {
         let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let data = cloudBookings[fullKey] || (selectedSlot === 'fullday' && cloudBookings[selectedDateBaseKey] && cloudBookings[selectedDateBaseKey].slot === 'fullday' ? cloudBookings[selectedDateBaseKey] : null) || (selectedSlot === 'morning' ? cloudBookings[selectedDateBaseKey] : null);
@@ -4130,6 +4151,11 @@
             if (document.getElementById("vahanDays")) document.getElementById("vahanDays").value = data.vahanDays || 1;
             if (document.getElementById("vahanRatePerDay")) document.getElementById("vahanRatePerDay").value = data.vahanRatePerDay || "";
 
+            // 📌 વિશેષ નોંધ ૧, ૨ અને ૩
+            if (document.getElementById("bookingNote1")) document.getElementById("bookingNote1").value = data.bookingNote1 || "";
+            if (document.getElementById("bookingNote2")) document.getElementById("bookingNote2").value = data.bookingNote2 || "";
+            if (document.getElementById("bookingNote3")) document.getElementById("bookingNote3").value = data.bookingNote3 || "";
+
             document.getElementById("basePackageAmount").value = data.basePackageAmount !== undefined ? data.basePackageAmount : (data.totalAmount || "");
             document.getElementById("cleaningCharge").value = data.cleaningCharge || "";
             if (document.getElementById("otherExtraCharge")) document.getElementById("otherExtraCharge").value = data.otherExtraCharge || "";
@@ -4167,6 +4193,11 @@
             if (document.getElementById("vahanDays")) document.getElementById("vahanDays").value = 1;
             if (document.getElementById("vahanRatePerDay")) document.getElementById("vahanRatePerDay").value = "";
 
+            // 📌 વિશેષ નોંધ ખાલી કરવી
+            if (document.getElementById("bookingNote1")) document.getElementById("bookingNote1").value = "";
+            if (document.getElementById("bookingNote2")) document.getElementById("bookingNote2").value = "";
+            if (document.getElementById("bookingNote3")) document.getElementById("bookingNote3").value = "";
+
             document.getElementById("basePackageAmount").value = "";
             document.getElementById("cleaningCharge").value = "";
             if (document.getElementById("otherExtraCharge")) document.getElementById("otherExtraCharge").value = "";
@@ -4197,6 +4228,7 @@
             "receiptNo", "customerName", "mobile", "hastakName", "hastakMobile", "event", "guests", 
             "mandapSavar", "mandapBapor", "mandapSanj", "watchmanCount", "watchmanRate",
             "vahanDetails", "vahanCount", "vahanDays", "vahanRatePerDay",
+            "bookingNote1", "bookingNote2", "bookingNote3",
             "basePackageAmount", "cleaningCharge", "otherExtraCharge", "bookingStatus", 
             "newPaymentAmount", "newPaymentDate", "newPaymentTime", "newPaymentMode", "newPaymentNote", "newPaymentRefInput", 
             "bookingSlot", "extraItemName", "extraItemQty", "extraItemRate", "multiDateToggle", "bookingEndDate"
@@ -4256,7 +4288,7 @@
         closeModal();
     }
 
-    // 💾 બુકિંગ સેવ (રસીદ નંબર સાથે ઓનલાઇન & ઑફલાઇન બંનેમાં સેવ)
+    // 💾 બુકિંગ સેવ (Note 1, Note 2, Note 3 સાથે ઓનલાઇન & ઑફલાઇન બંનેમાં સેવ)
     function saveBooking() { 
         let name = document.getElementById("customerName").value.trim();
         let status = document.getElementById("bookingStatus").value;   
@@ -4293,6 +4325,11 @@
         let vDays = parseFloat(document.getElementById("vahanDays") ? document.getElementById("vahanDays").value : 1) || 1;
         let vRate = parseFloat(document.getElementById("vahanRatePerDay") ? document.getElementById("vahanRatePerDay").value : 0) || 0;
         let vTotal = vCount * vDays * vRate;
+
+        // 📌 વિશેષ નોંધ ૧, ૨ અને ૩
+        let note1 = document.getElementById("bookingNote1") ? document.getElementById("bookingNote1").value.trim() : "";
+        let note2 = document.getElementById("bookingNote2") ? document.getElementById("bookingNote2").value.trim() : "";
+        let note3 = document.getElementById("bookingNote3") ? document.getElementById("bookingNote3").value.trim() : "";
 
         let basePackage = parseFloat(document.getElementById("basePackageAmount").value) || 0;
         let extraTotal = currentExtraItemsList.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
@@ -4362,6 +4399,9 @@
                 vahanDays: vDays,
                 vahanRatePerDay: vRate,
                 vahanTotalAmount: vTotal,
+                bookingNote1: note1,
+                bookingNote2: note2,
+                bookingNote3: note3,
                 farmName: currentFarmName,
                 basePackageAmount: basePackage,
                 extraItems: currentExtraItemsList,
@@ -4423,7 +4463,7 @@
         closeModal();
     }
  
-    // 📲 WhatsApp મેસેજ સ્લિપ (રસીદ નંબર સાથે)
+    // 📲 WhatsApp મેસેજ સ્લિપ (રસીદ નંબર & વિશેષ નોંધ ૧, ૨, ૩ સાથે)
     function sendWhatsAppReceipt() {
         let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
         let name = document.getElementById("customerName").value.trim();
@@ -4458,6 +4498,18 @@
         let vRate = parseFloat(document.getElementById("vahanRatePerDay") ? document.getElementById("vahanRatePerDay").value : 0) || 0;
         let vTotal = vCount * vDays * vRate;
         let vahanText = vTotal > 0 ? `🚛 વાહન (${vDetails || 'ગાડી'} - ${vCount} વાહન x ${vDays} દિવસ): ₹${vTotal.toLocaleString('en-IN')}\n` : '';
+
+        // 📌 વિશેષ નોંધ ૧, ૨, ૩
+        let note1 = document.getElementById("bookingNote1") ? document.getElementById("bookingNote1").value.trim() : "";
+        let note2 = document.getElementById("bookingNote2") ? document.getElementById("bookingNote2").value.trim() : "";
+        let note3 = document.getElementById("bookingNote3") ? document.getElementById("bookingNote3").value.trim() : "";
+        let notesText = "";
+        if (note1 || note2 || note3) {
+            notesText = `📌 *વિશેષ નોંધ / શરતો:*\n`;
+            if (note1) notesText += `  • ${note1}\n`;
+            if (note2) notesText += `  • ${note2}\n`;
+            if (note3) notesText += `  • ${note3}\n`;
+        }
 
         let basePkg = parseFloat(document.getElementById("basePackageAmount").value) || 0;
         let kachara = parseFloat(document.getElementById("cleaningCharge").value) || 0;
@@ -4538,12 +4590,13 @@
                   `__________________________________________\n` +
                   `*કુલ બાકી પેમેન્ટ (Total Due Balance) : ₹${balance.toLocaleString('en-IN')}*\n` +
                   `------------------------------------------\n` +
+                  notesText +
                   `આપનો ખૂબ ખૂબ આભાર!\n*${currentFarmName}*`;
 
         window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
     }
 
-    // 🖨️ પ્રિન્ટ પહોંચ (Invoice - રસીદ નંબર બોલ્ડ પ્રિન્ટ સાથે)
+    // 🖨️ પ્રિન્ટ પહોંચ (Invoice - રસીદ નંબર & વિશેષ નોંધ ૧, ૨, ૩ સાથે)
     function printInvoice() {
         let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
         let name = document.getElementById("customerName").value || "N/A";
@@ -4564,6 +4617,21 @@
         }
 
         let receiptDisplay = receiptNo ? `<p style="margin:5px 0 0 0; font-size:14.5px;"><b>🧾 રસીદ / પહોંચ નંબર:</b> <span style="color:#4f46e5; font-weight:800; background:#e0e7ff; padding:2px 8px; border-radius:4px;">${receiptNo}</span></p>` : '';
+
+        // 📌 વિશેષ નોંધ ૧, ૨, ૩ પ્રિન્ટ
+        let note1 = document.getElementById("bookingNote1") ? document.getElementById("bookingNote1").value.trim() : "";
+        let note2 = document.getElementById("bookingNote2") ? document.getElementById("bookingNote2").value.trim() : "";
+        let note3 = document.getElementById("bookingNote3") ? document.getElementById("bookingNote3").value.trim() : "";
+        let notesDisplay = "";
+        if (note1 || note2 || note3) {
+            notesDisplay = `
+            <div style="margin-top:14px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; font-size:12px; text-align:left;">
+                <b style="color:#334155; display:block; margin-bottom:4px;">📌 વિશેષ નોંધ / શરતો:</b>
+                ${note1 ? `<div style="margin-left:8px; margin-bottom:2px;">• ${note1}</div>` : ''}
+                ${note2 ? `<div style="margin-left:8px; margin-bottom:2px;">• ${note2}</div>` : ''}
+                ${note3 ? `<div style="margin-left:8px;">• ${note3}</div>` : ''}
+            </div>`;
+        }
 
         let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
         let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
@@ -4700,7 +4768,7 @@
                     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
                     td, th { padding: 9px 10px; border: 1px solid #ddd; text-align: left; font-size: 13px; }
                     th { background-color: #f3f4f6; }
-                    .footer { margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+                    .footer { margin-top: 25px; display: flex; justify-content: space-between; align-items: flex-end; }
                 </style>
             </head>
             <body>
@@ -4728,6 +4796,7 @@
                             </tr>
                         </tbody>
                     </table>
+                    ${notesDisplay}
                     <div class="footer">
                         <div><p>આપનો ખૂબ ખૂબ આભાર!</p></div>
                         <div style="text-align:center;"><p>__________________<br>અધિકૃત સહી / સ્ટેમ્પ</p></div>
@@ -4762,7 +4831,7 @@
         return bookings;
     }
 
-    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ (રસીદ નંબર & સર્ચ સાથે)
+    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ (રસીદ નંબર, ૩ નોંધ & સર્ચ સાથે)
     function filterData() {
         const tbody = document.getElementById("bookingTableBody");
         if (!tbody) return;
@@ -4790,7 +4859,7 @@
             if (fYear && y !== fYear) return;
             if (fMonth !== "" && m !== fMonth) return;
             if (fStatus && item.status !== fStatus) return;
-            if (search && !(item.customerName || '').toLowerCase().includes(search) && !(item.mobile || "").includes(search) && !(item.receiptNo || "").toLowerCase().includes(search)) return;
+            if (search && !(item.customerName || '').toLowerCase().includes(search) && !(item.mobile || "").includes(search) && !(item.receiptNo || "").toLowerCase().includes(search) && !(item.bookingNote1 || "").toLowerCase().includes(search) && !(item.bookingNote2 || "").toLowerCase().includes(search) && !(item.bookingNote3 || "").toLowerCase().includes(search)) return;
 
             totalCount++;
             sumTotal += parseFloat(item.totalAmount || 0);
@@ -4821,6 +4890,12 @@
 
             let watchmanStr = item.watchmanTotal > 0 ? `<br><small style="color:#166534;">👮‍♂️ વોચમેન: ₹${item.watchmanTotal.toLocaleString('en-IN')}</small>` : '';
 
+            let notesStr = "";
+            if (item.bookingNote1 || item.bookingNote2 || item.bookingNote3) {
+                let noteParts = [item.bookingNote1, item.bookingNote2, item.bookingNote3].filter(Boolean);
+                notesStr = `<br><small style="color:#475569;" title="વિશેષ નોંધ">📌 ${noteParts.join(" | ")}</small>`;
+            }
+
             let row = `<tr>
                 <td>${totalCount}</td>
                 <td><b>${d}/${parts[1]}/${y}</b></td>
@@ -4831,6 +4906,7 @@
                     ${item.hastakName ? `<br><small style="color:#0369a1;">↳ હસ્તક: ${item.hastakName} ${item.hastakMobile ? '(' + item.hastakMobile + ')' : ''}</small>` : ''}
                     ${watchmanStr}
                     ${item.vahanTotalAmount > 0 ? `<br><small style="color:#15803d;">🚛 વાહન: ₹${item.vahanTotalAmount.toLocaleString('en-IN')}</small>` : ''}
+                    ${notesStr}
                 </td>
                 <td>${item.mobile || '-'}</td>
                 <td>${item.event || '-'}</td>
@@ -5013,7 +5089,7 @@
         reader.readAsText(file);
     }
 
-    // 📑 Excel/CSV એક્સપોર્ટ (રસીદ નંબર સહિતની પહેલી કોલમ સાથે)
+    // 📑 Excel/CSV એક્સપોર્ટ (રસીદ નંબર & નોંધ ૧, ૨, ૩ સહિત)
     function exportExcel() {
         let bookings = getAllBookings();
         if (bookings.length === 0) {
@@ -5021,7 +5097,7 @@
             return;
         }  
 
-        let csv = "\uFEFFરસીદ નંબર,તારીખ,શિફ્ટ,મંડપ સવાર,મંડપ બપોર,મંડપ સાંજ,વોચમેન સંખ્યા,વોચમેન ભાવ,વોચમેન કુલ રકમ (₹),કસ્ટમરનું નામ,મોબાઈલ,હસ્તકનું નામ,હસ્તક મોબાઈલ,ઇવેન્ટ,મહેમાનો,વાહન વિગત,વાહન કુલ રકમ (₹),મૂળ ફાર્મ પેકેજ (₹),એક્સ્ટ્રા વસ્તુઓ,કચરાપેટી ચાર્જ (₹),અન્ય ચાર્જ (₹),કુલ પેકેજ રકમ (₹),કુલ એડવાન્સ જમા,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી,સ્ટેટસ\n";
+        let csv = "\uFEFFરસીદ નંબર,તારીખ,શિફ્ટ,મંડપ સવાર,મંડપ બપોર,મંડપ સાંજ,વોચમેન સંખ્યા,વોચમેન ભાવ,વોચમેન કુલ રકમ (₹),કસ્ટમરનું નામ,મોબાઈલ,હસ્તકનું નામ,હસ્તક મોબાઈલ,ઇવેન્ટ,મહેમાનો,નોંધ ૧,નોંધ ૨,નોંધ ૩,વાહન વિગત,વાહન કુલ રકમ (₹),મૂળ ફાર્મ પેકેજ (₹),એક્સ્ટ્રા વસ્તુઓ,કચરાપેટી ચાર્જ (₹),અન્ય ચાર્જ (₹),કુલ પેકેજ રકમ (₹),કુલ એડવાન્સ જમા,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી,સ્ટેટસ\n";
         
         bookings.forEach(b => {
             let parts = b.dateKey.replace(STORAGE_PREFIX, "").split("_");
@@ -5038,7 +5114,7 @@
 
             let statusText = b.status === 'ok' ? 'ઓકે (OK)' : (b.status === 'paid' ? 'પૂર્ણ (Paid)' : (b.status === 'partial' ? 'અડધું પેમેન્ટ (Partial)' : 'બાકી (Pending)'));
 
-            csv += `"${(b.receiptNo || '-').replace(/"/g, '""')}","${formattedDate}","${slotName}","${b.mandapSavar || '-'}","${b.mandapBapor || '-'}","${b.mandapSanj || '-'}","${b.watchmanCount || 0}","${b.watchmanRate || 0}","${b.watchmanTotal || 0}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.vahanDetails || '-').replace(/"/g, '""')}","${b.vahanTotalAmount || 0}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
+            csv += `"${(b.receiptNo || '-').replace(/"/g, '""')}","${formattedDate}","${slotName}","${b.mandapSavar || '-'}","${b.mandapBapor || '-'}","${b.mandapSanj || '-'}","${b.watchmanCount || 0}","${b.watchmanRate || 0}","${b.watchmanTotal || 0}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.bookingNote1 || '-').replace(/"/g, '""')}","${(b.bookingNote2 || '-').replace(/"/g, '""')}","${(b.bookingNote3 || '-').replace(/"/g, '""')}","${(b.vahanDetails || '-').replace(/"/g, '""')}","${b.vahanTotalAmount || 0}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
         });
 
         let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
