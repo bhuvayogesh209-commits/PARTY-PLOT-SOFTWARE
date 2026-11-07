@@ -4413,7 +4413,7 @@
         closeModal();
     }
  
-    // 📲 WhatsApp મેસેજ સ્લિપ
+    // 📲 WhatsApp મેસેજ સ્લિપ (૨ વાર રકમ ન આવે તેવા સ્માર્ટ સુધારા સાથે)
     function sendWhatsAppReceipt() {
         let name = document.getElementById("customerName").value.trim();
         let mobile = document.getElementById("mobile").value.trim();
@@ -4446,6 +4446,7 @@
         let vDays = parseFloat(document.getElementById("vahanDays") ? document.getElementById("vahanDays").value : 1) || 1;
         let vRate = parseFloat(document.getElementById("vahanRatePerDay") ? document.getElementById("vahanRatePerDay").value : 0) || 0;
         let vTotal = vCount * vDays * vRate;
+        let vahanText = vTotal > 0 ? `🚛 વાહન (${vDetails || 'ગાડી'} - ${vCount} વાહન x ${vDays} દિવસ): ₹${vTotal.toLocaleString('en-IN')}\n` : '';
 
         let basePkg = parseFloat(document.getElementById("basePackageAmount").value) || 0;
         let kachara = parseFloat(document.getElementById("cleaningCharge").value) || 0;
@@ -4464,11 +4465,10 @@
 
         let shiftName = (selectedSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((selectedSlot === 'evening') ? '🌙 સાંજ (Evening)' : '🌅 સવાર (Morning)');
         let hastakText = hastak ? `👤 હસ્તક: ${hastak} ${hastakMob ? '(' + hastakMob + ')' : ''}\n` : '';
-        let vahanText = vTotal > 0 ? `🚛 વાહન (${vDetails || 'ગાડી'} - ${vCount} વાહન x ${vDays} દિવસ): ₹${vTotal.toLocaleString('en-IN')}\n` : '';
 
         let extraItemsText = "";
         if (currentExtraItemsList && currentExtraItemsList.length > 0) {
-            extraItemsText = `\n🪑 *વધારાની વસ્તુઓ (Add-ons):*\n`;
+            extraItemsText = `🪑 *વધારાની વસ્તુઓ:*\n`;
             currentExtraItemsList.forEach((it, idx) => {
                 extraItemsText += `  ${idx + 1}. ${it.name} - ${it.qty} નંગ × ₹${it.rate} = ₹${parseFloat(it.total).toLocaleString('en-IN')}\n`;
             });
@@ -4477,15 +4477,38 @@
         let kacharaText = kachara > 0 ? `🗑️ કચરા પેટી / સફાઈ ચાર્જ: ₹${kachara.toLocaleString('en-IN')}\n` : '';
         let otherText = other > 0 ? `📝 અન્ય પરચૂરણ ચાર્જ: ₹${other.toLocaleString('en-IN')}\n` : '';
 
-        let advanceBreakdown = "";
-        if (currentPaymentsList && currentPaymentsList.length > 0) {
-            currentPaymentsList.forEach((pay, idx) => {
-                let mText = pay.mode === 'cheque' ? `🏦 ચેક (નં: ${pay.refNumber || '-'})` : (pay.mode === 'gpay' ? `📱 GPay (ID: ${pay.refNumber || '-'})` : '💵 રોકડ (Cash)');
-                let timeStr = pay.time ? ` [${pay.time}]` : '';
-                advanceBreakdown += `  ↳ હપ્તો #${idx + 1}: ₹${parseFloat(pay.amount).toLocaleString('en-IN')} (${mText}) - તા: ${pay.date}${timeStr}\n`;
-            });
+        // પેકેજ સેક્શન: જો કોઈ એક્સ્ટ્રા ચાર્જ હોય તો જ મૂળ પેકેજ અલગ બતાવવું, નહિતર એક જ વાર કુલ પેકેજ
+        let packageSectionMsg = "";
+        let hasAnyExtra = (wTotal > 0 || vTotal > 0 || (currentExtraItemsList && currentExtraItemsList.length > 0) || kachara > 0 || other > 0);
+        if (hasAnyExtra) {
+            packageSectionMsg = `મૂળ ફાર્મ પેકેજ: ₹${basePkg.toLocaleString('en-IN')}\n` +
+                                watchmanText +
+                                vahanText +
+                                extraItemsText +
+                                kacharaText +
+                                otherText +
+                                `------------------------------------------\n` +
+                                `*કુલ પેકેજ રકમ (Total Package) : ₹${total.toLocaleString('en-IN')}*\n\n`;
         } else {
-            advanceBreakdown = `  (કોઈ એડવાન્સ જમા મળેલ નથી)\n`;
+            packageSectionMsg = `*કુલ પેકેજ રકમ (Total Package) : ₹${total.toLocaleString('en-IN')}*\n\n`;
+        }
+
+        // પેમેન્ટ સેક્શન: જો ૧ જ હપ્તો હોય તો ૧ જ વાર જમા રકમ બતાવવી
+        let paymentSectionMsg = "";
+        if (currentPaymentsList && currentPaymentsList.length > 1) {
+            paymentSectionMsg = `પાર્ટીનું કુલ એડવાન્સ જમા : ₹${advance.toLocaleString('en-IN')}\n`;
+            currentPaymentsList.forEach((pay, idx) => {
+                let mText = pay.mode === 'cheque' ? `ચેક (નં: ${pay.refNumber || '-'})` : (pay.mode === 'gpay' ? `GPay (ID: ${pay.refNumber || '-'})` : 'રોકડ');
+                let timeStr = pay.time ? ` [${pay.time}]` : '';
+                paymentSectionMsg += `  ↳ હપ્તો #${idx + 1}: ₹${parseFloat(pay.amount).toLocaleString('en-IN')} (${mText}) - તા: ${pay.date}${timeStr}\n`;
+            });
+        } else if (currentPaymentsList && currentPaymentsList.length === 1) {
+            let pay = currentPaymentsList[0];
+            let mText = pay.mode === 'cheque' ? `ચેક (નં: ${pay.refNumber || '-'})` : (pay.mode === 'gpay' ? `GPay (ID: ${pay.refNumber || '-'})` : 'રોકડ');
+            let timeStr = pay.time ? ` [${pay.time}]` : '';
+            paymentSectionMsg = `જમા એડવાન્સ : ₹${advance.toLocaleString('en-IN')} (${mText}) - તા: ${pay.date}${timeStr}\n`;
+        } else {
+            paymentSectionMsg = `જમા એડવાન્સ : ₹0\n`;
         }
 
         let msg = `*${currentFarmName}*\n` +
@@ -4497,16 +4520,8 @@
                   mandapText +
                   `🎉 ઇવેન્ટ વિગત: ${event}\n` +
                   `------------------------------------------\n` +
-                  `મૂળ ફાર્મ પેકેજ: ₹${basePkg.toLocaleString('en-IN')}\n` +
-                  watchmanText +
-                  vahanText +
-                  extraItemsText +
-                  kacharaText +
-                  otherText +
-                  `------------------------------------------\n` +
-                  `*કુલ પેકેજ રકમ (Total Package) : ₹${total.toLocaleString('en-IN')}*\n\n` +
-                  `પાર્ટીનું એડવાન્સ જમા (Advance Paid) : ₹${advance.toLocaleString('en-IN')}\n` +
-                  advanceBreakdown +
+                  packageSectionMsg +
+                  paymentSectionMsg +
                   `__________________________________________\n` +
                   `*કુલ બાકી પેમેન્ટ (Total Due Balance) : ₹${balance.toLocaleString('en-IN')}*\n` +
                   `------------------------------------------\n` +
@@ -4515,7 +4530,7 @@
         window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
     }
 
-    // 🖨️ પ્રિન્ટ પહોંચ (Invoice)
+    // 🖨️ પ્રિન્ટ પહોંચ (Invoice - ૨ વાર રકમ ન આવે તેવા સુધારા સાથે)
     function printInvoice() {
         let name = document.getElementById("customerName").value || "N/A";
         let mobile = document.getElementById("mobile").value || "N/A";
@@ -4578,7 +4593,7 @@
         </tr>` : '';
 
         let kacharaRow = kachara > 0 ? `<tr>
-            <td style="padding-left:20px; color:#b91c1c;">↳ + કચરા પેટી / સફાઈ ચાર્જ (Cleaning Charge)</td>
+            <td style="padding-left:20px; color:#b91c1c;">↳ + કચરા પેટી / સફાઈ ચાર્જ</td>
             <td style="text-align:right; color:#b91c1c; font-weight:700;">+ ₹${kachara.toLocaleString('en-IN')}</td>
         </tr>` : '';
 
@@ -4587,21 +4602,76 @@
             <td style="text-align:right; color:#334155; font-weight:700;">+ ₹${otherCharge.toLocaleString('en-IN')}</td>
         </tr>` : '';
 
-        let paymentBreakdown = "";
-        if (currentPaymentsList && currentPaymentsList.length > 0) {
+        // ૧. પેકેજ સેક્શન: જો કોઈ એક્સ્ટ્રા ખર્ચ ન હોય તો માત્ર એક જ વાર 'કુલ પેકેજ રકમ' આવશે (₹81,000 બે વાર નહિ આવે)
+        let packageTableRows = "";
+        let hasExtra = (wTotal > 0 || vTotal > 0 || (currentExtraItemsList && currentExtraItemsList.length > 0) || kachara > 0 || otherCharge > 0);
+
+        if (hasExtra) {
+            packageTableRows = `
+                <tr style="background:#f9fafb;">
+                    <td>મૂળ ફાર્મ પેકેજ (Base Package)</td>
+                    <td style="text-align:right;">₹${basePkg.toLocaleString('en-IN')}</td>
+                </tr>
+                ${watchmanRow}
+                ${vahanRow}
+                ${extraRows}
+                ${kacharaRow}
+                ${otherRow}
+                <tr style="font-weight:bold; background:#fefce8; font-size:14px;">
+                    <td>કુલ પેકેજ રકમ (Total Package)</td>
+                    <td style="text-align:right; color:#1e1b4b;">₹${total.toLocaleString('en-IN')}</td>
+                </tr>
+            `;
+        } else {
+            packageTableRows = `
+                <tr style="font-weight:bold; background:#fefce8; font-size:14px;">
+                    <td>કુલ પેકેજ રકમ (Total Package)</td>
+                    <td style="text-align:right; color:#1e1b4b;">₹${total.toLocaleString('en-IN')}</td>
+                </tr>
+            `;
+        }
+
+        // ૨. પેમેન્ટ સેક્શન: જો ૧ જ હપ્તો હોય તો એક જ વાર જમા રકમ આવશે (₹11,000 બે વાર નહિ આવે)
+        let paymentTableRows = "";
+        if (currentPaymentsList && currentPaymentsList.length > 1) {
+            let pRows = "";
             currentPaymentsList.forEach((pay, i) => {
-                let mText = pay.mode === 'cheque' ? `ચેક (નં: ${pay.refNumber || '-'})` : (pay.mode === 'gpay' ? `GPay (ID: ${pay.refNumber || '-'})` : 'રોકડ (Cash)');
+                let mText = pay.mode === 'cheque' ? `ચેક (નં: ${pay.refNumber || '-'})` : (pay.mode === 'gpay' ? `GPay (ID: ${pay.refNumber || '-'})` : 'રોકડ');
                 let timeStr = pay.time ? ` [${pay.time}]` : '';
                 let noteStr = pay.note ? ` - ${pay.note}` : '';
-                paymentBreakdown += `<tr>
-                    <td style="padding-left:20px; color:#16a34a;">↳ જમા હપ્તો #${i + 1} (${pay.date}${timeStr}) [<b>${mText}</b>]${noteStr}</td>
+                pRows += `<tr>
+                    <td style="padding-left:20px; color:#16a34a;">↳ હપ્તો #${i + 1} (${pay.date}${timeStr}) [<b>${mText}</b>]${noteStr}</td>
                     <td style="text-align:right; color:#16a34a; font-weight:700;">(-) ₹${parseFloat(pay.amount).toLocaleString('en-IN')}</td>
                 </tr>`;
             });
+            paymentTableRows = `
+                ${pRows}
+                <tr style="font-weight:bold; background:#f0fdf4;">
+                    <td>કુલ જમા મળેલ રકમ (Advance Paid)</td>
+                    <td style="text-align:right; color:#16a34a;">₹${advance.toLocaleString('en-IN')}</td>
+                </tr>
+            `;
+        } else if (currentPaymentsList && currentPaymentsList.length === 1) {
+            let pay = currentPaymentsList[0];
+            let mText = pay.mode === 'cheque' ? `ચેક (નં: ${pay.refNumber || '-'})` : (pay.mode === 'gpay' ? `GPay (ID: ${pay.refNumber || '-'})` : 'રોકડ');
+            let timeStr = pay.time ? ` [${pay.time}]` : '';
+            let noteStr = pay.note ? ` - ${pay.note}` : '';
+            paymentTableRows = `
+                <tr style="font-weight:bold; background:#f0fdf4;">
+                    <td>જમા મળેલ એડવાન્સ (${pay.date}${timeStr}) [<b>${mText}</b>]${noteStr}</td>
+                    <td style="text-align:right; color:#16a34a;">(-) ₹${advance.toLocaleString('en-IN')}</td>
+                </tr>
+            `;
         } else {
-            paymentBreakdown = `<tr><td style="padding-left:20px; color:#64748b;">(હજુ કોઈ એડવાન્સ મળેલ નથી)</td><td style="text-align:right;">₹0</td></tr>`;
+            paymentTableRows = `
+                <tr style="font-weight:bold; background:#f0fdf4;">
+                    <td>કુલ જમા મળેલ રકમ (Advance Paid)</td>
+                    <td style="text-align:right; color:#64748b;">₹0</td>
+                </tr>
+            `;
         }
 
+        printWindow.document.open();
         printWindow.document.write(`
             <html>
             <head>
@@ -4633,24 +4703,8 @@
                             <tr><th>વિગત / પેકેજ / વધારાની વસ્તુઓ</th><th style="text-align:right;">રકમ (₹)</th></tr>
                         </thead>  
                         <tbody>
-                            <tr style="font-weight:bold; background:#f9fafb;">
-                                <td>મૂળ ફાર્મ પેકેજ (Base Package)</td>
-                                <td style="text-align:right;">₹${basePkg.toLocaleString('en-IN')}</td>
-                            </tr>
-                            ${watchmanRow}
-                            ${vahanRow}
-                            ${extraRows}
-                            ${kacharaRow}
-                            ${otherRow}
-                            <tr style="font-weight:bold; background:#fefce8; font-size:14px;">
-                                <td>કુલ પેકેજ રકમ (Total Package)</td>
-                                <td style="text-align:right; color:#1e1b4b;">₹${total.toLocaleString('en-IN')}</td>
-                            </tr>
-                            ${paymentBreakdown}
-                            <tr style="font-weight:bold; background:#f0fdf4;">
-                                <td>કુલ જમા મળેલ રકમ (Advance Paid)</td>
-                                <td style="text-align:right; color:#16a34a;">₹${advance.toLocaleString('en-IN')}</td>
-                            </tr>
+                            ${packageTableRows}
+                            ${paymentTableRows}
                             <tr style="font-weight:bold; background:#fef2f2;">
                                 <td>ચૂકવવાપાત્ર બાકી રકમ (Due Balance)</td>
                                 <td style="text-align:right; color:#dc2626; font-size:16px;">₹${balance.toLocaleString('en-IN')}</td>
