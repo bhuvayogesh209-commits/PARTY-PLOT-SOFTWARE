@@ -1892,23 +1892,48 @@
             <input type="number" id="guests" class="form-control" placeholder="સંખ્યા">
         </div>
 
-        <!-- 🎪 સુધારો ૩: મંડપ મુહૂર્ત (સવારે / બપોરે / સાંજે અથવા કસ્ટમ નામ) -->
-        <div style="background:#fefce8; border:1.5px solid #fde047; padding:10px; border-radius:8px; margin-bottom:12px;">
-            <label style="font-weight:700; color:#854d0e; font-size:13px; display:block; margin-bottom:4px;">
-                🎪 મંડપ મુહૂર્ત સમય / શિફ્ટ પસંદ કરો:
+        <!-- 🎪 સુધારો ૧: સવાર, બપોર અને સાંજ માટે મંડપ મુહૂર્તના ૩ અલગ-અલગ ખાના -->
+        <div style="background:#fefce8; border:1.5px solid #fde047; padding:12px; border-radius:8px; margin-bottom:12px;">
+            <label style="font-weight:800; color:#854d0e; font-size:13.5px; display:block; margin-bottom:8px;">
+                🎪 મંડપ મુહૂર્ત સમય / વિગત (સવાર, બપોર અને સાંજ):
             </label>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
-                <select id="mandapShiftSelect" class="form-control" style="font-weight:700; color:#854d0e;" onchange="onMandapShiftChange()">
-                    <option value="સવાર (Morning)">🌅 સવાર (Morning)</option>
-                    <option value="બપોર (Afternoon)">☀️ બપોર (Afternoon)</option>
-                    <option value="સાંજ (Evening)">🌙 સાંજ (Evening)</option>
-                    <option value="custom">✏️ અન્ય / નવું નામ લખો</option>
-                </select>
-                <input type="text" id="mandapCustomText" class="form-control" placeholder="મંડપ મુહૂર્ત સમય કે વિગત..." style="display:none; font-weight:600;">
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:grid; grid-template-columns: 100px 1fr; gap:8px; align-items:center;">
+                    <span style="font-weight:700; color:#854d0e; font-size:12.5px;">🌅 સવાર :</span>
+                    <input type="text" id="mandapSavar" class="form-control" placeholder="સવારનું મંડપ મુહૂર્ત / સમય દાખલ કરો...">
+                </div>
+                <div style="display:grid; grid-template-columns: 100px 1fr; gap:8px; align-items:center;">
+                    <span style="font-weight:700; color:#854d0e; font-size:12.5px;">☀️ બપોર :</span>
+                    <input type="text" id="mandapBapor" class="form-control" placeholder="બપોરનું મંડપ મુહૂર્ત / સમય દાખલ કરો...">
+                </div>
+                <div style="display:grid; grid-template-columns: 100px 1fr; gap:8px; align-items:center;">
+                    <span style="font-weight:700; color:#854d0e; font-size:12.5px;">🌙 સાંજ :</span>
+                    <input type="text" id="mandapSanj" class="form-control" placeholder="સાંજનું મંડપ મુહૂર્ત / સમય દાખલ કરો...">
+                </div>
             </div>
         </div>
 
-        <!-- 🚛 સુધારો ૧: વાહન વિગત અને દિવસના હિસાબે રકમ -->
+        <!-- 👮‍♂️ સુધારો ૩: વોચમેન ખાતું (વોચમેન સંખ્યા × ૧ વોચમેનનો ભાવ = ઓટોમેટિક કુલ રકમ) -->
+        <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:12px; margin-bottom:12px;">
+            <b style="font-size:13.5px; color:#166534; display:block; margin-bottom:8px;">👮‍♂️ વોચમેન ખાતું & ચાર્જ ગણતરી:</b>
+            <div style="display:grid; grid-template-columns: 1.2fr 1.2fr 1.5fr; gap:8px; align-items:end;">
+                <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#15803d; display:block; margin-bottom:3px;">વોચમેન સંખ્યા (નંગ) *</label>
+                    <input type="number" id="watchmanCount" class="form-control" oninput="calculateTotalWithExtraItems()" placeholder="દા.ત. 4" style="font-weight:700; font-size:14px;">
+                </div>
+                <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#15803d; display:block; margin-bottom:3px;">૧ વોચમેનનો ભાવ (₹) *</label>
+                    <input type="number" id="watchmanRate" class="form-control" oninput="calculateTotalWithExtraItems()" placeholder="દા.ત. 500" style="font-weight:700; font-size:14px;">
+                </div>
+                <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#15803d; display:block; margin-bottom:3px;">કુલ વોચમેન રકમ (₹)</label>
+                    <input type="number" id="watchmanTotal" class="form-control" placeholder="0" readonly style="font-size:16px; font-weight:900; color:#166534; background:#dcfce7; border:1.5px solid #86efac;">
+                </div>
+            </div>
+            <small style="color:#166534; font-size:11px; display:block; margin-top:4px;">(નોંધ: દા.ત. 4 વોચમેન × ₹500 ભાવ = ₹2000 કુલ પેકેજમાં આપોઆપ પ્લસ થશે)</small>
+        </div>
+
+        <!-- 🚛 વાહન વિગત અને દિવસ હિસાબે ભાડું -->
         <div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:10px; margin-bottom:12px;">
             <b style="font-size:13px; color:#1e40af; display:block; margin-bottom:6px;">🚛 વાહન વિગત અને દિવસ હિસાબે ભાડું:</b>
             <div style="display:grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap:6px; margin-bottom:6px;">
@@ -1922,7 +1947,7 @@
             </div>
         </div>
            
-        <!-- 📅 મલ્ટીપલ તારીખ બુકિંગ સુવિધા (દા.ત. ૨૪ અને ૨૫ બંને તારીખ) -->
+        <!-- 📅 મલ્ટીપલ તારીખ બુકિંગ સુવિધા -->
         <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:10px; margin-bottom:12px;">
             <label style="font-weight:700; color:#166534; font-size:13px; display:flex; align-items:center; gap:8px; cursor:pointer;">
                 <input type="checkbox" id="multiDateToggle" onchange="toggleMultiDateView()">
@@ -1935,7 +1960,7 @@
             </div>
         </div>
 
-        <!-- 🛋️ મૂળ પેકેજ (સુધારો ૩: લેપટોપ અને મોબાઈલમાં સ્ક્રીન ફિટ મોટું ખાનું) -->
+        <!-- 🛋️ મૂળ પેકેજ -->
         <div class="form-group">
             <label style="font-size:14px; font-weight:700; color:#1e1b4b;">મૂળ ફાર્મ પેકેજ રકમ (Base Package ₹) *</label>
             <input type="number" id="basePackageAmount" class="form-control" oninput="calculateTotalWithExtraItems()" placeholder="દા.ત. 50000, 100000" style="font-size:18px; font-weight:800; padding:12px; color:#4338ca; width:100%;">
@@ -1981,7 +2006,7 @@
             </div>
         </div>
 
-        <!-- 🗑️ કચરા પેટી / સફાઈ ચાર્જ & 📝 સુધારો ૪: અન્ય વધારાનું પરચૂરણ ખાનું -->
+        <!-- 🗑️ કચરા પેટી / સફાઈ ચાર્જ & અન્ય ચાર્જ -->
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
             <div style="background:#fef2f2; border:1.5px solid #fecaca; padding:10px; border-radius:8px;">
                 <label style="font-weight:700; color:#b91c1c; font-size:12px;">🗑️ કચરા પેટી / સફાઈ ચાર્જ (₹):</label>
@@ -1993,37 +2018,54 @@
             </div>
         </div>
            
-        <!-- 💰 સુધારો ૩: કુલ પેકેજ રકમ (Full Width, Bold, Fit Screen) -->
+        <!-- 💰 કુલ પેકેજ રકમ -->
         <div class="form-group">
-            <label style="font-size:14px; font-weight:800; color:#0f172a;">કુલ પેકેજ રકમ (મૂળ પેકેજ + વાહન + એક્સ્ટ્રા + કચરાપેટી + અન્ય) (₹) *</label>
+            <label style="font-size:14px; font-weight:800; color:#0f172a;">કુલ પેકેજ રકમ (મૂળ પેકેજ + વોચમેન + વાહન + એક્સ્ટ્રા + કચરાપેટી + અન્ય) (₹) *</label>
             <input type="number" id="totalAmount" class="form-control" oninput="calculateBalance()" placeholder="કુલ રકમ" style="font-size:22px; font-weight:900; color:#1e1b4b; background:#f8fafc; padding:12px; width:100%; border:2px solid #4f46e5;" readonly>
         </div>
 
-        <!-- હપ્તા પેમેન્ટ બોક્સ -->
-        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:14px;">
-            <label style="font-weight:700; color:#1e293b; font-size:13px; display:block; margin-bottom:6px;">💰 નવું પેમેન્ટ જમા કરો (રોકડ / ચેક / GPay & સમય સાથે):</label>
+        <!-- હપ્તા પેમેન્ટ બોક્સ (સુધારો ૨: મોટું અને સ્પષ્ટ રકમનું ખાનું) -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:14px;">
+            <label style="font-weight:800; color:#1e293b; font-size:14px; display:block; margin-bottom:10px;">💰 નવું પેમેન્ટ જમા કરો (રોકડ / ચેક / GPay & સમય સાથે):</label>
             
-            <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap:6px; margin-bottom:6px;">
-                <input type="number" id="newPaymentAmount" class="form-control" placeholder="રકમ (₹) *" style="font-size:15px; font-weight:700; color:#15803d;">
-                <input type="date" id="newPaymentDate" class="form-control" title="તારીખ">
-                <input type="time" id="newPaymentTime" class="form-control" title="સમય">
+            <!-- ૨. પેમેન્ટ રકમનું મોટું અને સ્પષ્ટ ખાનું -->
+            <div style="margin-bottom:10px;">
+                <label style="font-size:12.5px; font-weight:800; color:#15803d; display:block; margin-bottom:4px;">જમા રકમ (₹) દાખલ કરો *</label>
+                <input type="number" id="newPaymentAmount" class="form-control" placeholder="રકમ લખો (દા.ત. 10000, 25000, 50000...)" style="font-size:20px; font-weight:900; color:#15803d; background:#f0fdf4; border:2px solid #16a34a; padding:10px 14px; width:100%;">
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
-                <select id="newPaymentMode" class="form-control" onchange="onBookingPaymentModeChange()">
-                    <option value="cash">💵 રોકડ (Cash)</option>
-                    <option value="cheque">🏦 ચેક (Cheque)</option>
-                    <option value="gpay">📱 GPay / UPI</option>
-                </select>
-                <input type="text" id="newPaymentNote" class="form-control" placeholder="નોંધ (દા.ત. પહેલો હપ્તો / બાકી હિસાબ)">
+            <!-- તારીખ અને સમય -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+                <div>
+                    <label style="font-size:11px; font-weight:600; color:#475569; display:block; margin-bottom:3px;">પેમેન્ટ તારીખ *</label>
+                    <input type="date" id="newPaymentDate" class="form-control" title="તારીખ">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:600; color:#475569; display:block; margin-bottom:3px;">સમય</label>
+                    <input type="time" id="newPaymentTime" class="form-control" title="સમય">
+                </div>
             </div>
 
-            <div id="bookingPayRefGroup" style="display:none; margin-bottom:6px;">
+            <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:8px; margin-bottom:8px;">
+                <div>
+                    <label style="font-size:11px; font-weight:600; color:#475569; display:block; margin-bottom:3px;">પેમેન્ટ મોડ *</label>
+                    <select id="newPaymentMode" class="form-control" onchange="onBookingPaymentModeChange()">
+                        <option value="cash">💵 રોકડ (Cash)</option>
+                        <option value="cheque">🏦 ચેક (Cheque)</option>
+                        <option value="gpay">📱 GPay / UPI</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:600; color:#475569; display:block; margin-bottom:3px;">નોંધ / વિગત</label>
+                    <input type="text" id="newPaymentNote" class="form-control" placeholder="નોંધ (દા.ત. પહેલો હપ્તો / બાકી હિસાબ)">
+                </div>
+            </div>
+
+            <div id="bookingPayRefGroup" style="display:none; margin-bottom:8px;">
                 <input type="text" id="newPaymentRefInput" class="form-control" placeholder="ચેક નંબર અથવા GPay ટ્રાન્ઝેક્શન ID *">
             </div>
 
             <button type="button" class="btn btn-success" onclick="addNewPayment()" style="width:100%; justify-content:center; padding:10px; font-weight:700; font-size:14px;">+ પેમેન્ટ જમા કરો (Add Payment)</button>
-
             <div style="margin-top:10px; max-height:120px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff;">
                 <table style="width:100%; font-size:12px;">
                     <thead style="background:#f1f5f9; position:sticky; top:0;">
@@ -3747,8 +3789,8 @@
         calculateTotalWithExtraItems();
     }
 
-    // 📋 એક્સ્ટ્રા વસ્તુઓનું ટેબલ રેન્ડર કરવું
-    function renderExtraItemsTable() {
+    // 📋 એક્સ્ટ્રા વસ્તુઓનું ટેબલ રેન્ડર કરવું (સુધારેલ - tbody એરર ફિક્સ સાથે)
+    function renderExtraItemsTable() { 
         let tbody = document.getElementById("extraItemsTableBody");
         if (!tbody) return;
         tbody.innerHTML = "";
@@ -3782,28 +3824,108 @@
         }
     }
 
-    // 🎪 મંડપ મુહૂર્ત શિફ્ટ ડ્રોપડાઉન કંટ્રોલ
-    function onMandapShiftChange() {
-        let sel = document.getElementById("mandapShiftSelect") ? document.getElementById("mandapShiftSelect").value : "સવાર (Morning)";
-        let customInp = document.getElementById("mandapCustomText");
-        if (!customInp) return;
-        if (sel === "custom") {
-            customInp.style.display = "block";
-            customInp.focus();
-        } else {
-            customInp.style.display = "none";
-            customInp.value = "";
-        }
+    // 🔥 અડધા પેમેન્ટ માટે ઘાટો પીળો (Full Dark Vibrant Yellow / Amber) CSS ઓટો-ઇન્જેક્ટ
+    if (!document.getElementById("vibrant-yellow-style")) {
+        let yStyle = document.createElement("style");
+        yStyle.id = "vibrant-yellow-style";
+        yStyle.innerHTML = `
+            .badge-partial { background: #eab308 !important; color: #000000 !important; border: 2px solid #a16207 !important; font-weight: 900 !important; }
+            .day-box.partial { background: #eab308 !important; color: #000000 !important; border: 2.5px solid #a16207 !important; font-weight: 900 !important; }
+        `;
+        document.head.appendChild(yStyle);
     }
 
-    // 💰 સુધારો ૧, ૩ અને ૪: વાહન (દિવસના હિસાબે) + મૂળ પેકેજ + એક્સ્ટ્રા વસ્તુઓ + કચરાપેટી + અન્ય ચાર્જ આપોઆપ સરવાળો
+    // 📅 કેલેન્ડરમાં અડધા પેમેન્ટનો ઘાટો પીળો કલર સેટ કરવા માટેનું ફંક્શન
+    function generateCalendar() {
+        const year = parseInt(document.getElementById("yearSelect").value);
+        const month = parseInt(document.getElementById("monthSelect").value);
+        const grid = document.getElementById("daysGrid");
+        if (!grid) return;
+        grid.innerHTML = "";
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let x = 0; x < firstDayIndex; x++) {
+            const emptyCell = document.createElement("div");
+            emptyCell.className = "day-box empty-slot";
+            grid.appendChild(emptyCell);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayBox = document.createElement("div");
+            dayBox.className = "day-box";
+            
+            let baseKey = `${STORAGE_PREFIX}${year}_${String(month + 1).padStart(2, '0')}_${String(day).padStart(2, '0')}`;  
+            
+            let fData = cloudBookings[baseKey + "_fullday"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'fullday' ? cloudBookings[baseKey] : null) || (cloudBookings[baseKey] && !cloudBookings[baseKey].slot ? cloudBookings[baseKey] : null);
+            let mData = cloudBookings[baseKey + "_morning"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'morning' ? cloudBookings[baseKey] : null);
+            let eData = cloudBookings[baseKey + "_evening"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'evening' ? cloudBookings[baseKey] : null);
+
+            function getSlotStyle(data) {
+                if (!data || !data.customerName) return { bg: '#dcfce7', label: 'ખાલી', textColor: '#166534', border: '#86efac' };
+                if (data.status === 'ok') return { bg: '#b91c1c', label: 'ઓકે', textColor: '#ffffff', border: '#991b1b' };
+                if (data.status === 'paid') return { bg: '#1d4ed8', label: 'ચૂકવેલ', textColor: '#ffffff', border: '#1e40af' };
+                // 🟡 સુધારો: અડધું પેમેન્ટ હોય ત્યારે એકદમ ઘાટો પીળો કલર (#eab308) અને કાળા બોલ્ડ અક્ષરો
+                if (data.status === 'partial') return { bg: '#eab308', label: 'અડધું', textColor: '#000000', border: '#a16207' };
+                return { bg: '#ef4444', label: 'બાકી', textColor: '#ffffff', border: '#dc2626' };
+            }
+
+            if (fData && fData.customerName) {
+                let fInfo = getSlotStyle(fData);
+                dayBox.style.background = fInfo.bg;
+                dayBox.style.border = `2.5px solid ${fInfo.border}`;
+                dayBox.innerHTML = `
+                    <span style="font-weight:900; font-size:15px; color:${fInfo.textColor};">${day}</span>
+                    <span class="day-subtext" style="font-weight:900; color:${fInfo.textColor}; font-size:10px; text-transform:uppercase;">☀️ આખો દિવસ: ${fInfo.label}</span>
+                `;
+                dayBox.onclick = () => openModal(year, month + 1, day, "fullday");
+            } else if ((mData && mData.customerName) || (eData && eData.customerName)) {
+                let mInfo = getSlotStyle(mData);
+                let eInfo = getSlotStyle(eData);
+
+                dayBox.style.background = `linear-gradient(to right, ${mInfo.bg} 50%, ${eInfo.bg} 50%)`;
+                dayBox.style.border = "2px solid #334155";
+                dayBox.innerHTML = `
+                    <span style="font-weight:900; font-size:14px; color:#0f172a; background:rgba(255,255,255,0.9); padding:1px 6px; border-radius:10px;">${day}</span>
+                    <div style="display:flex; justify-content:space-between; width:100%; padding:0 3px; font-size:9.5px; font-weight:900; margin-top:2px;">
+                        <span style="color:${mInfo.textColor};">${mInfo.label}</span>
+                        <span style="color:${eInfo.textColor};">${eInfo.label}</span>
+                    </div>
+                `;
+                dayBox.onclick = () => openModal(year, month + 1, day, mData ? "morning" : "evening");
+            } else {
+                dayBox.className = "day-box available";
+                dayBox.style.background = "#ecfdf5";
+                dayBox.style.border = "1.5px solid #a7f3d0";
+                dayBox.innerHTML = `
+                    <span style="font-weight:800; font-size:14px; color:#065f46;">${day}</span>
+                    <span class="day-subtext" style="font-weight:700; color:#047857;">ઉપલબ્ધ</span>
+                `;
+                dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+            }
+
+            grid.appendChild(dayBox);
+        }
+        filterData();
+    }
+
+    // 💰 વોચમેન + વાહન + મૂળ પેકેજ + એક્સ્ટ્રા વસ્તુઓ + કચરાપેટી + અન્ય ચાર્જ સરવાળો
     function calculateTotalWithExtraItems() {
         let basePkg = parseFloat(document.getElementById("basePackageAmount").value) || 0;
         let extraTotal = currentExtraItemsList.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
         let kachara = parseFloat(document.getElementById("cleaningCharge").value) || 0;
         let otherCharge = parseFloat(document.getElementById("otherExtraCharge") ? document.getElementById("otherExtraCharge").value : 0) || 0;
 
-        // 🚛 વાહન ગણતરી (વાહનોની સંખ્યા × દિવસોની સંખ્યા × ૧ દિવસનો ભાવ)
+        // 👮‍♂️ વોચમેન ગણતરી (વોચમેન સંખ્યા × ૧ વોચમેનનો ભાવ = કુલ વોચમેન રકમ)
+        let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
+        let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
+        let watchmanTotal = wCount * wRate;
+        if (document.getElementById("watchmanTotal")) {
+            document.getElementById("watchmanTotal").value = watchmanTotal;
+        }
+
+        // 🚛 વાહન ગણતરી
         let vCount = parseFloat(document.getElementById("vahanCount") ? document.getElementById("vahanCount").value : 0) || 0;
         let vDays = parseFloat(document.getElementById("vahanDays") ? document.getElementById("vahanDays").value : 1) || 1;
         let vRate = parseFloat(document.getElementById("vahanRatePerDay") ? document.getElementById("vahanRatePerDay").value : 0) || 0;
@@ -3813,7 +3935,7 @@
             document.getElementById("vahanTotalDisplay").innerText = "₹" + vahanTotal.toLocaleString('en-IN');
         }
 
-        let grandTotal = basePkg + extraTotal + kachara + otherCharge + vahanTotal;
+        let grandTotal = basePkg + extraTotal + kachara + otherCharge + vahanTotal + watchmanTotal;
         document.getElementById("totalAmount").value = grandTotal;
         calculateBalance(true);
     }
@@ -3831,11 +3953,11 @@
         if (preserveExistingOk && statusSelect.value === "ok") return;
 
         if (total > 0 && balance === 0) {
-            statusSelect.value = "paid"; // પૂર્ણ ચૂકવાયેલ
+            statusSelect.value = "paid";
         } else if (total > 0 && totalPaid > 0 && balance > 0) {
-            statusSelect.value = "partial"; // 🟡 અડધું પેમેન્ટ (ઘાટો પીળો/નારંગી)
+            statusSelect.value = "partial"; // 🟡 ઘાટો પીળો
         } else if (total > 0 && balance > 0 && statusSelect.value !== "ok") {
-            statusSelect.value = "pending"; // 🔴 બાકી
+            statusSelect.value = "pending";
         }
     }
 
@@ -3859,7 +3981,7 @@
     function renderPaymentHistory() {
         let tbody = document.getElementById("paymentHistoryBody");
         if (!tbody) return;
-        tbody.innerHTML = "";
+        tbody.innerHTML = "";  
 
         if (currentPaymentsList.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:8px; color:#94a3b8;">હજુ સુધી કોઈ પેમેન્ટ મળ્યું નથી.</td></tr>`;
@@ -3956,11 +4078,10 @@
             calculateTotalWithExtraItems();
             return;
         }
-
         loadSlotData();
     } 
 
-    // ✏️ સુધારો ૨: A to Z સંપૂર્ણ ડેટા મોડલમાં લોડ કરવો (કોઈપણ પાર્ટી ૧૦૦% એડિટ થાય)
+    // ✏️ મંડપના ૩ ખાના (સવાર, બપોર, સાંજ) & વોચમેન ખાતું મોડલમાં લોડ કરવું
     function loadSlotData() {
         let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let data = cloudBookings[fullKey] || (selectedSlot === 'fullday' && cloudBookings[selectedDateBaseKey] && cloudBookings[selectedDateBaseKey].slot === 'fullday' ? cloudBookings[selectedDateBaseKey] : null) || (selectedSlot === 'morning' ? cloudBookings[selectedDateBaseKey] : null);
@@ -3974,7 +4095,6 @@
         document.getElementById("newPaymentRefInput").value = "";
         document.getElementById("bookingPayRefGroup").style.display = "none";
 
-        // મલ્ટીપલ તારીખ રીસેટ
         document.getElementById("multiDateToggle").checked = false;
         document.getElementById("multiDateInputArea").style.display = "none";
         cancelEditExtraItem();
@@ -3987,21 +4107,17 @@
             document.getElementById("event").value = data.event || "";
             document.getElementById("guests").value = data.guests || "";
 
-            // 🎪 મંડપ મુહૂર્ત લોડ કરવું
-            let mandapVal = data.mandapMuhurat || "સવાર (Morning)";
-            let mandapSel = document.getElementById("mandapShiftSelect");
-            let mandapCustom = document.getElementById("mandapCustomText");
-            if (mandapSel) {
-                if (mandapVal === "સવાર (Morning)" || mandapVal === "બપોર (Afternoon)" || mandapVal === "સાંજ (Evening)") {
-                    mandapSel.value = mandapVal;
-                    if (mandapCustom) { mandapCustom.style.display = "none"; mandapCustom.value = ""; }
-                } else {
-                    mandapSel.value = "custom";
-                    if (mandapCustom) { mandapCustom.style.display = "block"; mandapCustom.value = mandapVal; }
-                }
-            }
+            // 🎪 મંડપ મુહૂર્તના ૩ ખાના
+            if (document.getElementById("mandapSavar")) document.getElementById("mandapSavar").value = data.mandapSavar || "";
+            if (document.getElementById("mandapBapor")) document.getElementById("mandapBapor").value = data.mandapBapor || "";
+            if (document.getElementById("mandapSanj")) document.getElementById("mandapSanj").value = data.mandapSanj || "";
 
-            // 🚛 વાહન વિગત લોડ કરવી
+            // 👮‍♂️ વોચમેન ખાતું
+            if (document.getElementById("watchmanCount")) document.getElementById("watchmanCount").value = data.watchmanCount || "";
+            if (document.getElementById("watchmanRate")) document.getElementById("watchmanRate").value = data.watchmanRate || "";
+            if (document.getElementById("watchmanTotal")) document.getElementById("watchmanTotal").value = data.watchmanTotal || 0;
+
+            // 🚛 વાહન વિગત
             if (document.getElementById("vahanDetails")) document.getElementById("vahanDetails").value = data.vahanDetails || "";
             if (document.getElementById("vahanCount")) document.getElementById("vahanCount").value = data.vahanCount || "";
             if (document.getElementById("vahanDays")) document.getElementById("vahanDays").value = data.vahanDays || 1;
@@ -4030,13 +4146,13 @@
             document.getElementById("event").value = "";
             document.getElementById("guests").value = "";
 
-            if (document.getElementById("mandapShiftSelect")) {
-                document.getElementById("mandapShiftSelect").value = "સવાર (Morning)";
-                if (document.getElementById("mandapCustomText")) {
-                    document.getElementById("mandapCustomText").style.display = "none";
-                    document.getElementById("mandapCustomText").value = "";
-                }
-            }
+            if (document.getElementById("mandapSavar")) document.getElementById("mandapSavar").value = "";
+            if (document.getElementById("mandapBapor")) document.getElementById("mandapBapor").value = "";
+            if (document.getElementById("mandapSanj")) document.getElementById("mandapSanj").value = "";
+
+            if (document.getElementById("watchmanCount")) document.getElementById("watchmanCount").value = "";
+            if (document.getElementById("watchmanRate")) document.getElementById("watchmanRate").value = "";
+            if (document.getElementById("watchmanTotal")) document.getElementById("watchmanTotal").value = 0;
 
             if (document.getElementById("vahanDetails")) document.getElementById("vahanDetails").value = "";
             if (document.getElementById("vahanCount")) document.getElementById("vahanCount").value = "";
@@ -4071,7 +4187,8 @@
     function applyLockSystemToModal() {
         const fields = [
             "customerName", "mobile", "hastakName", "hastakMobile", "event", "guests", 
-            "mandapShiftSelect", "mandapCustomText", "vahanDetails", "vahanCount", "vahanDays", "vahanRatePerDay",
+            "mandapSavar", "mandapBapor", "mandapSanj", "watchmanCount", "watchmanRate",
+            "vahanDetails", "vahanCount", "vahanDays", "vahanRatePerDay",
             "basePackageAmount", "cleaningCharge", "otherExtraCharge", "bookingStatus", 
             "newPaymentAmount", "newPaymentDate", "newPaymentTime", "newPaymentMode", "newPaymentNote", "newPaymentRefInput", 
             "bookingSlot", "extraItemName", "extraItemQty", "extraItemRate", "multiDateToggle", "bookingEndDate"
@@ -4131,7 +4248,7 @@
         closeModal();
     }
 
-    // 💾 સુધારો ૨ & ૪: બુકિંગ સેવ અને A to Z અપડેટ (ઓનલાઇન અને ઑફલાઇન બંનેમાં)
+    // 💾 બુકિંગ સેવ (ઓનલાઇન & ઑફલાઇન બંનેમાં ૧૦૦% સેવ)
     function saveBooking() { 
         let name = document.getElementById("customerName").value.trim();
         let status = document.getElementById("bookingStatus").value;   
@@ -4151,13 +4268,17 @@
         let event = document.getElementById("event").value.trim();
         let guests = document.getElementById("guests").value.trim();
 
-        // 🎪 મંડપ મુહૂર્ત
-        let mandapSel = document.getElementById("mandapShiftSelect") ? document.getElementById("mandapShiftSelect").value : "સવાર (Morning)";
-        let mandapMuhurat = mandapSel === "custom" 
-            ? ((document.getElementById("mandapCustomText") ? document.getElementById("mandapCustomText").value.trim() : "") || "અન્ય સમય") 
-            : mandapSel;
+        // 🎪 મંડપ મુહૂર્ત ૩ ખાના
+        let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
+        let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
+        let mSanj = document.getElementById("mandapSanj") ? document.getElementById("mandapSanj").value.trim() : "";
 
-        // 🚛 વાહન વિગત અને ગણતરી
+        // 👮‍♂️ વોચમેન ખાતું
+        let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
+        let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
+        let wTotal = wCount * wRate;
+
+        // 🚛 વાહન વિગત
         let vDetails = document.getElementById("vahanDetails") ? document.getElementById("vahanDetails").value.trim() : "";
         let vCount = parseFloat(document.getElementById("vahanCount") ? document.getElementById("vahanCount").value : 0) || 0;
         let vDays = parseFloat(document.getElementById("vahanDays") ? document.getElementById("vahanDays").value : 1) || 1;
@@ -4169,18 +4290,16 @@
         let kachara = parseFloat(document.getElementById("cleaningCharge").value) || 0;
         let otherCharge = parseFloat(document.getElementById("otherExtraCharge") ? document.getElementById("otherExtraCharge").value : 0) || 0;
 
-        let totalAmount = basePackage + extraTotal + kachara + otherCharge + vTotal;
+        let totalAmount = basePackage + extraTotal + kachara + otherCharge + vTotal + wTotal;
         let advanceAmount = currentPaymentsList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
         let balanceAmount = Math.max(0, totalAmount - advanceAmount);
 
-        // સ્ટેટસ ઓટો એડજસ્ટ
         if (balanceAmount === 0 && totalAmount > 0) {
             status = "paid";
         } else if (advanceAmount > 0 && balanceAmount > 0 && status !== "ok") {
-            status = "partial"; // અડધું પેમેન્ટ
+            status = "partial"; // 🟡 ઘાટો પીળો
         }
 
-        // 📅 મલ્ટીપલ તારીખ લિસ્ટ (દા.ત. ૨૪ અને ૨૫ બંને તારીખ)
         let isMultiDate = document.getElementById("multiDateToggle").checked;
         let endRawDate = document.getElementById("bookingEndDate").value;
         let targetBaseKeys = [selectedDateBaseKey];
@@ -4210,7 +4329,6 @@
             }
         }
 
-        // દરેક તારીખ માટે રેકોર્ડ સેવ કરવો
         targetBaseKeys.forEach(baseKey => {
             let fullKey = `${baseKey}_${selectedSlot}`;
             let bookingData = {
@@ -4223,7 +4341,12 @@
                 hastakMobile: hastakMobile,
                 event: event,
                 guests: guests, 
-                mandapMuhurat: mandapMuhurat,
+                mandapSavar: mSavar,
+                mandapBapor: mBapor,
+                mandapSanj: mSanj,
+                watchmanCount: wCount,
+                watchmanRate: wRate,
+                watchmanTotal: wTotal,
                 vahanDetails: vDetails,
                 vahanCount: vCount,
                 vahanDays: vDays,
@@ -4290,7 +4413,7 @@
         closeModal();
     }
  
-    // 📲 સુધારો ૪: WhatsApp મેસેજ સ્લિપ (મંડપ મુહૂર્ત, વાહન, એક્સ્ટ્રા, પેમેન્ટ બ્રેકડાઉન સાથે)
+    // 📲 WhatsApp મેસેજ સ્લિપ
     function sendWhatsAppReceipt() {
         let name = document.getElementById("customerName").value.trim();
         let mobile = document.getElementById("mobile").value.trim();
@@ -4299,13 +4422,25 @@
         let event = document.getElementById("event").value.trim() || "ઇવેન્ટ";  
         let date = document.getElementById("modalDateDisplay").innerText; 
 
-        // મંડપ મુહૂર્ત
-        let mandapSel = document.getElementById("mandapShiftSelect") ? document.getElementById("mandapShiftSelect").value : "સવાર (Morning)";
-        let mandapMuhurat = mandapSel === "custom" 
-            ? ((document.getElementById("mandapCustomText") ? document.getElementById("mandapCustomText").value.trim() : "") || "અન્ય") 
-            : mandapSel;
+        // મંડપ મુહૂર્ત ૩ ખાના
+        let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
+        let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
+        let mSanj = document.getElementById("mandapSanj") ? document.getElementById("mandapSanj").value.trim() : "";
+        let mandapText = "";
+        if (mSavar || mBapor || mSanj) {
+            mandapText = `🎪 *મંડપ મુહૂર્ત:*\n`;
+            if (mSavar) mandapText += `  🌅 સવાર: ${mSavar}\n`;
+            if (mBapor) mandapText += `  ☀️ બપોર: ${mBapor}\n`;
+            if (mSanj) mandapText += `  🌙 સાંજ: ${mSanj}\n`;
+        }
 
-        // વાહન વિગત અને રકમ
+        // વોચમેન
+        let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
+        let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
+        let wTotal = wCount * wRate;
+        let watchmanText = wTotal > 0 ? `👮‍♂️ વોચમેન (${wCount} નંગ × ₹${wRate}): ₹${wTotal.toLocaleString('en-IN')}\n` : '';
+
+        // વાહન
         let vDetails = document.getElementById("vahanDetails") ? document.getElementById("vahanDetails").value.trim() : "";
         let vCount = parseFloat(document.getElementById("vahanCount") ? document.getElementById("vahanCount").value : 0) || 0;
         let vDays = parseFloat(document.getElementById("vahanDays") ? document.getElementById("vahanDays").value : 1) || 1;
@@ -4331,7 +4466,6 @@
         let hastakText = hastak ? `👤 હસ્તક: ${hastak} ${hastakMob ? '(' + hastakMob + ')' : ''}\n` : '';
         let vahanText = vTotal > 0 ? `🚛 વાહન (${vDetails || 'ગાડી'} - ${vCount} વાહન x ${vDays} દિવસ): ₹${vTotal.toLocaleString('en-IN')}\n` : '';
 
-        // એક્સ્ટ્રા વસ્તુઓની યાદી
         let extraItemsText = "";
         if (currentExtraItemsList && currentExtraItemsList.length > 0) {
             extraItemsText = `\n🪑 *વધારાની વસ્તુઓ (Add-ons):*\n`;
@@ -4343,7 +4477,6 @@
         let kacharaText = kachara > 0 ? `🗑️ કચરા પેટી / સફાઈ ચાર્જ: ₹${kachara.toLocaleString('en-IN')}\n` : '';
         let otherText = other > 0 ? `📝 અન્ય પરચૂરણ ચાર્જ: ₹${other.toLocaleString('en-IN')}\n` : '';
 
-        // હપ્તાવાર પેમેન્ટ હિસ્ટ્રી
         let advanceBreakdown = "";
         if (currentPaymentsList && currentPaymentsList.length > 0) {
             currentPaymentsList.forEach((pay, idx) => {
@@ -4361,10 +4494,11 @@
                   hastakText +
                   `📅 ઇવેન્ટ તારીખ: *${date}*\n` +
                   `⏰ સમય / શિફ્ટ: *${shiftName}*\n` +
-                  `🎪 મંડપ મુહૂર્ત: *${mandapMuhurat}*\n` +
+                  mandapText +
                   `🎉 ઇવેન્ટ વિગત: ${event}\n` +
                   `------------------------------------------\n` +
                   `મૂળ ફાર્મ પેકેજ: ₹${basePkg.toLocaleString('en-IN')}\n` +
+                  watchmanText +
                   vahanText +
                   extraItemsText +
                   kacharaText +
@@ -4381,7 +4515,7 @@
         window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
     }
 
-    // 🖨️ બુકિંગ પહોંચ પ્રિન્ટ (હસ્તક, કચરાપેટી ચાર્જ અને એક્સ્ટ્રા વસ્તુઓ સાથે)
+    // 🖨️ પ્રિન્ટ પહોંચ (Invoice)
     function printInvoice() {
         let name = document.getElementById("customerName").value || "N/A";
         let mobile = document.getElementById("mobile").value || "N/A";
@@ -4391,10 +4525,18 @@
         let date = document.getElementById("modalDateDisplay").innerText;   
         let shiftText = (selectedSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((selectedSlot === 'evening') ? '🌙 સાંજ (Evening Shift)' : '🌅 સવાર (Morning Shift)');
         
-        let mandapSel = document.getElementById("mandapShiftSelect") ? document.getElementById("mandapShiftSelect").value : "";
-        let mandapMuhurat = mandapSel === "custom" 
-            ? ((document.getElementById("mandapCustomText") ? document.getElementById("mandapCustomText").value.trim() : "") || "અન્ય") 
-            : mandapSel;
+        let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
+        let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
+        let mSanj = document.getElementById("mandapSanj") ? document.getElementById("mandapSanj").value.trim() : "";
+
+        let mandapDisplay = "";
+        if (mSavar || mBapor || mSanj) {
+            mandapDisplay = `<p><b>🎪 મંડપ મુહૂર્ત:</b> ${mSavar ? '🌅 સવાર: ' + mSavar + ' | ' : ''}${mBapor ? '☀️ બપોર: ' + mBapor + ' | ' : ''}${mSanj ? '🌙 સાંજ: ' + mSanj : ''}</p>`;
+        }
+
+        let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
+        let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
+        let wTotal = wCount * wRate;
 
         let vDetails = document.getElementById("vahanDetails") ? document.getElementById("vahanDetails").value.trim() : "";
         let vCount = parseFloat(document.getElementById("vahanCount") ? document.getElementById("vahanCount").value : 0) || 0;
@@ -4414,6 +4556,11 @@
             alert("કૃપા કરીને બ્રાઉઝરમાં પોપ-અપ (Pop-up) Allow કરો!");
             return;
         }
+
+        let watchmanRow = wTotal > 0 ? `<tr>
+            <td style="padding-left:20px; color:#166534;">↳ + વોચમેન (${wCount} નંગ × ₹${wRate})</td>
+            <td style="text-align:right; color:#166534; font-weight:700;">+ ₹${wTotal.toLocaleString('en-IN')}</td>
+        </tr>` : '';
 
         let extraRows = "";
         if (currentExtraItemsList && currentExtraItemsList.length > 0) {
@@ -4480,6 +4627,7 @@
                     <p><b>ગ્રાહકનું નામ:</b> ${name} | <b>મોબાઈલ:</b> ${mobile}</p>
                     ${hastak ? `<p><b>હસ્તક:</b> ${hastak} ${hastakMob ? '(' + hastakMob + ')' : ''}</p>` : ''}
                     <p><b>ઇવેન્ટ વિગત:</b> ${event}</p>
+                    ${mandapDisplay}
                     <table>
                         <thead>
                             <tr><th>વિગત / પેકેજ / વધારાની વસ્તુઓ</th><th style="text-align:right;">રકમ (₹)</th></tr>
@@ -4489,6 +4637,7 @@
                                 <td>મૂળ ફાર્મ પેકેજ (Base Package)</td>
                                 <td style="text-align:right;">₹${basePkg.toLocaleString('en-IN')}</td>
                             </tr>
+                            ${watchmanRow}
                             ${vahanRow}
                             ${extraRows}
                             ${kacharaRow}
@@ -4521,7 +4670,7 @@
         printWindow.print();
     }
 
-    // સ્ટાફ પરવાનગી ટોગલ્સ (સુધારો ૧ & ૨)
+    // સ્ટાફ પરવાનગી ટોગલ્સ
     function toggleStaffEditExtraItemsPerm(sId, isChecked) {
         staffPermRef.child(sId).child("canEditExtraItems").set(isChecked);
     }
@@ -4542,7 +4691,7 @@
         return bookings;
     }
 
-    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ (નવું - વાહન, મંડપ અને ઘાટો પીળો Partial બેજ સાથે)
+    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ (નવું - ઘાટો પીળો Partial બેજ સાથે)
     function filterData() {
         const tbody = document.getElementById("bookingTableBody");
         if (!tbody) return;
@@ -4576,12 +4725,12 @@
             sumTotal += parseFloat(item.totalAmount || 0);
             sumBalance += parseFloat(item.balanceAmount || 0);
 
-            // સ્ટેટસ બેજ કલર્સ
+            // સ્ટેટસ બેજ કલર્સ (અડધા પેમેન્ટ માટે ફૂલ ઘાટો પીળો #eab308)
             let statusLabel = '<span class="status-badge badge-pending">બાકી (Pending)</span>';
             if (item.status === "paid") {
                 statusLabel = '<span class="status-badge badge-paid">પૂર્ણ (Paid)</span>';
             } else if (item.status === "partial") {
-                statusLabel = '<span class="status-badge badge-partial">અડધું પેમેન્ટ (Partial)</span>';
+                statusLabel = '<span class="status-badge badge-partial" style="background:#eab308 !important; color:#000000 !important; font-weight:900 !important; border:1.5px solid #a16207 !important;">અડધું પેમેન્ટ (Partial)</span>';
             } else if (item.status === "ok") {
                 statusLabel = '<span class="status-badge badge-ok">ઓકે (OK)</span>';
             }  
@@ -4595,13 +4744,21 @@
                 ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="deleteBooking('${item.dateKey}')">ડિલીટ</button>`
                 : `<span style="color:#94a3b8; font-size:12px;">🔒</span>`;
 
+            let mandapStr = "";
+            if (item.mandapSavar || item.mandapBapor || item.mandapSanj) {
+                mandapStr = `<br><small style="color:#b45309;">🎪 ${item.mandapSavar ? 'સ:' + item.mandapSavar + ' ' : ''}${item.mandapBapor ? 'બ:' + item.mandapBapor + ' ' : ''}${item.mandapSanj ? 'સા:' + item.mandapSanj : ''}</small>`;
+            }
+
+            let watchmanStr = item.watchmanTotal > 0 ? `<br><small style="color:#166534;">👮‍♂️ વોચમેન: ₹${item.watchmanTotal.toLocaleString('en-IN')}</small>` : '';
+
             let row = `<tr>
                 <td>${totalCount}</td>
                 <td><b>${d}/${parts[1]}/${y}</b></td>
-                <td><b style="color:var(--primary);">${slotLabel}</b>${item.mandapMuhurat ? `<br><small style="color:#b45309;">🎪 ${item.mandapMuhurat}</small>` : ''}</td>
+                <td><b style="color:var(--primary);">${slotLabel}</b>${mandapStr}</td>
                 <td>
                     <b>${item.customerName}</b>
                     ${item.hastakName ? `<br><small style="color:#0369a1;">↳ હસ્તક: ${item.hastakName} ${item.hastakMobile ? '(' + item.hastakMobile + ')' : ''}</small>` : ''}
+                    ${watchmanStr}
                     ${item.vahanTotalAmount > 0 ? `<br><small style="color:#15803d;">🚛 વાહન: ₹${item.vahanTotalAmount.toLocaleString('en-IN')}</small>` : ''}
                 </td>
                 <td>${item.mobile || '-'}</td>
@@ -4636,7 +4793,7 @@
         document.getElementById("peakMonthDisplay").innerText = peakText;
     }
 
-    // ૩. ક્લાઉડ (Firebase) માંથી કાયમ માટે ડિલીટ કરવા
+    // ૩. ક્લાઉડ (Firebase) માંથી ડિલીટ
     function deleteBooking(key) {  
         if (!canUserDelete) {
             alert("❌ તમારી પાસે ડેટા ડિલીટ કરવાનો અધિકાર નથી!");
@@ -4655,7 +4812,7 @@
         }
     }
 
-    // ૪. ક્લાઉડ (Firebase) માંથી તમામ ૨૦ યુઝર્સ માટે ડેટા સાફ કરવા
+    // ૪. ક્લાઉડ (Firebase) માંથી ડેટા સાફ કરવો
     function clearAllData() {
         if (currentUserRole !== 'admin') return;
         if (confirm(`ચેતવણી: આનાથી "${currentFarmName}" નો બધો જ ડેટા ભૂંસાઈ જશે! શું તમે આગળ વધવા માંગો છો?`)) {
@@ -4692,7 +4849,7 @@
         alert("✅ સોફ્ટવેરનું સંપૂર્ણ બેકઅપ સફળતાપૂર્વક ડાઉનલોડ થઈ ગયું છે!");
     }
 
-    // 📂 ૨. JSON ફાઈલમાંથી બેકઅપ પાછું રિસ્ટોર કરવું
+    // 📂 ૨. JSON ફાઈલમાંથી બેકઅપ રિસ્ટોર
     function handleRestoreJSON(event) {
         if (currentUserRole !== 'admin') {
             alert("❌ માત્ર Admin ને બેકઅપ રિસ્ટોર કરવાનો અધિકાર છે!");
@@ -4785,7 +4942,7 @@
         reader.readAsText(file);
     }
 
-    // 📑 નવું Excel/CSV એક્સપોર્ટ (વાહન, મંડપ મુહૂર્ત, એક્સ્ટ્રા અને અડધા પેમેન્ટ સાથે - ઑફલાઇન/ઑનલાઇન બંનેમાં ચાલશે)
+    // 📑 Excel/CSV એક્સપોર્ટ (મંડપ સવાર/બપોર/સાંજ & વોચમેન સહિત)
     function exportExcel() {
         let bookings = getAllBookings();
         if (bookings.length === 0) {
@@ -4793,7 +4950,7 @@
             return;
         }  
 
-        let csv = "\uFEFFતારીખ,શિફ્ટ,મંડપ મુહૂર્ત,કસ્ટમરનું નામ,મોબાઈલ,હસ્તકનું નામ,હસ્તક મોબાઈલ,ઇવેન્ટ,મહેમાનો,વાહન વિગત,વાહન કુલ રકમ (₹),મૂળ ફાર્મ પેકેજ (₹),એક્સ્ટ્રા વસ્તુઓ,કચરાપેટી ચાર્જ (₹),અન્ય ચાર્જ (₹),કુલ પેકેજ રકમ (₹),કુલ એડવાન્સ જમા,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી,સ્ટેટસ\n";
+        let csv = "\uFEFFતારીખ,શિફ્ટ,મંડપ સવાર,મંડપ બપોર,મંડપ સાંજ,વોચમેન સંખ્યા,વોચમેન ભાવ,વોચમેન કુલ રકમ (₹),કસ્ટમરનું નામ,મોબાઈલ,હસ્તકનું નામ,હસ્તક મોબાઈલ,ઇવેન્ટ,મહેમાનો,વાહન વિગત,વાહન કુલ રકમ (₹),મૂળ ફાર્મ પેકેજ (₹),એક્સ્ટ્રા વસ્તુઓ,કચરાપેટી ચાર્જ (₹),અન્ય ચાર્જ (₹),કુલ પેકેજ રકમ (₹),કુલ એડવાન્સ જમા,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી,સ્ટેટસ\n";
         
         bookings.forEach(b => {
             let parts = b.dateKey.replace(STORAGE_PREFIX, "").split("_");
@@ -4810,7 +4967,7 @@
 
             let statusText = b.status === 'ok' ? 'ઓકે (OK)' : (b.status === 'paid' ? 'પૂર્ણ (Paid)' : (b.status === 'partial' ? 'અડધું પેમેન્ટ (Partial)' : 'બાકી (Pending)'));
 
-            csv += `"${formattedDate}","${slotName}","${b.mandapMuhurat || '-'}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.vahanDetails || '-').replace(/"/g, '""')}","${b.vahanTotalAmount || 0}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
+            csv += `"${formattedDate}","${slotName}","${b.mandapSavar || '-'}","${b.mandapBapor || '-'}","${b.mandapSanj || '-'}","${b.watchmanCount || 0}","${b.watchmanRate || 0}","${b.watchmanTotal || 0}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.vahanDetails || '-').replace(/"/g, '""')}","${b.vahanTotalAmount || 0}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
         });
 
         let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
