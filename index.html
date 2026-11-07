@@ -5907,6 +5907,10 @@
        <!-- ૧. 📖 Modal: દૈનિક રોજમેળ -->
 <div class="modal" id="rojmelModal">
     <div class="modal-content" style="max-width: 880px; width:95%;">
+        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #f59e0b; padding-bottom:8px;"> 
+          <!-- ૧. 📖 Modal: દૈનિક રોજમેળ (Edit અને Note સુધારા સાથે) -->
+<div class="modal" id="rojmelModal">
+    <div class="modal-content" style="max-width: 880px; width:95%;">
         <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #f59e0b; padding-bottom:8px;">
             <span style="color:#b45309; font-size:18px;">📖 દૈનિક રોજમેળ (Daily Cash & Bank Ledger)</span>
             <button class="btn btn-outline" onclick="closeRojmelModal()" style="padding:2px 8px; font-size:12px;">✕</button>
@@ -5915,10 +5919,11 @@
             ॥ શ્રી ગણેશાય નમઃ ॥
         </div>
 
-        <!-- નવી રોજમેળ એન્ટ્રી ફોર્મ -->
+        <!-- નવી રોજમેળ એન્ટ્રી ફોર્મ (Edit અને Note ફીચર સાથે) -->
         <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:8px; padding:12px; margin-bottom:12px;">
-            <b style="font-size:13px; color:#92400e; display:block; margin-bottom:6px;">➕ રોજમેળમાં નવી એન્ટ્રી કરો:</b>
-            <div style="display:grid; grid-template-columns: 1fr 1.2fr 1fr 1fr auto; gap:6px; align-items:end;">
+            <b style="font-size:13px; color:#92400e; display:block; margin-bottom:6px;" id="rojmelFormTitle">➕ રોજમેળમાં નવી એન્ટ્રી કરો:</b>
+            <input type="hidden" id="editRojmelId">
+            <div style="display:grid; grid-template-columns: 1fr 1.2fr 1fr 1.5fr auto; gap:6px; align-items:end;">
                 <div>
                     <label style="font-size:11px; font-weight:700;">તારીખ:</label>
                     <input type="date" id="rojmelDate" class="form-control" style="font-size:12px;">
@@ -5935,11 +5940,12 @@
                     <input type="number" id="rojmelAmount" class="form-control" placeholder="રકમ લખો" style="font-size:12px;">
                 </div>
                 <div>
-                    <label style="font-size:11px; font-weight:700;">વિગત / ખાતાનું નામ:</label>
-                    <input type="text" id="rojmelDetails" class="form-control" placeholder="દા.ત. કરિયાણું, પૂજા ખર્ચ" style="font-size:12px;">
+                    <label style="font-size:11px; font-weight:700;">વિગત / Particular (પાર્ટી નામ):</label>
+                    <input type="text" id="rojmelDetails" class="form-control" placeholder="દા.ત. રમેશભાઈ, કરિયાણું" style="font-size:12px;">
                 </div>
-                <div>
-                    <button class="btn btn-success" onclick="saveRojmelEntry()" style="padding:8px 14px;">+ ઉમેરો</button>
+                <div style="display:flex; gap:4px;">
+                    <button class="btn btn-success" id="rojmelSaveBtn" onclick="saveRojmelEntry()" style="padding:8px 12px; font-size:12px;">+ ઉમેરો</button>
+                    <button class="btn btn-outline" id="rojmelCancelBtn" onclick="cancelEditRojmel()" style="display:none; padding:8px 8px; font-size:12px;">રદ</button>
                 </div>
             </div>
         </div>
@@ -6302,12 +6308,12 @@
         }
     }
 
-    // ==========================================
-    // ૨. 📖 દૈનિક રોજમેળ (Daily Rojmel) Engine (ઓનલાઇન & ઑફલાઇન)
+  // ==========================================
+    // ૨. 📖 દૈનિક રોજમેળ (Daily Rojmel) Engine (Edit, Note અને Offline-Online Sync સાથે)
     // ==========================================
     function openRojmelModal() {
+        cancelEditRojmel();
         let now = new Date();
-        document.getElementById("rojmelDate").value = now.toISOString().slice(0, 10);
         document.getElementById("rojmelFilterStart").value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
         document.getElementById("rojmelFilterEnd").value = now.toISOString().slice(0, 10);
         renderRojmelData();
@@ -6318,6 +6324,7 @@
     }
 
     function saveRojmelEntry() {
+        let editId = document.getElementById("editRojmelId").value;
         let dateVal = document.getElementById("rojmelDate").value;
         let type = document.getElementById("rojmelType").value;
         let amt = parseFloat(document.getElementById("rojmelAmount").value) || 0;
@@ -6328,29 +6335,54 @@
             return;
         }
 
-        let rId = "roj_" + Date.now();
+        let rId = editId || ("roj_" + Date.now());
         let rData = {
             id: rId,
             date: dateVal,
             type: type,
             amount: amt,
             details: details,
-            timestamp: Date.now()
+            timestamp: editId ? (cloudRojmel[editId] ? cloudRojmel[editId].timestamp : Date.now()) : Date.now()
         };
 
-        // ૧. LocalStorage માં તરત જ સેવ કરવું
+        // ૧. LocalStorage (ઑફલાઇન) માં તરત સેવ કરવું
         cloudRojmel[rId] = rData;
         localStorage.setItem("cached_daily_rojmel", JSON.stringify(cloudRojmel));
         renderRojmelData();
 
-        // ૨. ક્લાઉડ Firebase માં મોકલવું
+        // ૨. Firebase (ઓનલાઇન) માં સેવ કરવું
         if (navigator.onLine) {
             rojmelRef.child(rId).set(rData);
+        } else {
+            if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "daily_rojmel/" + rId, action: "set", data: rData });
         }
 
+        cancelEditRojmel();
+        alert(editId ? "✅ રોજમેળ સફળતાપૂર્વક સુધારી દેવાયો!" : "✅ રોજમેળ એન્ટ્રી સફળતાપૂર્વક થઈ ગઈ!");
+    }
+
+    function editRojmelEntry(rId) {
+        let r = cloudRojmel[rId];
+        if (!r) return;
+        document.getElementById("editRojmelId").value = rId;
+        document.getElementById("rojmelDate").value = r.date || "";
+        document.getElementById("rojmelType").value = r.type || "JAMA";
+        document.getElementById("rojmelAmount").value = r.amount || "";
+        document.getElementById("rojmelDetails").value = r.details || "";
+        document.getElementById("rojmelFormTitle").innerText = "✏️ રોજમેળ એન્ટ્રી સુધારો (Edit):";
+        document.getElementById("rojmelSaveBtn").innerText = "💾 સુધારો સેવ";
+        document.getElementById("rojmelCancelBtn").style.display = "inline-flex";
+    }
+
+    function cancelEditRojmel() {
+        document.getElementById("editRojmelId").value = "";
+        let now = new Date();
+        document.getElementById("rojmelDate").value = now.toISOString().slice(0, 10);
         document.getElementById("rojmelAmount").value = "";
         document.getElementById("rojmelDetails").value = "";
-        alert("✅ રોજમેળ એન્ટ્રી સફળતાપૂર્વક થઈ ગઈ!");
+        document.getElementById("rojmelFormTitle").innerText = "➕ રોજમેળમાં નવી એન્ટ્રી કરો:";
+        document.getElementById("rojmelSaveBtn").innerText = "+ ઉમેરો";
+        document.getElementById("rojmelCancelBtn").style.display = "none";
     }
 
     function deleteRojmelEntry(rId) {
@@ -6395,7 +6427,10 @@
                 <td style="padding:6px;"><b>${r.details}</b></td>
                 <td style="padding:6px; text-align:right; font-weight:700; color:#15803d;">${isJama ? '₹' + amt.toLocaleString('en-IN') : '-'}</td>
                 <td style="padding:6px; text-align:right; font-weight:700; color:#b91c1c;">${!isJama ? '₹' + amt.toLocaleString('en-IN') : '-'}</td>
-                <td style="padding:6px; text-align:center;"><button onclick="deleteRojmelEntry('${r.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer;">❌</button></td>
+                <td style="padding:6px; text-align:center; white-space:nowrap;">
+                    <button class="btn btn-outline" style="padding:2px 6px; font-size:11px;" onclick="editRojmelEntry('${r.id}')" title="સુધારો">✏️</button>
+                    <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteRojmelEntry('${r.id}')" title="ડિલીટ">❌</button>
+                </td>
             </tr>`;
         });
 
