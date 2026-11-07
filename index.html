@@ -1859,7 +1859,13 @@
                 <option value="fullday">☀️ આખો દિવસ (Full Day)</option>
             </select>
         </div>
-        
+
+        <!-- 🧾 રસીદ / પહોંચ નંબર દાખલ કરવાનું નવું ખાનું -->
+        <div class="form-group" style="background:#f0f9ff; padding:10px; border-radius:8px; border:1.5px solid #bae6fd;">
+            <label style="color:#0369a1; font-weight:700; margin-bottom:4px; font-size:13px;">🧾 રસીદ / પહોંચ નંબર (Receipt No. - વૈકલ્પિક):</label>
+            <input type="text" id="receiptNo" class="form-control" placeholder="દા.ત. REC-101 / પહોંચ નંબર" style="font-weight:800; color:#0c4a6e; background:#fff;">
+        </div>
+
         <div class="form-group">
             <label>કસ્ટમરનું નામ *</label>
             <input type="text" id="customerName" class="form-control" placeholder="નામ લખો">
@@ -4081,7 +4087,7 @@
         loadSlotData();
     } 
 
-    // ✏️ મંડપના ૩ ખાના (સવાર, બપોર, સાંજ) & વોચમેન ખાતું મોડલમાં લોડ કરવું
+    // ✏️ મંડપના ૩ ખાના, વોચમેન ખાતું & રસીદ નંબર મોડલમાં લોડ કરવું
     function loadSlotData() {
         let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let data = cloudBookings[fullKey] || (selectedSlot === 'fullday' && cloudBookings[selectedDateBaseKey] && cloudBookings[selectedDateBaseKey].slot === 'fullday' ? cloudBookings[selectedDateBaseKey] : null) || (selectedSlot === 'morning' ? cloudBookings[selectedDateBaseKey] : null);
@@ -4100,6 +4106,7 @@
         cancelEditExtraItem();
 
         if (data && data.customerName) {
+            if (document.getElementById("receiptNo")) document.getElementById("receiptNo").value = data.receiptNo || "";
             document.getElementById("customerName").value = data.customerName || "";
             document.getElementById("mobile").value = data.mobile || "";
             document.getElementById("hastakName").value = data.hastakName || "";
@@ -4139,6 +4146,7 @@
                 currentPaymentsList = [];
             }
         } else {
+            if (document.getElementById("receiptNo")) document.getElementById("receiptNo").value = "";
             document.getElementById("customerName").value = "";
             document.getElementById("mobile").value = "";
             document.getElementById("hastakName").value = "";
@@ -4186,7 +4194,7 @@
  
     function applyLockSystemToModal() {
         const fields = [
-            "customerName", "mobile", "hastakName", "hastakMobile", "event", "guests", 
+            "receiptNo", "customerName", "mobile", "hastakName", "hastakMobile", "event", "guests", 
             "mandapSavar", "mandapBapor", "mandapSanj", "watchmanCount", "watchmanRate",
             "vahanDetails", "vahanCount", "vahanDays", "vahanRatePerDay",
             "basePackageAmount", "cleaningCharge", "otherExtraCharge", "bookingStatus", 
@@ -4248,7 +4256,7 @@
         closeModal();
     }
 
-    // 💾 બુકિંગ સેવ (ઓનલાઇન & ઑફલાઇન બંનેમાં ૧૦૦% સેવ)
+    // 💾 બુકિંગ સેવ (રસીદ નંબર સાથે ઓનલાઇન & ઑફલાઇન બંનેમાં સેવ)
     function saveBooking() { 
         let name = document.getElementById("customerName").value.trim();
         let status = document.getElementById("bookingStatus").value;   
@@ -4262,6 +4270,7 @@
             return;
         }
 
+        let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
         let mobile = document.getElementById("mobile").value.trim();
         let hastakName = document.getElementById("hastakName").value.trim();
         let hastakMobile = document.getElementById("hastakMobile").value.trim();
@@ -4297,7 +4306,7 @@
         if (balanceAmount === 0 && totalAmount > 0) {
             status = "paid";
         } else if (advanceAmount > 0 && balanceAmount > 0 && status !== "ok") {
-            status = "partial"; // 🟡 ઘાટો પીળો
+            status = "partial";
         }
 
         let isMultiDate = document.getElementById("multiDateToggle").checked;
@@ -4332,6 +4341,7 @@
         targetBaseKeys.forEach(baseKey => {
             let fullKey = `${baseKey}_${selectedSlot}`;
             let bookingData = {
+                receiptNo: receiptNo,
                 dateKey: fullKey,
                 baseDateKey: baseKey,
                 slot: selectedSlot,
@@ -4413,8 +4423,9 @@
         closeModal();
     }
  
-    // 📲 WhatsApp મેસેજ સ્લિપ (૨ વાર રકમ ન આવે તેવા સ્માર્ટ સુધારા સાથે)
+    // 📲 WhatsApp મેસેજ સ્લિપ (રસીદ નંબર સાથે)
     function sendWhatsAppReceipt() {
+        let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
         let name = document.getElementById("customerName").value.trim();
         let mobile = document.getElementById("mobile").value.trim();
         let hastak = document.getElementById("hastakName").value.trim();
@@ -4465,6 +4476,7 @@
 
         let shiftName = (selectedSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((selectedSlot === 'evening') ? '🌙 સાંજ (Evening)' : '🌅 સવાર (Morning)');
         let hastakText = hastak ? `👤 હસ્તક: ${hastak} ${hastakMob ? '(' + hastakMob + ')' : ''}\n` : '';
+        let receiptText = receiptNo ? `🧾 રસીદ / પહોંચ નં.: *${receiptNo}*\n` : '';
 
         let extraItemsText = "";
         if (currentExtraItemsList && currentExtraItemsList.length > 0) {
@@ -4477,7 +4489,7 @@
         let kacharaText = kachara > 0 ? `🗑️ કચરા પેટી / સફાઈ ચાર્જ: ₹${kachara.toLocaleString('en-IN')}\n` : '';
         let otherText = other > 0 ? `📝 અન્ય પરચૂરણ ચાર્જ: ₹${other.toLocaleString('en-IN')}\n` : '';
 
-        // પેકેજ સેક્શન: જો કોઈ એક્સ્ટ્રા ચાર્જ હોય તો જ મૂળ પેકેજ અલગ બતાવવું, નહિતર એક જ વાર કુલ પેકેજ
+        // પેકેજ સેક્શન
         let packageSectionMsg = "";
         let hasAnyExtra = (wTotal > 0 || vTotal > 0 || (currentExtraItemsList && currentExtraItemsList.length > 0) || kachara > 0 || other > 0);
         if (hasAnyExtra) {
@@ -4493,7 +4505,7 @@
             packageSectionMsg = `*કુલ પેકેજ રકમ (Total Package) : ₹${total.toLocaleString('en-IN')}*\n\n`;
         }
 
-        // પેમેન્ટ સેક્શન: જો ૧ જ હપ્તો હોય તો ૧ જ વાર જમા રકમ બતાવવી
+        // પેમેન્ટ સેક્શન
         let paymentSectionMsg = "";
         if (currentPaymentsList && currentPaymentsList.length > 1) {
             paymentSectionMsg = `પાર્ટીનું કુલ એડવાન્સ જમા : ₹${advance.toLocaleString('en-IN')}\n`;
@@ -4513,6 +4525,7 @@
 
         let msg = `*${currentFarmName}*\n` +
                   `*બુકિંગ કન્ફર્મેશન પહોંચ (Receipt)*\n\n` +
+                  receiptText +
                   `👤 કસ્ટમરનું નામ: *${name}*\n` +
                   hastakText +
                   `📅 ઇવેન્ટ તારીખ: *${date}*\n` +
@@ -4530,8 +4543,9 @@
         window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
     }
 
-    // 🖨️ પ્રિન્ટ પહોંચ (Invoice - ૨ વાર રકમ ન આવે તેવા સુધારા સાથે)
+    // 🖨️ પ્રિન્ટ પહોંચ (Invoice - રસીદ નંબર બોલ્ડ પ્રિન્ટ સાથે)
     function printInvoice() {
+        let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
         let name = document.getElementById("customerName").value || "N/A";
         let mobile = document.getElementById("mobile").value || "N/A";
         let hastak = document.getElementById("hastakName").value.trim();
@@ -4548,6 +4562,8 @@
         if (mSavar || mBapor || mSanj) {
             mandapDisplay = `<p><b>🎪 મંડપ મુહૂર્ત:</b> ${mSavar ? '🌅 સવાર: ' + mSavar + ' | ' : ''}${mBapor ? '☀️ બપોર: ' + mBapor + ' | ' : ''}${mSanj ? '🌙 સાંજ: ' + mSanj : ''}</p>`;
         }
+
+        let receiptDisplay = receiptNo ? `<p style="margin:5px 0 0 0; font-size:14.5px;"><b>🧾 રસીદ / પહોંચ નંબર:</b> <span style="color:#4f46e5; font-weight:800; background:#e0e7ff; padding:2px 8px; border-radius:4px;">${receiptNo}</span></p>` : '';
 
         let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
         let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
@@ -4602,7 +4618,7 @@
             <td style="text-align:right; color:#334155; font-weight:700;">+ ₹${otherCharge.toLocaleString('en-IN')}</td>
         </tr>` : '';
 
-        // ૧. પેકેજ સેક્શન: જો કોઈ એક્સ્ટ્રા ખર્ચ ન હોય તો માત્ર એક જ વાર 'કુલ પેકેજ રકમ' આવશે (₹81,000 બે વાર નહિ આવે)
+        // ૧. પેકેજ સેક્શન
         let packageTableRows = "";
         let hasExtra = (wTotal > 0 || vTotal > 0 || (currentExtraItemsList && currentExtraItemsList.length > 0) || kachara > 0 || otherCharge > 0);
 
@@ -4631,7 +4647,7 @@
             `;
         }
 
-        // ૨. પેમેન્ટ સેક્શન: જો ૧ જ હપ્તો હોય તો એક જ વાર જમા રકમ આવશે (₹11,000 બે વાર નહિ આવે)
+        // ૨. પેમેન્ટ સેક્શન
         let paymentTableRows = "";
         if (currentPaymentsList && currentPaymentsList.length > 1) {
             let pRows = "";
@@ -4693,6 +4709,7 @@
                         <h1 style="color:#4f46e5; margin:0 0 6px 0;">${currentFarmName}</h1>
                         <h3 style="margin:0; color:#64748b; font-size:16px;">ઓફિશિયલ બુકિંગ પહોંચ (RECEIPT)</h3>
                         <p style="margin:6px 0 0 0;">ઇવેન્ટ તારીખ: <b>${date}</b> (<b>${shiftText}</b>)</p>
+                        ${receiptDisplay}
                     </div> 
                     <p><b>ગ્રાહકનું નામ:</b> ${name} | <b>મોબાઈલ:</b> ${mobile}</p>
                     ${hastak ? `<p><b>હસ્તક:</b> ${hastak} ${hastakMob ? '(' + hastakMob + ')' : ''}</p>` : ''}
@@ -4745,7 +4762,7 @@
         return bookings;
     }
 
-    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ (નવું - ઘાટો પીળો Partial બેજ સાથે)
+    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ (રસીદ નંબર & સર્ચ સાથે)
     function filterData() {
         const tbody = document.getElementById("bookingTableBody");
         if (!tbody) return;
@@ -4773,13 +4790,12 @@
             if (fYear && y !== fYear) return;
             if (fMonth !== "" && m !== fMonth) return;
             if (fStatus && item.status !== fStatus) return;
-            if (search && !(item.customerName || '').toLowerCase().includes(search) && !(item.mobile || "").includes(search)) return;
+            if (search && !(item.customerName || '').toLowerCase().includes(search) && !(item.mobile || "").includes(search) && !(item.receiptNo || "").toLowerCase().includes(search)) return;
 
             totalCount++;
             sumTotal += parseFloat(item.totalAmount || 0);
             sumBalance += parseFloat(item.balanceAmount || 0);
 
-            // સ્ટેટસ બેજ કલર્સ (અડધા પેમેન્ટ માટે ફૂલ ઘાટો પીળો #eab308)
             let statusLabel = '<span class="status-badge badge-pending">બાકી (Pending)</span>';
             if (item.status === "paid") {
                 statusLabel = '<span class="status-badge badge-paid">પૂર્ણ (Paid)</span>';
@@ -4811,6 +4827,7 @@
                 <td><b style="color:var(--primary);">${slotLabel}</b>${mandapStr}</td>
                 <td>
                     <b>${item.customerName}</b>
+                    ${item.receiptNo ? `<br><small style="color:#4338ca; font-weight:800; background:#e0e7ff; padding:1px 6px; border-radius:4px;">🧾 નં: ${item.receiptNo}</small>` : ''}
                     ${item.hastakName ? `<br><small style="color:#0369a1;">↳ હસ્તક: ${item.hastakName} ${item.hastakMobile ? '(' + item.hastakMobile + ')' : ''}</small>` : ''}
                     ${watchmanStr}
                     ${item.vahanTotalAmount > 0 ? `<br><small style="color:#15803d;">🚛 વાહન: ₹${item.vahanTotalAmount.toLocaleString('en-IN')}</small>` : ''}
@@ -4996,7 +5013,7 @@
         reader.readAsText(file);
     }
 
-    // 📑 Excel/CSV એક્સપોર્ટ (મંડપ સવાર/બપોર/સાંજ & વોચમેન સહિત)
+    // 📑 Excel/CSV એક્સપોર્ટ (રસીદ નંબર સહિતની પહેલી કોલમ સાથે)
     function exportExcel() {
         let bookings = getAllBookings();
         if (bookings.length === 0) {
@@ -5004,7 +5021,7 @@
             return;
         }  
 
-        let csv = "\uFEFFતારીખ,શિફ્ટ,મંડપ સવાર,મંડપ બપોર,મંડપ સાંજ,વોચમેન સંખ્યા,વોચમેન ભાવ,વોચમેન કુલ રકમ (₹),કસ્ટમરનું નામ,મોબાઈલ,હસ્તકનું નામ,હસ્તક મોબાઈલ,ઇવેન્ટ,મહેમાનો,વાહન વિગત,વાહન કુલ રકમ (₹),મૂળ ફાર્મ પેકેજ (₹),એક્સ્ટ્રા વસ્તુઓ,કચરાપેટી ચાર્જ (₹),અન્ય ચાર્જ (₹),કુલ પેકેજ રકમ (₹),કુલ એડવાન્સ જમા,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી,સ્ટેટસ\n";
+        let csv = "\uFEFFરસીદ નંબર,તારીખ,શિફ્ટ,મંડપ સવાર,મંડપ બપોર,મંડપ સાંજ,વોચમેન સંખ્યા,વોચમેન ભાવ,વોચમેન કુલ રકમ (₹),કસ્ટમરનું નામ,મોબાઈલ,હસ્તકનું નામ,હસ્તક મોબાઈલ,ઇવેન્ટ,મહેમાનો,વાહન વિગત,વાહન કુલ રકમ (₹),મૂળ ફાર્મ પેકેજ (₹),એક્સ્ટ્રા વસ્તુઓ,કચરાપેટી ચાર્જ (₹),અન્ય ચાર્જ (₹),કુલ પેકેજ રકમ (₹),કુલ એડવાન્સ જમા,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી,સ્ટેટસ\n";
         
         bookings.forEach(b => {
             let parts = b.dateKey.replace(STORAGE_PREFIX, "").split("_");
@@ -5021,7 +5038,7 @@
 
             let statusText = b.status === 'ok' ? 'ઓકે (OK)' : (b.status === 'paid' ? 'પૂર્ણ (Paid)' : (b.status === 'partial' ? 'અડધું પેમેન્ટ (Partial)' : 'બાકી (Pending)'));
 
-            csv += `"${formattedDate}","${slotName}","${b.mandapSavar || '-'}","${b.mandapBapor || '-'}","${b.mandapSanj || '-'}","${b.watchmanCount || 0}","${b.watchmanRate || 0}","${b.watchmanTotal || 0}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.vahanDetails || '-').replace(/"/g, '""')}","${b.vahanTotalAmount || 0}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
+            csv += `"${(b.receiptNo || '-').replace(/"/g, '""')}","${formattedDate}","${slotName}","${b.mandapSavar || '-'}","${b.mandapBapor || '-'}","${b.mandapSanj || '-'}","${b.watchmanCount || 0}","${b.watchmanRate || 0}","${b.watchmanTotal || 0}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.vahanDetails || '-').replace(/"/g, '""')}","${b.vahanTotalAmount || 0}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
         });
 
         let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
