@@ -2215,8 +2215,7 @@
 </div>
 
 <script>
-         const STORAGE_PREFIX = "bk_";  
-    // ⚠️ અહીં તમારી Firebase માંથી મળેલી Config પેસ્ટ કરો:
+    const STORAGE_PREFIX = "bk_";  
     const firebaseConfig = {
         apiKey: "AIzaSyA6iJtcv5Uegh0PMQmeoMbM3b8S2sTmOko",
         authDomain: "party-plot-software.firebaseapp.com",
@@ -2227,69 +2226,94 @@
         appId: "1:136125878805:web:390d7d3427e2ce9750f41c"
     };
 
-    // Firebase શરૂ કરો (તમારી જૂની સિસ્ટમ મુજબ)
-    if (!firebase.apps.length) {
+    if (typeof firebase !== "undefined" && !firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
     }
     const dbRef = firebase.database().ref("bookings");
-    
-
     const farmsRef = firebase.database().ref("farms");
     let currentFarmId = "";
     let currentFarmName = "";
     let currentBookingRef = null; 
 
-     const staffPermRef = firebase.database().ref("staff_permissions"); 
-       // 🔐 Firebase માં એડમિન પાસવર્ડ કાયમી સેવ રાખવા માટેનું કનેક્શન
+    const staffPermRef = firebase.database().ref("staff_permissions"); 
     const adminConfigRef = firebase.database().ref("admin_config");
-    let currentAdminPass = "1234"; // ડિફોલ્ટ પાસવર્ડ
+    let currentAdminPass = "1234";
 
-    // Firebase માંથી લાઈવ પાસવર્ડ લોડ કરવો અને LocalStorage માં કેશ કરવો
     adminConfigRef.on('value', (snap) => {
         let config = snap.val();
         if (config && config.password) {
             currentAdminPass = config.password;
             localStorage.setItem("cached_admin_pass", currentAdminPass);
         } else {
-            // પહેલીવાર ડેટાબેઝમાં 1234 સેવ કરી લેશે
             adminConfigRef.set({ password: "1234" });
             localStorage.setItem("cached_admin_pass", "1234");
         }
     });
-    let staffListObj = {}; // તમામ સ્ટાફનો ડેટા
-    let currentStaffConfig = null; // હાલમાં લોગિન થયેલા સ્ટાફની પરવાનગી
-    let canUserEdit = true; // એડિટ કરવાની પરવાનગી છે કે નહીં (લોક સિસ્ટમ)
 
+    let staffListObj = {};
+    let currentStaffConfig = null;
+    let canUserEdit = true;
     let cloudBookings = {};
     let selectedDateKey = ""; 
-    let canUserDelete = true; // 🗑️ ડિલીટ કરવાની પરવાનગી છે કે નહીં
-    let selectedDateBaseKey = ""; // YYYY_MM_DD
-    let selectedSlot = "morning";  // 'morning' અથવા 'evening'   
-    let canUserViewWorkers = false;        // 👷‍♂️ વર્કર ખાતું જોવાની પરવાનગી
-    let canUserEditWorkerProfile = false;  // ✏️ વર્કર નામ/વિગત સુધારવા & નવો વર્કર ઉમેરવાની પરવાનગી
-    let canUserAddUpad = false;            // 💰 નવો ઉપાડ આપવાની અલગ પરવાનગી
-    let canUserDeleteWorker = false;       // 🗑️ વર્કર ખાતું ડિલીટ કરવાની અલગ પરવાનગી (ડિફોલ્ટ બંધ)
-    let canUserDeleteUpad = false;         // ❌ ઉપાડ એન્ટ્રી ડિલીટ કરવાની અલગ પરવાનગી (ડિફોલ્ટ બંધ)
-    let canUserEditExtraItems = true;      // 🪑 એક્સ્ટ્રા વસ્તુઓ એડિટ/ઉમેરવાની પરવાનગી
-    let canUserDeleteExtraItems = false;   // ❌ એક્સ્ટ્રા વસ્તુઓ ડિલીટ કરવાની પરવાનગી (ડિફોલ્ટ બંધ)
-    let cloudWorkers = {}; // વર્કર્સનો ક્લાઉડ ડેટા
+    let canUserDelete = true;
+    let selectedDateBaseKey = "";
+    let selectedSlot = "morning";  
+    let canUserViewWorkers = false;
+    let canUserEditWorkerProfile = false;
+    let canUserAddUpad = false;
+    let canUserDeleteWorker = false;
+    let canUserDeleteUpad = false;
+    let canUserEditExtraItems = true;
+    let canUserDeleteExtraItems = false;
+    let cloudWorkers = {};
     let currentWorkerRef = null;
     let selectedWorkerIdForUpad = "";
     currentUserRole = currentUserRole || "";
-    // 🌐 ૧. ઑફલાઇન હોય ત્યારે LocalStorage માંથી ડેટા લોડ કરવો
+
+    // 🌐 ૧. ઑફલાઇન હોય ત્યારે LocalStorage માંથી તુરંત જ A to Z ડેટા પ્રારંભિક લોડ કરવો
     try {
         let cachedAdmin = localStorage.getItem("cached_admin_pass");
         if (cachedAdmin) currentAdminPass = cachedAdmin;
 
         let cachedStaff = localStorage.getItem("cached_staff_list");
         if (cachedStaff) staffListObj = JSON.parse(cachedStaff);
+
+        let cFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}");
+        if (Object.keys(cFarms).length > 0) {
+            currentFarmId = Object.keys(cFarms)[0];
+            currentFarmName = cFarms[currentFarmId].name;
+            cloudBookings = JSON.parse(localStorage.getItem("cached_bookings_" + currentFarmId) || "{}");
+            cloudWorkers = JSON.parse(localStorage.getItem("cached_workers_" + currentFarmId) || "{}");
+        }
     } catch(e) { console.log("Cache Read Error", e); } 
 
-     // 🔄 ઑફલાઇન સિન્ક કતાર (Offline Queue) માં ડેટા ઉમેરવો 
-   // 🔄 સર્વગ્રાહી ઑફલાઇન સિન્ક કતાર (બધા મોડ્યુલ્સ માટે સુસંગત)
+    // 🔄 સર્વગ્રાહી ઓટોમેટિક માસ્ટર બેકઅપ ફંક્શન (હંમેશા LocalStorage માં સુરક્ષિત સાચવશે)
+    function autoBackupAllData() {
+        try {
+            let backupMaster = {
+                timestamp: new Date().toISOString(),
+                currentFarmId: currentFarmId,
+                currentFarmName: currentFarmName,
+                bookings: cloudBookings,
+                workers: cloudWorkers,
+                allFarmBookings: cachedAllFarmBookings,
+                allFarmWorkers: cachedAllFarmWorkers,
+                expenses: cloudExpenses,
+                capital: cloudCapital,
+                rojmel: cloudRojmel,
+                vendors: cloudVendors,
+                inventory: cloudInventory,
+                staffList: staffListObj
+            };
+            localStorage.setItem("system_master_auto_backup", JSON.stringify(backupMaster));
+        } catch(err) {
+            console.error("Auto Backup Error:", err);
+        }
+    }
+
+    // 🔄 ઑફલાઇન સિન્ક કતાર (Offline Queue)
     function addToSyncQueue(actionItem) {
         let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
-        // જો જૂની રીત (farmId + dateKey) હોય તો path આપોઆપ બનાવી લેશે
         let targetPath = actionItem.path || (actionItem.farmId && actionItem.dateKey ? `farm_bookings/${actionItem.farmId}/${actionItem.dateKey}` : "");
         if (!targetPath) return;
         actionItem.path = targetPath;
@@ -2300,9 +2324,10 @@
         });
         queue.push(actionItem);
         localStorage.setItem("offline_sync_queue", JSON.stringify(queue));
+        autoBackupAllData();
     }
 
-    // 🚀 ઇન્ટરનેટ આવતાં Firebase માં ઓટોમેટિક તમામ મોડ્યુલ્સ (બુકિંગ, ખર્ચા, વર્કર, રોજમેળ) સિન્ક કરવાનું માસ્ટર ફંક્શન
+    // 🚀 ઇન્ટરનેટ આવતાં જ તમામ ઑફલાઇન ડેટા Firebase માં આપોઆપ અપલોડ કરવાનું ફંક્શન
     function processSyncQueue() {
         if (!navigator.onLine) return;
 
@@ -2311,12 +2336,12 @@
             badge.innerText = "🔄 સિન્ક થઈ રહ્યું છે...";
             badge.style.background = "#fef3c7";
             badge.style.color = "#b45309";
+            badge.style.borderColor = "#fde047";
         }
 
         let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
         let syncPromises = [];
 
-        // ૧. કતારમાં રહેલ ડેટા (બુકિંગ વગેરે) સિન્ક કરો
         if (queue.length > 0) {
             queue.forEach(item => {
                 let targetPath = item.path || (item.farmId && item.dateKey ? `farm_bookings/${item.farmId}/${item.dateKey}` : "");
@@ -2333,13 +2358,16 @@
             });
         }
 
-        // ૨. ઑફલાઇન સેવ થયેલા ખર્ચા, વર્કર, રોજમેળ, વેન્ડર અને સ્ટોક પણ ઓટોમેટિક Firebase માં અપલોડ કરો
+        // ઑફલાઇન સાચવેલ તમામ મોડ્યુલ્સ સીધા Firebase માં સિન્ક
         try {
             if (typeof cloudExpenses !== "undefined" && Object.keys(cloudExpenses).length > 0) {
                 syncPromises.push(firebase.database().ref("company_expenses").update(cloudExpenses));
             }
             if (typeof cloudWorkers !== "undefined" && currentFarmId && Object.keys(cloudWorkers).length > 0) {
                 syncPromises.push(firebase.database().ref("farm_workers").child(currentFarmId).update(cloudWorkers));
+            }
+            if (typeof cloudBookings !== "undefined" && currentFarmId && Object.keys(cloudBookings).length > 0) {
+                syncPromises.push(firebase.database().ref("farm_bookings").child(currentFarmId).update(cloudBookings));
             }
             if (typeof cloudRojmel !== "undefined" && Object.keys(cloudRojmel).length > 0) {
                 syncPromises.push(firebase.database().ref("daily_rojmel").update(cloudRojmel));
@@ -2354,19 +2382,20 @@
                 syncPromises.push(firebase.database().ref("company_capital").update(cloudCapital));
             }
         } catch(e) {
-            console.log("Auto cache sync err:", e);
+            console.log("Auto sync err:", e);
         }
 
         Promise.all(syncPromises).then(() => {
             localStorage.removeItem("offline_sync_queue");
             if (badge) {
-                badge.innerText = "🟢 ઓનલાઇન (સિન્ક પૂર્ણ)";
+                badge.innerText = "🟢 ઓનલાઇન";
                 badge.style.background = "#dcfce7";
                 badge.style.color = "#15803d";
-                setTimeout(updateNetworkStatus, 3000);
+                badge.style.borderColor = "#86efac";
             }
+            autoBackupAllData();
         }).catch(err => {
-            console.error("Master Sync error:", err);
+            console.error("Sync error:", err);
             if (badge) {
                 badge.innerText = "🟢 ઓનલાઇન";
                 badge.style.background = "#dcfce7";
@@ -2375,7 +2404,7 @@
         });
     }
 
-    // 🌐 ઇન્ટરનેટ સ્ટેટસ અપડેટ
+    // 🟢 ઓનલાઇન અને 🔴 ઑફલાઇન લાઈવ સ્ટેટસ ડિસ્પ્લે
     function updateNetworkStatus() {
         let badge = document.getElementById("networkStatusBadge");
         if (!badge) return;
@@ -2384,26 +2413,28 @@
             badge.style.background = "#dcfce7";
             badge.style.color = "#15803d";
             badge.style.borderColor = "#86efac";
-            processSyncQueue(); // ઇન્ટરનેટ આવતાં જ પેન્ડિંગ ડેટા સિન્ક કરો
+            processSyncQueue();
         } else {
-            badge.innerText = "🔴 ઑફલાઇન (કેશ મોડ)";
+            badge.innerText = "🔴 ઑફલાઇન (ડેટા લોકલ સેવ)";
             badge.style.background = "#fee2e2";
             badge.style.color = "#b91c1c";
             badge.style.borderColor = "#fca5a5";
         }
     } 
-      window.addEventListener('online', updateNetworkStatus);
-    window.addEventListener('offline', updateNetworkStatus);
-    updateNetworkStatus(); // 🚀 પેજ ખુલતાં જ નેટવર્ક ચેક કરો અને પેન્ડિંગ ડેટા સિન્ક કરો  
 
-        // સ્ટાફ લિસ્ટ ક્લાઉડમાંથી લાઈવ વાંચવી અને LocalStorage માં સાચવવી (લાઈવ પરવાનગી સિન્ક સાથે)
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    window.addEventListener('pagehide', autoBackupAllData);
+    window.addEventListener('beforeunload', autoBackupAllData);
+    setInterval(updateNetworkStatus, 3000);
+
+    // સ્ટાફ લિસ્ટ લાઈવ લિસનર
     staffPermRef.on('value', (snap) => {
         staffListObj = snap.val() || {};
         localStorage.setItem("cached_staff_list", JSON.stringify(staffListObj));
         updateLoginUserDropdown();
         renderStaffPermissionsUI();
 
-        // 🚀 જો સ્ટાફ લોગિન હોય, તો એડમિન ટીક કરશે કે તરત જ તેની સ્ક્રીન પર લાઈવ ડિલીટ બટન અને ઉપાડ શરૂ થઈ જશે!
         if (currentUserRole && currentUserRole !== "admin") {
             let staff = staffListObj[currentUserRole];
             if (staff) {
@@ -2415,8 +2446,8 @@
                 canUserAddUpad = staff.canAddUpad === true;
                 canUserDeleteWorker = staff.canDeleteWorker === true;
                 canUserDeleteUpad = staff.canDeleteUpad === true;
-                canUserEditExtraItems = staff.canEditExtraItems !== false; // બાય-ડિફોલ્ટ એડિટ ચાલુ
-                canUserDeleteExtraItems = staff.canDeleteExtraItems === true; // બાય-ડિફોલ્ટ ડિલીટ બંધ
+                canUserEditExtraItems = staff.canEditExtraItems !== false;
+                canUserDeleteExtraItems = staff.canDeleteExtraItems === true;
                 setupUserView();
                 renderWorkersTable();
                 filterData();
@@ -2424,13 +2455,12 @@
         }
     });
 
-    // લોગિન સ્ક્રીનમાં સ્ટાફના નામ આપોઆપ લોડ કરવા
     function updateLoginUserDropdown() {
         let select = document.getElementById("loginRole");
+        if (!select) return;
         let currentVal = select.value;
         select.innerHTML = `<option value="admin">Admin (માલિક - પૂરો અધિકાર)</option>`; 
-        
-      for (let sId in staffListObj) {
+        for (let sId in staffListObj) {
             let opt = document.createElement("option");
             opt.value = sId;
             opt.innerText = `${staffListObj[sId].name} (સ્ટાફ)`;
@@ -2439,66 +2469,41 @@
         select.value = currentVal;
     }
 
-    // ➕ [નવી લાઈન ઉમેરી]: નેટ બંધ (ઑફલાઇન) હોય ત્યારે LocalStorage માંથી ફાર્મ તરત લોડ કરવું
-    try {
-        let cachedFarms = localStorage.getItem("cached_farms");
-        if (cachedFarms) {
-            let cFarmsData = JSON.parse(cachedFarms);
-            let selectOffline = document.getElementById("farmSelect");
-            if (selectOffline && selectOffline.options.length === 0) {
-                for (let fId in cFarmsData) {
-                    let opt = document.createElement("option");
-                    opt.value = fId;
-                    opt.innerText = cFarmsData[fId].name;
-                    selectOffline.appendChild(opt);
-                }
-                if (selectOffline.options.length > 0) {
-                    currentFarmId = selectOffline.options[0].value;
-                    currentFarmName = selectOffline.options[0].text;
-                    listenToFarmBookings();
-                }
-            }
-        }
-    } catch(e) {}
-
-    // ૧. ક્લાઉડમાંથી ફાર્મનું લિસ્ટ લોડ કરવું
+    // ક્લાઉડમાંથી ફાર્મ લિસ્ટ લાઈવ લોડ કરવું
     farmsRef.on('value', (snapshot) => {
         let farmsData = snapshot.val();
-        let select = document.getElementById("farmSelect");
-        select.innerHTML = "";
-
-        // જો ડેટાબેઝમાં હજુ કોઈ ફાર્મ ન હોય તો શરૂઆતના ડિફોલ્ટ ફાર્મ ઉમેરવા
         if (!farmsData) {
             let defaultFarms = {
                 "farm_1": { name: "સીતારામ વાડી ફાર્મ ૧" },
                 "farm_2": { name: "વિશ્વામિત્ર ફાર્મ ૨" },
                 "farm_3": { name: "તુલસી વન ગ્રીન લોન્સ" }
             };
-            farmsRef.set(defaultFarms);
-            return;
-        }  
+            if (navigator.onLine) farmsRef.set(defaultFarms);
+            farmsData = defaultFarms;
+        }
 
-        // ➕ [નવી લાઈન ઉમેરી]: ફાર્મ લિસ્ટ LocalStorage માં સેવ કરવું જેથી ઑફલાઇન પણ હંમેશા દેખાય
         localStorage.setItem("cached_farms", JSON.stringify(farmsData));
+        populateFarmDropdownUI(farmsData);
+    });
+
+    function populateFarmDropdownUI(farmsData) {
+        let select = document.getElementById("farmSelect");
+        if (!select) return;
+        select.innerHTML = "";
 
         for (let fId in farmsData) {
-            // જો સ્ટાફ હોય, તો માત્ર પરવાનગી આપેલું ફાર્મ જ ડ્રોપડાઉનમાં બતાવો
             if (currentUserRole !== 'admin' && currentStaffConfig) {
                 let allowed = currentStaffConfig.allowedFarms || {};
-                if (!allowed[fId]) continue; // પરવાનગી ન હોય તો લિસ્ટમાં ઉમેરવું નહીં
+                if (!allowed[fId]) continue;
             }
-
             let opt = document.createElement("option");
             opt.value = fId;
             opt.innerText = farmsData[fId].name;
             select.appendChild(opt);
         }
 
-        // જો સ્ટાફને કોઈ ફાર્મની પરવાનગી ન હોય
         if (select.options.length === 0) {
             select.innerHTML = `<option value="">(કોઈ ફાર્મની પરવાનગી નથી)</option>`;
-            cloudBookings = {};
-            generateCalendar();
             return;
         }
 
@@ -2508,7 +2513,66 @@
         select.value = currentFarmId;
         currentFarmName = select.options[select.selectedIndex].text;
         listenToFarmBookings();
-    });
+    }
+
+    function listenToFarmBookings() {
+        if (!currentFarmId) return;
+
+        // 💾 ઑફલાઇન હોય ત્યારે LocalStorage માંથી તમામ ડેટા તુરંત કેલેન્ડરમાં બતાવો
+        let cached = localStorage.getItem("cached_bookings_" + currentFarmId);
+        if (cached) {
+            try {
+                cloudBookings = JSON.parse(cached);
+                generateCalendar();
+                filterData();
+            } catch(e) {}
+        }
+
+        if (currentBookingRef) currentBookingRef.off();
+
+        currentBookingRef = firebase.database().ref("farm_bookings").child(currentFarmId);
+        currentBookingRef.on('value', (snapshot) => {
+            let val = snapshot.val();
+            if (val) {
+                cloudBookings = val;
+                localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
+                generateCalendar();
+                filterData();
+                autoBackupAllData();
+            }
+        });
+
+        listenToFarmWorkers();
+    }
+
+    function listenToFarmWorkers() {
+        if (!currentFarmId) return;
+        if (currentWorkerRef) currentWorkerRef.off();
+        
+        let cached = localStorage.getItem("cached_workers_" + currentFarmId);
+        if (cached) {
+            try { 
+                cloudWorkers = JSON.parse(cached); 
+                renderWorkersTable(); 
+            } catch(e){}
+        }
+
+        currentWorkerRef = firebase.database().ref("farm_workers").child(currentFarmId);
+        currentWorkerRef.on('value', (snap) => {
+            let val = snap.val();
+            if (val) {
+                cloudWorkers = val;
+                localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+                renderWorkersTable();
+                autoBackupAllData();
+            }
+        });
+    }
+
+    function scrollToWorkerSection() {
+        let el = document.getElementById("workerSectionCard");
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
 
     // ૨. ફાર્મ બદલાય ત્યારે તે ફાર્મનો ડેટા લોડ કરવો
     function changeFarm() {
@@ -2517,52 +2581,7 @@
         currentFarmName = select.options[select.selectedIndex].text;
         listenToFarmBookings();
     }
-
-    function listenToFarmBookings() {
-        if (currentBookingRef) {
-            currentBookingRef.off(); // જૂના ફાર્મનો લિસનર બંધ કરો
-        } 
-         // 💾 જો ઇન્ટરનેટ ન હોય તો પહેલા LocalStorage માંથી ડેટા બતાવો
-        let cached = localStorage.getItem("cached_bookings_" + currentFarmId);
-        if (cached) {
-            try {
-                cloudBookings = JSON.parse(cached);
-                generateCalendar();
-            } catch(e) {}
-        }
-
-        currentBookingRef = firebase.database().ref("farm_bookings").child(currentFarmId);
-        currentBookingRef.on('value', (snapshot) => {
-            cloudBookings = snapshot.val() || {};
-            // ક્લાઉડમાંથી ડેટા મળતા જ LocalStorage માં કેશ કરી લેવો
-            localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
-            generateCalendar();
-        });
-   listenToFarmWorkers();
-    }
-
-    // 👷‍♂️ વર્કર્સ લાઈવ ડેટાબેઝ લિસનર
-    function listenToFarmWorkers() {
-        if (currentWorkerRef) currentWorkerRef.off();
-        
-        let cached = localStorage.getItem("cached_workers_" + currentFarmId);
-        if (cached) {
-            try { cloudWorkers = JSON.parse(cached); renderWorkersTable(); } catch(e){}
-        }
-
-        currentWorkerRef = firebase.database().ref("farm_workers").child(currentFarmId);
-        currentWorkerRef.on('value', (snap) => {
-            cloudWorkers = snap.val() || {};
-            localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
-            renderWorkersTable();
-        });
-    }
- 
-    function scrollToWorkerSection() {
-        let el = document.getElementById("workerSectionCard");
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-    } 
-///////////////////////////////////////////
+    
    let selectedWorkerIdForSalary = ""; // પગાર ચુકવણી માટે સિલેક્ટેડ વર્કર ID
         let isShowAllFarmsWorkers = false; // Admin view all farms toggle
         let transferWorkerTargetId = "";
@@ -6853,24 +6872,24 @@
 
     // દર ૧ સેકન્ડે UI રીફ્રેશ પર બટન્સ આપોઆપ જળવાઈ રહેશે
     setInterval(injectNewModuleButtons, 1200);
-    // 🔋 મોબાઈલ સ્ક્રીન લૉક / બંધ થાય ત્યારે Firebase કનેક્શન કાપી નાખો (Zero Quota & RAM Save)
+   // 🔋 મોબાઈલ સ્ક્રીન / વિન્ડો બદલાય ત્યારે સુરક્ષિત બેકઅપ અને નેટવર્ક રી-કનેક્ટ
     document.addEventListener("visibilitychange", function() {
         if (typeof firebase !== "undefined" && firebase.apps.length) {
             if (document.hidden) {
-                // સ્ક્રીન લૉક થઈ કે ટેબ બંધ થઈ: કનેક્શન બંધ કરો
-                firebase.database().goOffline();
+                // ટેબ બદલાય કે સ્ક્રીન બંધ થાય ત્યારે તાત્કાલિક માસ્ટર બેકઅપ લોકલ સ્ટોરેજમાં સેવ
+                if (typeof autoBackupAllData === "function") autoBackupAllData();
             } else {
-                // સ્ક્રીન ચાલુ થઈ / અનલૉક થયું: ફરીથી લાઈવ કનેક્ટ કરો
+                // પાછા આવો ત્યારે Firebase ને તાજું કરો અને સિન્ક ચાલુ કરો
                 firebase.database().goOnline();
+                if (typeof updateNetworkStatus === "function") updateNetworkStatus();
+                if (typeof processSyncQueue === "function") processSyncQueue();
             }
         }
     });
 
-    // વિન્ડો ફોકસ ગુમાવે ત્યારે પણ સુરક્ષિત સેવિંગ
+    // વિન્ડો ફોકસ ગુમાવે કે બંધ થાય ત્યારે તમામ A to Z ડેટાનું કાયમી સેવિંગ
     window.addEventListener("pagehide", function() {
-        if (typeof firebase !== "undefined" && firebase.apps.length) {
-            firebase.database().goOffline();
-        }
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
     });
 </script>
 </body> 
