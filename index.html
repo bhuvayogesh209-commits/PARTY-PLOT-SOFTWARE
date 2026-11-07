@@ -2562,845 +2562,1286 @@
         let el = document.getElementById("workerSectionCard");
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     } 
+///////////////////////////////////////////
+   let selectedWorkerIdForSalary = ""; // પગાર ચુકવણી માટે સિલેક્ટેડ વર્કર ID
+        let isShowAllFarmsWorkers = false; // Admin view all farms toggle
+        let transferWorkerTargetId = "";
+        let transferWorkerSourceFarmId = "";
 
-    let selectedWorkerIdForSalary = "";
+        // 🔍 કોઈપણ ફાર્મમાંથી કારીગરને સુરક્ષિત શોધવા માટેનું ગ્લોબલ હેલ્પર ફંક્શન
+        function getWorkerById(wId) {
+            if (cloudWorkers && cloudWorkers[wId]) {
+                return { worker: cloudWorkers[wId], farmId: currentFarmId };
+            }
+            for (let fId in cachedAllFarmWorkers) {
+                if (cachedAllFarmWorkers[fId] && cachedAllFarmWorkers[fId][wId]) {
+                    return { worker: cachedAllFarmWorkers[fId][wId], farmId: fId };
+                }
+            }
+            return { worker: null, farmId: currentFarmId };
+        }
 
-    // 👷‍♂️ વર્કર ટેબલ અને બેલેન્સ શીટ રેન્ડર કરવું (ચાલુ મહિનાના પગાર સ્ટેટસ સાથે)
-    function renderWorkersTable() {
-        let tbody = document.getElementById("workerTableBody");
-        if (!tbody) return;
-        tbody.innerHTML = "";
-
-        let search = (document.getElementById("workerSearchInput") ? document.getElementById("workerSearchInput").value : "").toLowerCase().trim();
-
-        let count = 0;
-        let sumSalary = 0;
-        let sumUpad = 0;
-        let sumNet = 0;
-
-        let now = new Date();
-        let currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-        for (let wId in cloudWorkers) {
-            let w = cloudWorkers[wId];
-            if (!w || !w.name) continue;
-
-            if (search && !w.name.toLowerCase().includes(search) && !(w.mobile || "").includes(search)) {
-                continue;
+        // 🔄 ટ્રાન્સફર મોડલ અને એડમિન બટન્સનું ઓટો-ઇન્જેક્શન
+        function ensureWorkerTransferUI() {
+            let headerDiv = document.querySelector("#workerSectionCard .section-header div[style*='flex']");
+            if (headerDiv && !document.getElementById("btnToggleAllFarmsWorkers")) {
+                let adminWorkerButtons = `
+                    <button id="btnToggleAllFarmsWorkers" class="btn" onclick="toggleShowAllFarmsWorkers()" style="display:none; font-size:12px; padding:6px 12px; background:#4f46e5; color:white; font-weight:700;">👁️ બધા ફાર્મના કારીગરો જુઓ</button>
+                    <button id="btnExportAllWorkersExcel" class="btn btn-success" onclick="exportAllWorkersExcel()" style="display:none; font-size:12px; padding:6px 12px; font-weight:700;">📊 બધા કારીગરો Excel</button>
+                    <button id="btnPrintAllWorkersReport" class="btn btn-outline" onclick="printAllWorkersReport()" style="display:none; font-size:12px; padding:6px 12px; background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; font-weight:700;">🖨️ બધા કારીગરો પ્રિન્ટ</button>
+                `;
+                headerDiv.insertAdjacentHTML('afterbegin', adminWorkerButtons);
             }
 
-            count++;
-            let salary = parseFloat(w.salary || 0);
-            let upads = w.upads || [];
-            let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
-            let netBalance = salary - totalUpad;
+            if (!document.getElementById("transferWorkerModal")) {
+                let modalHTML = `
+                <div class="modal" id="transferWorkerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(2px); justify-content:center; align-items:center; z-index:9999;">
+                    <div class="modal-content" style="max-width:440px; background:#fff; padding:22px; border-radius:14px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
+                        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:10px; margin-bottom:14px;">
+                            <span id="transferWorkerTitle" style="font-size:16px; font-weight:800; color:#b45309;">🔄 કારીગર ફાર્મ ટ્રાન્સફર</span>
+                            <button class="btn btn-outline" onclick="closeTransferWorkerModal()" style="padding:2px 8px; font-size:12px;">✕</button>
+                        </div>
+                        <p style="font-size:13px; color:#475569; margin-top:-6px; margin-bottom:12px;">
+                            કારીગરનું ખાતું અને તમામ જૂનો ઉપાડ/પગાર હિસાબ સુરક્ષિત રીતે પસંદ કરેલ નવા ફાર્મમાં ટ્રાન્સફર થશે.
+                        </p>
+                        <div class="form-group" style="margin-bottom:14px;">
+                            <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">હાલનું ફાર્મ:</label>
+                            <input type="text" id="transferCurrentFarmDisplay" class="form-control" readonly style="background:#f1f5f9; font-weight:700; color:#475569;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:14px;">
+                            <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">કયા ફાર્મમાં ટ્રાન્સફર કરવો છે? *</label>
+                            <select id="transferTargetFarmSelect" class="form-control" style="font-weight:700; color:#1e1b4b; background:#fff; border:2px solid #6366f1;">
+                            </select>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:16px;">
+                            <button class="btn btn-success" onclick="confirmTransferWorker()" style="justify-content:center; padding:10px; font-weight:800; font-size:14px;">✅ ફાર્મ બદલો / ટ્રાન્સફર કન્ફર્મ કરો</button>
+                            <button class="btn btn-outline" onclick="closeTransferWorkerModal()" style="justify-content:center;">રદ કરો</button>
+                        </div>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+            }
 
-            sumSalary += salary;
-            sumUpad += totalUpad;
-            sumNet += netBalance;
+            let isAdmin = (currentUserRole === 'admin');
+            let btnToggle = document.getElementById("btnToggleAllFarmsWorkers");
+            let btnExcel = document.getElementById("btnExportAllWorkersExcel");
+            let btnPrint = document.getElementById("btnPrintAllWorkersReport");
+            if (btnToggle) btnToggle.style.display = isAdmin ? "inline-flex" : "none";
+            if (btnExcel) btnExcel.style.display = (isAdmin && isShowAllFarmsWorkers) ? "inline-flex" : "none";
+            if (btnPrint) btnPrint.style.display = (isAdmin && isShowAllFarmsWorkers) ? "inline-flex" : "none";
+        }
 
-            // 💵 ચાલુ મહિનાનો પગાર ચૂકવાઈ ગયો છે કે બાકી?
-            let salaryPayments = w.salaryPayments || [];
-            let currentMonthPayment = salaryPayments.find(p => p.month === currentMonthKey);
-            let salaryStatusHTML = "";
+        // 👁️ Admin Toggle: બધા ફાર્મના કારીગરો જોવા / હાલના ફાર્મના જોવા
+        function toggleShowAllFarmsWorkers() {
+            if (currentUserRole !== 'admin') {
+                alert("❌ માત્ર Admin ને બધા ફાર્મના કારીગરો જોવાનો અધિકાર છે!");
+                return;
+            }
+            isShowAllFarmsWorkers = !isShowAllFarmsWorkers;
+            let btn = document.getElementById("btnToggleAllFarmsWorkers");
+            let btnExcel = document.getElementById("btnExportAllWorkersExcel");
+            let btnPrint = document.getElementById("btnPrintAllWorkersReport");
 
-            if (currentMonthPayment) {
-                let modeText = currentMonthPayment.mode === "cash" ? "રોકડ" : (currentMonthPayment.mode === "cheque" ? "ચેક" : "GPay");
-                salaryStatusHTML = `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;" title="${currentMonthPayment.date} (${modeText})">🟢 ચૂકવાયેલ (${modeText})</span>`;
+            if (isShowAllFarmsWorkers) {
+                if (btn) {
+                    btn.innerText = "🏰 માત્ર હાલનું ફાર્મ જુઓ";
+                    btn.style.background = "#059669";
+                }
+                if (btnExcel) btnExcel.style.display = "inline-flex";
+                if (btnPrint) btnPrint.style.display = "inline-flex";
             } else {
-                salaryStatusHTML = `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">🔴 બાકી</span>`;
-            }
-
-            // ✏️ વર્કર એડિટ બટન
-            let editBtn = canUserEditWorkerProfile ? `<button class="btn btn-outline" style="padding:3px 7px; font-size:11px;" onclick="openEditWorkerModal('${wId}')" title="નામ/વિગત સુધારો">✏️</button>` : '';
-            // 🗑️ વર્કર ડિલીટ બટન
-            let delBtn = canUserDeleteWorker ? `<button class="btn btn-danger" style="padding:3px 7px; font-size:11px;" onclick="deleteWorker('${wId}', '${w.name}')" title="વર્કર કાઢી નાખો">🗑️</button>` : '';
-
-            let row = `<tr>  
-                <td>${count}</td>
-                <td>
-                    <b>${w.name}</b>
-                    ${w.address ? `<br><small style="color:#64748b;">📍 ${w.address}</small>` : ''}
-                    ${w.refName ? `<br><small style="color:#0369a1;">👤 હસ્તક: ${w.refName} ${w.refMobile ? '(' + w.refMobile + ')' : ''}</small>` : ''}
-                </td>
-                <td>${w.mobile || '-'}</td>
-                <td><span style="background:#eef2ff; color:#4338ca; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600;">${w.role || 'કારીગર'}</span></td>
-                <td>₹${salary.toLocaleString('en-IN')}</td>
-                <td style="color:#ef4444; font-weight:700;">₹${totalUpad.toLocaleString('en-IN')}</td>
-                <td style="color:${netBalance >= 0 ? '#10b981' : '#b91c1c'}; font-weight:800; font-size:14px;">₹${netBalance.toLocaleString('en-IN')}</td>
-                <td>${salaryStatusHTML}</td>
-                <td style="white-space:nowrap; display:flex; gap:4px;">
-                    <button class="btn btn-success" style="padding:3px 8px; font-size:11px;" onclick="openWorkerUpadModal('${wId}')">💰 ઉપાડ</button>
-                    <button class="btn" style="padding:3px 8px; font-size:11px; background:#4f46e5; color:white;" onclick="openSalaryPayModal('${wId}')">💵 પગાર ચૂકવો</button>
-                    ${editBtn}
-                    ${delBtn}
-                </td>
-            </tr>`;
-            tbody.innerHTML += row;
-        }
-
-        if (count === 0) {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી.</td></tr>`;
-        }
-
-        if (document.getElementById("workerTotalCount")) document.getElementById("workerTotalCount").innerText = count;
-        if (document.getElementById("workerTotalSalarySum")) document.getElementById("workerTotalSalarySum").innerText = "₹" + sumSalary.toLocaleString('en-IN');
-        if (document.getElementById("workerTotalUpadSum")) document.getElementById("workerTotalUpadSum").innerText = "₹" + sumUpad.toLocaleString('en-IN');
-        if (document.getElementById("workerTotalNetSum")) document.getElementById("workerTotalNetSum").innerText = "₹" + sumNet.toLocaleString('en-IN');
-    }
-
-    // 💵 PART 2: પગાર ચુકવણી મોડલ ફંક્શન્સ
-    function openSalaryPayModal(wId) {
-        selectedWorkerIdForSalary = wId;
-        let w = cloudWorkers[wId];
-        if (!w) return;
-
-        document.getElementById("payWorkerNameDisplay").innerText = w.name;
-        let now = new Date();
-        document.getElementById("salMonth").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        document.getElementById("salPayDate").value = now.toISOString().slice(0, 10);
-        document.getElementById("salPayTime").value = now.toTimeString().slice(0, 5);
-        document.getElementById("salPayMode").value = "cash";
-        document.getElementById("salRefGroup").style.display = "none";
-        document.getElementById("salRefInput").value = "";
-        document.getElementById("salNote").value = "";
-
-        calculateSalaryPayDetails();
-        document.getElementById("workerSalaryPayModal").style.display = "flex";
-    }
-
-    function closeSalaryPayModal() {
-        document.getElementById("workerSalaryPayModal").style.display = "none";
-    }
-
-    function onSalaryPaymentModeChange() {
-        let mode = document.getElementById("salPayMode").value;
-        let grp = document.getElementById("salRefGroup");
-        let lbl = document.getElementById("salRefLabel");
-        let inp = document.getElementById("salRefInput");
-
-        if (mode === "cheque") {
-            grp.style.display = "block";
-            lbl.innerText = "ચેક નંબર (Cheque Number) *";
-            inp.placeholder = "દા.ત. CHQ-885412";
-        } else if (mode === "gpay") {
-            grp.style.display = "block";
-            lbl.innerText = "GPay / UPI મોબાઇલ નંબર અથવા Txn ID *";
-            inp.placeholder = "દા.ત. 9898XXXXXX અથવા UPI-Txn ID";
-        } else {
-            grp.style.display = "none";
-            inp.value = "";
-        }
-    }
-
-    function calculateSalaryPayDetails() {
-        let w = cloudWorkers[selectedWorkerIdForSalary];
-        if (!w) return;
-
-        let baseSalary = parseFloat(w.salary || 0);
-        let upads = w.upads || [];
-        let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
-        let net = Math.max(0, baseSalary - totalUpad);
-
-        document.getElementById("payBaseSalary").innerText = "₹" + baseSalary.toLocaleString('en-IN');
-        document.getElementById("payTotalUpad").innerText = "(-) ₹" + totalUpad.toLocaleString('en-IN');
-        document.getElementById("payNetSalary").innerText = "₹" + net.toLocaleString('en-IN');
-        document.getElementById("salActualPaid").value = net;
-    }
-
-    function confirmSalaryPayment() {
-        let w = cloudWorkers[selectedWorkerIdForSalary];
-        if (!w) return;
-
-        let salMonth = document.getElementById("salMonth").value;
-        let actualPaid = parseFloat(document.getElementById("salActualPaid").value) || 0;
-        let mode = document.getElementById("salPayMode").value;
-        let refNo = document.getElementById("salRefInput").value.trim();
-        let dateVal = document.getElementById("salPayDate").value;
-        let timeVal = document.getElementById("salPayTime").value;
-        let note = document.getElementById("salNote").value.trim(); 
-
-        if (!salMonth) { alert("કૃપા કરીને મહિનો પસંદ કરો!"); return; }
-        if (actualPaid <= 0) { alert("કૃપા કરીને માન્ય પગાર રકમ દાખલ કરો!"); return; }
-        if (!dateVal) { alert("કૃપા કરીને ચુકવણીની તારીખ પસંદ કરો!"); return; }
-        if ((mode === "cheque" || mode === "gpay") && !refNo) {
-            alert(`કૃપા કરીને ${mode === "cheque" ? "ચેક નંબર" : "GPay નંબર/Txn ID"} દાખલ કરો!`);
-            return;
-        }
-
-        let parts = dateVal.split("-");
-        let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-
-        if (!w.salaryPayments) w.salaryPayments = [];
-
-        // જૂનો તે મહિનાનો રેકોર્ડ હોય તો અપડેટ અથવા નવો ઉમેરો
-        w.salaryPayments = w.salaryPayments.filter(p => p.month !== salMonth);
-
-        w.salaryPayments.push({
-            id: "pay_" + Date.now(),
-            month: salMonth,
-            amount: actualPaid,
-            baseSalary: parseFloat(w.salary || 0),
-            mode: mode,
-            refDetails: refNo,
-            date: formattedDate,
-            time: timeVal,
-            rawDate: dateVal,
-            note: note,
-            timestamp: Date.now()
-        });
-
-        cloudWorkers[selectedWorkerIdForSalary] = w;
-        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
-
-        if (navigator.onLine && currentWorkerRef) {
-            currentWorkerRef.child(selectedWorkerIdForSalary).set(w);
-        }
-
-        alert(`✅ ${w.name} નો પગાર (મહિનો: ${salMonth}) સફળતાપૂર્વક ચૂકવાઈ ગયો!`);
-        closeSalaryPayModal();
-        renderWorkersTable();
-    }
-
-    // 📑 PART 1: તારીખ મુજબ વાર્ષિક/માસિક સ્ટેટમેન્ટ રિપોર્ટ ફંક્શન્સ
-    function openWorkerReportModal() {
-        let select = document.getElementById("rptWorkerSelect");
-        select.innerHTML = `<option value="ALL">👥 બધા જ કારીગરો (All Workers)</option>`;
-        for (let wId in cloudWorkers) {
-            let w = cloudWorkers[wId];
-            if (w && w.name) {
-                select.innerHTML += `<option value="${wId}">👤 ${w.name} (${w.role || 'કારીગર'})</option>`;
-            }
-        }
-
-        let now = new Date();
-        let firstDay = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10); // વર્ષની શરૂઆત (1 જાન્યુઆરી)
-        let today = now.toISOString().slice(0, 10);
-
-        document.getElementById("rptStartDate").value = firstDay;
-        document.getElementById("rptEndDate").value = today;
-
-        generateWorkerDateReport();
-        document.getElementById("workerStatementReportModal").style.display = "flex";
-    }
-
-    function closeWorkerReportModal() {
-        document.getElementById("workerStatementReportModal").style.display = "none";
-    }
-
-    let currentReportData = [];
-
-    function generateWorkerDateReport() {
-        let targetWorkerId = document.getElementById("rptWorkerSelect").value;
-        let sDate = document.getElementById("rptStartDate").value;
-        let eDate = document.getElementById("rptEndDate").value;
-
-        if (!sDate || !eDate) { alert("કૃપા કરીને શરૂઆત અને અંતિમ તારીખ પસંદ કરો!"); return; }
-
-        let start = new Date(sDate + "T00:00:00");
-        let end = new Date(eDate + "T23:59:59");
-
-        currentReportData = [];
-        let totalUpad = 0;
-        let totalPaidSal = 0;
-
-        for (let wId in cloudWorkers) {
-            if (targetWorkerId !== "ALL" && targetWorkerId !== wId) continue;
-            let w = cloudWorkers[wId];
-            if (!w) continue;
-
-            // ૧. ઉપાડ (Upads)
-            (w.upads || []).forEach(u => {
-                let parts = u.date.split("/"); // DD/MM/YYYY
-                let uDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
-                if (uDate >= start && uDate <= end) {
-                    totalUpad += parseFloat(u.amount || 0); 
-                    let upadModeText = u.mode === 'cheque' ? `ચેક (${u.refNumber || ''})` : (u.mode === 'gpay' ? `GPay (${u.refNumber || ''})` : 'રોકડ (Cash)');
-                    currentReportData.push({
-                        dateObj: uDate,
-                        dateStr: u.date,
-                        timeStr: u.time || "-",
-                        workerName: w.name,
-                        type: "ઉપાડ (Advance)",
-                        mode: upadModeText,
-                        ref: u.note || "-",
-                        upadAmount: parseFloat(u.amount || 0),
-                        salaryAmount: 0
-                    });
-                    }
-            });
-
-            // ૨. ચૂકવેલો પગાર (Salary Payments)
-            (w.salaryPayments || []).forEach(p => {
-                let pDate = p.rawDate ? new Date(p.rawDate + "T12:00:00") : new Date(p.timestamp);
-                if (pDate >= start && pDate <= end) {
-                    totalPaidSal += parseFloat(p.amount || 0);
-                    let modeText = p.mode === "cash" ? "રોકડ (Cash)" : (p.mode === "cheque" ? `ચેક (${p.refDetails})` : `GPay (${p.refDetails})`);
-                    currentReportData.push({
-                        dateObj: pDate,
-                        dateStr: p.date,
-                        timeStr: p.time || "-",
-                        workerName: w.name,
-                        type: `પગાર (${p.month})`,
-                        mode: modeText,
-                        ref: p.note || "-",
-                        upadAmount: 0,
-                        salaryAmount: parseFloat(p.amount || 0)
-                    });
+                if (btn) {
+                    btn.innerText = "👁️ બધા ફાર્મના કારીગરો જુઓ";
+                    btn.style.background = "#4f46e5";
                 }
-            });
-        }
-
-        // તારીખ મુજબ સોર્ટિંગ
-        currentReportData.sort((a, b) => b.dateObj - a.dateObj);
-
-        document.getElementById("rptTotalUpadSum").innerText = "₹" + totalUpad.toLocaleString('en-IN');
-        document.getElementById("rptTotalSalaryPaidSum").innerText = "₹" + totalPaidSal.toLocaleString('en-IN');
-        document.getElementById("rptTotalTxnCount").innerText = currentReportData.length;
-
-        let tbody = document.getElementById("rptTableBody");
-        tbody.innerHTML = "";
-
-        if (currentReportData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">પસંદ કરેલ સમયગાળામાં કોઈ વ્યવહાર મળ્યો નથી.</td></tr>`;
-            return;
-        }
-
-        currentReportData.forEach(item => {
-            let row = `<tr>
-                <td style="padding:6px;">${item.dateStr} <small style="color:#64748b;">${item.timeStr}</small></td>
-                <td style="padding:6px;"><b>${item.workerName}</b></td>
-                <td style="padding:6px;"><span style="background:${item.upadAmount > 0 ? '#fee2e2' : '#dcfce7'}; color:${item.upadAmount > 0 ? '#b91c1c' : '#15803d'}; padding:2px 6px; border-radius:4px; font-weight:700;">${item.type}</span></td>
-                <td style="padding:6px;">${item.mode} ${item.ref !== '-' ? `<small style="color:#64748b;">(${item.ref})</small>` : ''}</td>
-                <td style="padding:6px; text-align:right; font-weight:700; color:#ef4444;">${item.upadAmount > 0 ? '₹' + item.upadAmount.toLocaleString('en-IN') : '-'}</td>
-                <td style="padding:6px; text-align:right; font-weight:700; color:#10b981;">${item.salaryAmount > 0 ? '₹' + item.salaryAmount.toLocaleString('en-IN') : '-'}</td>
-            </tr>`;
-            tbody.innerHTML += row;
-        });
-    }
-
-    function printWorkerDateReport() {
-        if (currentReportData.length === 0) { alert("પ્રિન્ટ કરવા માટે કોઈ ડેટા નથી!"); return; }
-
-        let sDate = document.getElementById("rptStartDate").value;
-        let eDate = document.getElementById("rptEndDate").value;
-        let workerText = document.getElementById("rptWorkerSelect").options[document.getElementById("rptWorkerSelect").selectedIndex].text;
-
-        let win = window.open('', '_blank', 'width=800,height=650');
-        if (!win) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
-
-        let rowsHTML = "";
-        currentReportData.forEach((item, idx) => {
-            rowsHTML += `<tr>
-                <td>${idx + 1}</td>
-                <td>${item.dateStr} ${item.timeStr !== '-' ? item.timeStr : ''}</td>
-                <td><b>${item.workerName}</b></td>
-                <td>${item.type}</td>
-                <td>${item.mode}</td>
-                <td style="text-align:right; color:#ef4444;">${item.upadAmount > 0 ? '₹' + item.upadAmount.toLocaleString('en-IN') : '-'}</td>
-                <td style="text-align:right; color:#10b981;">${item.salaryAmount > 0 ? '₹' + item.salaryAmount.toLocaleString('en-IN') : '-'}</td>
-            </tr>`;
-        });
-
-        win.document.write(`
-            <html>
-            <head>
-                <title>વર્કર સ્ટેટમેન્ટ રિપોર્ટ</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 25px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
-                    th, td { border: 1px solid #cbd5e1; padding: 7px; text-align: left; }
-                    th { background: #f1f5f9; }
-                </style>
-            </head>
-            <body>
-                <h2 style="margin:0; color:#4f46e5; text-align:center;">${currentFarmName}</h2>
-                <h4 style="margin:5px 0 15px 0; text-align:center; color:#475569;">વર્કર પગાર & ઉપાડ ખાતાવહી રિપોર્ટ</h4>
-                <p><b>કારીગર:</b> ${workerText} | <b>સમયગાળો:</b> ${sDate} થી ${eDate}</p>
-                <table>
-                    <thead>
-                        <tr><th>#</th><th>તારીખ & સમય</th><th>કારીગરનું નામ</th><th>પ્રકાર</th><th>પેમેન્ટ મોડ</th><th style="text-align:right;">ઉપાડ</th><th style="text-align:right;">ચૂકવેલ પગાર</th></tr>
-                    </thead>
-                    <tbody>${rowsHTML}</tbody>
-                </table>
-                <div style="margin-top:35px; display:flex; justify-content:space-between;">
-                    <div>તપાસનાર સહી: ____________</div>
-                    <div>ઓફિસ / માલિક સહી: ____________</div>
-                </div>
-            </body>
-            </html>
-        `);
-        win.document.close();
-        win.focus();
-        win.print();
-    }
- ///////////////////////////////////////////
-    // 👷‍♂️ વર્કર ઉમેરવા/એડિટ કરવાના માસ્ટર ફંક્શન્સ (સરનામું, હસ્તક, ઓનલાઇન & ઑફલાઇન સપોર્ટ સાથે)
-    function openAddWorkerModal() {   
-        if (!canUserEditWorkerProfile) { alert("❌ તમારી પાસે નવો વર્કર ઉમેરવાનો અધિકાર નથી!"); return; }
-        document.getElementById("editWorkerId").value = "";
-        document.getElementById("workerModalTitle").innerText = "➕ નવો વર્કર ઉમેરો";
-        document.getElementById("wName").value = "";
-        document.getElementById("wMobile").value = "";
-        document.getElementById("wRole").value = "";
-        document.getElementById("wSalary").value = "";
-        document.getElementById("wSalaryType").value = "monthly";
-        document.getElementById("wAddress").value = "";
-        document.getElementById("wRefName").value = "";
-        document.getElementById("wRefMobile").value = "";
-        document.getElementById("workerModal").style.display = "flex";
-    }
-
-    function openEditWorkerModal(wId) {   
-        if (!canUserEditWorkerProfile) { alert("❌ તમારી પાસે વર્કર વિગત સુધારવાનો અધિકાર નથી!"); return; }
-        let w = cloudWorkers[wId];
-        if (!w) return;
-        document.getElementById("editWorkerId").value = wId;
-        document.getElementById("workerModalTitle").innerText = "✏️ વર્કર વિગત સુધારો";
-        document.getElementById("wName").value = w.name || "";
-        document.getElementById("wMobile").value = w.mobile || "";
-        document.getElementById("wRole").value = w.role || "";
-        document.getElementById("wSalary").value = w.salary || "";
-        document.getElementById("wSalaryType").value = w.salaryType || "monthly";
-        document.getElementById("wAddress").value = w.address || "";
-        document.getElementById("wRefName").value = w.refName || "";
-        document.getElementById("wRefMobile").value = w.refMobile || "";
-        document.getElementById("workerModal").style.display = "flex";
-    }
-
-    function closeWorkerModal() {
-        document.getElementById("workerModal").style.display = "none";
-    }
-
-    function saveWorker() { 
-        if (!canUserEditWorkerProfile) { alert("❌ તમારી પાસે વર્કર સેવ કે સુધારવાની પરવાનગી નથી!"); return; }
-        let name = document.getElementById("wName").value.trim();
-        let salary = parseFloat(document.getElementById("wSalary").value) || 0;
-        if (!name || salary <= 0) {
-            alert("કૃપા કરીને વર્કરનું નામ અને માન્ય પગાર દાખલ કરો!");
-            return;
-        }
-
-        let wId = document.getElementById("editWorkerId").value || ("worker_" + Date.now());
-        let existingUpads = (cloudWorkers[wId] && cloudWorkers[wId].upads) ? cloudWorkers[wId].upads : [];
-        let existingSalaryPayments = (cloudWorkers[wId] && cloudWorkers[wId].salaryPayments) ? cloudWorkers[wId].salaryPayments : [];
-
-        let workerData = {
-            id: wId,
-            name: name,
-            mobile: document.getElementById("wMobile").value.trim(),
-            role: document.getElementById("wRole").value.trim() || "કારીગર",
-            salary: salary,
-            salaryType: document.getElementById("wSalaryType").value,
-            address: document.getElementById("wAddress").value.trim(),
-            refName: document.getElementById("wRefName").value.trim(),
-            refMobile: document.getElementById("wRefMobile").value.trim(),
-            upads: existingUpads,
-            salaryPayments: existingSalaryPayments
-        };
-
-        // ૧. LocalStorage માં તરત સેવ (ઑફલાઇન સપોર્ટ)
-        cloudWorkers[wId] = workerData;
-        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers)); 
-        
-        try {
-            if (typeof cachedAllFarmWorkers !== "undefined") {
-                if (!cachedAllFarmWorkers[currentFarmId]) cachedAllFarmWorkers[currentFarmId] = {};
-                cachedAllFarmWorkers[currentFarmId][wId] = workerData;
-                localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+                if (btnExcel) btnExcel.style.display = "none";
+                if (btnPrint) btnPrint.style.display = "none";
             }
-        } catch(e){}
-
-        renderWorkersTable();
-
-        // ૨. ક્લાઉડ / સિન્ક કતારમાં સેવ
-        if (navigator.onLine && currentWorkerRef) {
-            currentWorkerRef.child(wId).set(workerData);
-        } else {
-            addToSyncQueue({ path: `farm_workers/${currentFarmId}/${wId}`, action: "set", data: workerData });
-        }
-        alert("✅ વર્કર સફળતાપૂર્વક સેવ થઈ ગયા!");
-        closeWorkerModal();
-    }
-
-    function deleteWorker(wId, name) {
-        if (!canUserDeleteWorker) { alert("❌ તમારી પાસે વર્કર ખાતું ડિલીટ કરવાનો અધિકાર નથી!"); return; }
-        if (confirm(`શું તમે કારીગર "${name}" નું પૂરું ખાતું ડિલીટ કરવા માંગો છો?`)) {
-            delete cloudWorkers[wId];
-            localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers)); 
-            try {
-                if (typeof cachedAllFarmWorkers !== "undefined" && cachedAllFarmWorkers[currentFarmId]) {
-                    delete cachedAllFarmWorkers[currentFarmId][wId];
-                    localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
-                }
-            } catch(e){}
             renderWorkersTable();
-            if (navigator.onLine && currentWorkerRef) {
-                currentWorkerRef.child(wId).remove();
-            } else {
-                addToSyncQueue({ path: `farm_workers/${currentFarmId}/${wId}`, action: "remove" });
+        }
+
+        // 🔄 ફાર્મ ટ્રાન્સફર Modal ખોલવું
+        function openTransferWorkerModal(wId, wName, fromFarmId) {
+            if (currentUserRole !== 'admin' && !canUserEditWorkerProfile) {
+                alert("❌ તમારી પાસે કારીગર ટ્રાન્સફર કરવાનો અધિકાર નથી!");
+                return;
             }
-        }
-    }
-            // 💰 ઉપાડ મોડલ અને પેમેન્ટ મોડ ચેન્જ
-    function onUpadPaymentModeChange() {
-        let mode = document.getElementById("newUpadMode").value;
-        let grp = document.getElementById("upadRefGroup");
-        let inp = document.getElementById("newUpadRefInput");
+            transferWorkerTargetId = wId;
+            transferWorkerSourceFarmId = fromFarmId || currentFarmId;
 
-        if (mode === "cheque") {
-            grp.style.display = "block";
-            inp.placeholder = "ચેક નંબર (દા.ત. CHQ-998811) *";
-        } else if (mode === "gpay") {
-            grp.style.display = "block";
-            inp.placeholder = "GPay / UPI મોબાઇલ અથવા ટ્રાન્ઝેક્શન ID *";
-        } else {
-            grp.style.display = "none";
-            inp.value = "";
-        }
-    }
+            ensureWorkerTransferUI();
 
-    function openWorkerUpadModal(wId) {
-        selectedWorkerIdForUpad = wId;
-        let w = cloudWorkers[wId];
-        if (!w) return;
+            let modal = document.getElementById("transferWorkerModal");
+            document.getElementById("transferWorkerTitle").innerText = `🔄 ટ્રાન્સફર: ${wName}`;
 
-        let now = new Date();
-        document.getElementById("upadWorkerNameDisplay").innerText = w.name;
-        document.getElementById("newUpadDate").value = now.toISOString().slice(0, 10);
-        document.getElementById("newUpadTime").value = now.toTimeString().slice(0, 5);
-        document.getElementById("newUpadAmount").value = "";
-        document.getElementById("newUpadNote").value = "";
-        document.getElementById("newUpadMode").value = "cash";
-        document.getElementById("upadRefGroup").style.display = "none";
-        document.getElementById("newUpadRefInput").value = "";
+            let cachedFarms = {};
+            try { cachedFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
+            let fromFarmName = (cachedFarms[transferWorkerSourceFarmId] && cachedFarms[transferWorkerSourceFarmId].name) ? cachedFarms[transferWorkerSourceFarmId].name : currentFarmName;
+            document.getElementById("transferCurrentFarmDisplay").value = fromFarmName;
 
-        renderUpadModalDetails();
-        document.getElementById("workerUpadModal").style.display = "flex";
-    }
+            let select = document.getElementById("transferTargetFarmSelect");
+            select.innerHTML = "";
 
-    function closeWorkerUpadModal() {
-        document.getElementById("workerUpadModal").style.display = "none";
-    }   
+            let count = 0;
+            for (let fId in cachedFarms) {
+                if (fId === transferWorkerSourceFarmId) continue;
+                count++;
+                let opt = document.createElement("option");
+                opt.value = fId;
+                opt.innerText = `🏰 ${cachedFarms[fId].name}`;
+                select.appendChild(opt);
+            }
 
-    function renderUpadModalDetails() {
-        let w = cloudWorkers[selectedWorkerIdForUpad];
-        if (!w) return;
+            if (count === 0) {
+                alert("સોફ્ટવેરમાં બીજું કોઈ ફાર્મ ઉપલબ્ધ નથી! પહેલાં નવું ફાર્મ ઉમેરો.");
+                return;
+            }
 
-        let salary = parseFloat(w.salary || 0);
-        let upads = w.upads || [];
-        let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
-        let balance = salary - totalUpad;
-
-        document.getElementById("stripSalary").innerText = "₹" + salary.toLocaleString('en-IN');
-        document.getElementById("stripUpad").innerText = "₹" + totalUpad.toLocaleString('en-IN');
-        document.getElementById("stripBalance").innerText = "₹" + balance.toLocaleString('en-IN');
-
-        let tbody = document.getElementById("upadHistoryBody");
-        tbody.innerHTML = "";
-        if (upads.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:10px; color:#94a3b8;">હજુ કોઈ ઉપાડ લીધેલ નથી.</td></tr>`;
-            return;
+            modal.style.display = "flex";
         }
 
-        upads.forEach((u, idx) => {
-            let delBtn = canUserDeleteUpad ? `<button type="button" onclick="deleteWorkerUpad(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ઉપાડ રદ કરો">❌</button>` : `<span style="color:#94a3b8;" title="ઉપાડ ડિલીટ અધિકાર નથી">🔒</span>`;
-            
-            let modeBadge = `<span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">${u.mode === 'cheque' ? 'ચેક' : (u.mode === 'gpay' ? 'GPay' : 'રોકડ')}</span>`;
-            let refText = u.refNumber ? ` <small style="color:#475569;">(${u.refNumber})</small>` : '';
-            let noteText = u.note ? ` - ${u.note}` : '';
-
-            tbody.innerHTML += `<tr>
-                <td style="padding:6px;">${u.date} <small style="color:#64748b;">${u.time || ''}</small></td>
-                <td style="padding:6px;">${modeBadge}${refText}${noteText}</td>
-                <td style="padding:6px; text-align:right; font-weight:700; color:#ef4444;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
-                <td style="padding:6px; text-align:center;">${delBtn}</td>
-            </tr>`;
-        });
-    }
-
-    function addWorkerUpad(action = 'save') {
-        if (!canUserAddUpad) { alert("❌ તમારી પાસે ઉપાડ આપવાની પરવાનગી નથી! માત્ર ખાતું જોઈ શકો છો."); return; }
-        let amt = parseFloat(document.getElementById("newUpadAmount").value);
-        let dateVal = document.getElementById("newUpadDate").value;
-        let timeVal = document.getElementById("newUpadTime").value;
-        let mode = document.getElementById("newUpadMode").value;
-        let refNo = document.getElementById("newUpadRefInput").value.trim();
-        let note = document.getElementById("newUpadNote").value.trim();
-
-        if (!amt || amt <= 0) { alert("કૃપા કરીને માન્ય ઉપાડ રકમ લખો!"); return; }
-        if (!dateVal) { alert("કૃપા કરીને તારીખ પસંદ કરો!"); return; }
-        if ((mode === "cheque" || mode === "gpay") && !refNo) {
-            alert(`કૃપા કરીને ${mode === "cheque" ? "ચેક નંબર" : "GPay નંબર/Txn ID"} દાખલ કરો!`);
-            return;
+        function closeTransferWorkerModal() {
+            let modal = document.getElementById("transferWorkerModal");
+            if (modal) modal.style.display = "none";
         }
 
-        let parts = dateVal.split("-");
-        let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        // 💾 કારીગર ફાર્મ ટ્રાન્સફર કન્ફર્મ કરવું (ઓનલાઇન & ઑફલાઇન સંપૂર્ણ સુધારેલ)
+        function confirmTransferWorker() {
+            let targetFarmId = document.getElementById("transferTargetFarmSelect").value;
+            let select = document.getElementById("transferTargetFarmSelect");
+            let targetFarmName = select.options[select.selectedIndex].text.replace('🏰 ', '');
 
-        let w = cloudWorkers[selectedWorkerIdForUpad];
-        if (!w.upads) w.upads = [];
+            if (!targetFarmId || targetFarmId === transferWorkerSourceFarmId) {
+                alert("કૃપા કરીને માન્ય ટાર્ગેટ ફાર્મ પસંદ કરો!");
+                return;
+            }
 
-        let upadEntry = {
-            amount: amt,
-            date: formattedDate,
-            time: timeVal,
-            mode: mode,
-            refNumber: refNo,
-            note: note,
-            timestamp: Date.now()
-        };
+            let { worker: workerData } = getWorkerById(transferWorkerTargetId);
 
-        w.upads.push(upadEntry);
+            if (!workerData) {
+                alert("❌ કારીગરનો ડેટા મળ્યો નથી!");
+                return;
+            }
 
-        cloudWorkers[selectedWorkerIdForUpad] = w;
-        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            workerData = JSON.parse(JSON.stringify(workerData));
+            workerData.farmId = targetFarmId;
+            workerData.transferredAt = Date.now();
+            workerData.transferredFrom = transferWorkerSourceFarmId;
 
-        if (navigator.onLine && currentWorkerRef) {
-            currentWorkerRef.child(selectedWorkerIdForUpad).set(w);
+            // ૧. નવા ફાર્મમાં ઉમેરો (Offline LocalStorage)
+            if (!cachedAllFarmWorkers[targetFarmId]) cachedAllFarmWorkers[targetFarmId] = {};
+            cachedAllFarmWorkers[targetFarmId][transferWorkerTargetId] = workerData;
+
+            let targetFarmWorkers = {};
+            try { targetFarmWorkers = JSON.parse(localStorage.getItem("cached_workers_" + targetFarmId) || "{}"); } catch(e){}
+            targetFarmWorkers[transferWorkerTargetId] = workerData;
+            localStorage.setItem("cached_workers_" + targetFarmId, JSON.stringify(targetFarmWorkers));
+
+            // ૨. જૂના ફાર્મમાંથી કાઢી નાખો
+            if (cachedAllFarmWorkers[transferWorkerSourceFarmId]) {
+                delete cachedAllFarmWorkers[transferWorkerSourceFarmId][transferWorkerTargetId];
+            }
+            if (transferWorkerSourceFarmId === currentFarmId) {
+                delete cloudWorkers[transferWorkerTargetId];
+                localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            } else {
+                let srcFarmWorkers = {};
+                try { srcFarmWorkers = JSON.parse(localStorage.getItem("cached_workers_" + transferWorkerSourceFarmId) || "{}"); } catch(e){}
+                delete srcFarmWorkers[transferWorkerTargetId];
+                localStorage.setItem("cached_workers_" + transferWorkerSourceFarmId, JSON.stringify(srcFarmWorkers));
+            }
+
+            // ૩. જો હાલનું ફાર્મ જ ટાર્ગેટ ફાર્મ હોય તો લાઈવ સ્ક્રીનમાં ઉમેરો
+            if (targetFarmId === currentFarmId) {
+                cloudWorkers[transferWorkerTargetId] = workerData;
+                localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            }
+
+            localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+
+            // ૪. ક્લાઉડ / ઑફલાઇન કતારમાં સેવ
+            if (navigator.onLine) {
+                firebase.database().ref("farm_workers").child(targetFarmId).child(transferWorkerTargetId).set(workerData);
+                firebase.database().ref("farm_workers").child(transferWorkerSourceFarmId).child(transferWorkerTargetId).remove();
+            } else {
+                addToSyncQueue({ path: `farm_workers/${targetFarmId}/${transferWorkerTargetId}`, action: "set", data: workerData });
+                addToSyncQueue({ path: `farm_workers/${transferWorkerSourceFarmId}/${transferWorkerTargetId}`, action: "remove" });
+            }
+
+            alert(`✅ કારીગર "${workerData.name}" સફળતાપૂર્વક "${targetFarmName}" માં ટ્રાન્સફર થઈ ગયા છે!`);
+            closeTransferWorkerModal();
+            renderWorkersTable();
+            if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
         }
 
-        document.getElementById("newUpadAmount").value = "";
-        document.getElementById("newUpadNote").value = "";
-        document.getElementById("newUpadRefInput").value = "";
-        renderUpadModalDetails();
-        renderWorkersTable();
+        // 👷‍♂️ વર્કર ટેબલ અને બેલેન્સ શીટ રેન્ડર કરવું (સિંગલ ફાર્મ + બધા ફાર્મ સપોર્ટ સાથે)
+        function renderWorkersTable() {
+            ensureWorkerTransferUI();
 
-        let salary = parseFloat(w.salary || 0);
-        let totalUpad = w.upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
-        let balance = salary - totalUpad;
-        let modeText = mode === 'cheque' ? `ચેક (${refNo})` : (mode === 'gpay' ? `GPay (${refNo})` : 'રોકડ (Cash)');
+            let tbody = document.getElementById("workerTableBody");
+            if (!tbody) return;
+            tbody.innerHTML = "";
 
-        // ૧. ખાલી સેવ બટન દબાવ્યું હોય તો:
-        if (action === 'save') {
-            alert(`✅ ${w.name} ને ₹${amt.toLocaleString('en-IN')} નો ઉપાડ સફળતાપૂર્વક સેવ થઈ ગયો!`);
+            let search = (document.getElementById("workerSearchInput") ? document.getElementById("workerSearchInput").value : "").toLowerCase().trim();
+
+            let count = 0;
+            let sumSalary = 0;
+            let sumUpad = 0;
+            let sumNet = 0;
+
+            let now = new Date();
+            let currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            let cachedFarms = {};
+            try { cachedFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
+
+            let workersToRender = [];
+
+            if (isShowAllFarmsWorkers && currentUserRole === 'admin') {
+                for (let fId in cachedAllFarmWorkers) {
+                    let fWorkers = cachedAllFarmWorkers[fId] || {};
+                    let fName = (cachedFarms[fId] && cachedFarms[fId].name) ? cachedFarms[fId].name : fId;
+                    for (let wId in fWorkers) {
+                        let w = fWorkers[wId];
+                        if (w && w.name) {
+                            workersToRender.push({ ...w, id: w.id || wId, farmId: fId, farmName: fName });
+                        }
+                    }
+                }
+            } else {
+                for (let wId in cloudWorkers) {
+                    let w = cloudWorkers[wId];
+                    if (w && w.name) {
+                        workersToRender.push({ ...w, id: w.id || wId, farmId: currentFarmId, farmName: currentFarmName });
+                    }
+                }
+            }
+
+            workersToRender.forEach(w => {
+                let wId = w.id;
+                if (search && !w.name.toLowerCase().includes(search) && !(w.mobile || "").includes(search) && !(w.farmName || "").toLowerCase().includes(search)) {
+                    return;
+                }
+
+                count++;
+                let salary = parseFloat(w.salary || 0);
+                let upads = w.upads || [];
+                let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+                let netBalance = salary - totalUpad;
+
+                sumSalary += salary;
+                sumUpad += totalUpad;
+                sumNet += netBalance;
+
+                let salaryPayments = w.salaryPayments || [];
+                let currentMonthPayment = salaryPayments.find(p => p.month === currentMonthKey);
+                let salaryStatusHTML = "";
+
+                if (currentMonthPayment) {
+                    let modeText = currentMonthPayment.mode === "cash" ? "રોકડ" : (currentMonthPayment.mode === "cheque" ? "ચેક" : "GPay");
+                    salaryStatusHTML = `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">🟢 ચૂકવાયેલ (${modeText})</span>`;
+                } else {
+                    salaryStatusHTML = `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">🔴 બાકી</span>`;
+                }
+
+                let safeName = (w.name || '').replace(/'/g, "\\'");
+
+                let transferBtn = (currentUserRole === 'admin' || canUserEditWorkerProfile)
+                    ? `<button class="btn" style="padding:3px 8px; font-size:11px; background:#d97706; color:white; font-weight:700;" onclick="openTransferWorkerModal('${wId}', '${safeName}', '${w.farmId}')" title="બીજા ફાર્મમાં બદલો">🔄 ટ્રાન્સફર</button>`
+                    : '';
+
+                let editBtn = canUserEditWorkerProfile ? `<button class="btn btn-outline" style="padding:3px 7px; font-size:11px;" onclick="openEditWorkerModal('${wId}')" title="સુધારો">✏️</button>` : '';
+                let delBtn = canUserDeleteWorker ? `<button class="btn btn-danger" style="padding:3px 7px; font-size:11px;" onclick="deleteWorker('${wId}', '${safeName}')" title="ડિલીટ">🗑️</button>` : '';
+
+                let farmTag = isShowAllFarmsWorkers 
+                    ? `<br><span style="background:#e0e7ff; color:#3730a3; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:800;">🏰 ${w.farmName}</span>` 
+                    : '';
+
+                let row = `<tr>  
+                    <td>${count}</td>
+                    <td>
+                        <b>${w.name}</b> ${farmTag}
+                        ${w.address ? `<br><small style="color:#64748b;">📍 ${w.address}</small>` : ''}
+                        ${w.refName ? `<br><small style="color:#0369a1;">👤 હસ્તક: ${w.refName} ${w.refMobile ? '(' + w.refMobile + ')' : ''}</small>` : ''}
+                    </td>
+                    <td>${w.mobile || '-'}</td>
+                    <td><span style="background:#eef2ff; color:#4338ca; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600;">${w.role || 'કારીગર'}</span></td>
+                    <td>₹${salary.toLocaleString('en-IN')}</td>
+                    <td style="color:#ef4444; font-weight:700;">₹${totalUpad.toLocaleString('en-IN')}</td>
+                    <td style="color:${netBalance >= 0 ? '#10b981' : '#b91c1c'}; font-weight:800; font-size:14px;">₹${netBalance.toLocaleString('en-IN')}</td>
+                    <td>${salaryStatusHTML}</td>
+                    <td style="white-space:nowrap; display:flex; gap:4px; flex-wrap:wrap;">
+                        <button class="btn btn-success" style="padding:3px 8px; font-size:11px;" onclick="openWorkerUpadModal('${wId}')">💰 ઉપાડ</button>
+                        <button class="btn" style="padding:3px 8px; font-size:11px; background:#4f46e5; color:white;" onclick="openSalaryPayModal('${wId}')">💵 પગાર</button>
+                        ${transferBtn}
+                        ${editBtn}
+                        ${delBtn}
+                    </td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+
+            if (count === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ કારીગર મળ્યા નથી.</td></tr>`;
+            }
+
+            if (document.getElementById("workerTotalCount")) document.getElementById("workerTotalCount").innerText = count;
+            if (document.getElementById("workerTotalSalarySum")) document.getElementById("workerTotalSalarySum").innerText = "₹" + sumSalary.toLocaleString('en-IN');
+            if (document.getElementById("workerTotalUpadSum")) document.getElementById("workerTotalUpadSum").innerText = "₹" + sumUpad.toLocaleString('en-IN');
+            if (document.getElementById("workerTotalNetSum")) document.getElementById("workerTotalNetSum").innerText = "₹" + sumNet.toLocaleString('en-IN');
         }
-        // ૨. સેવ અને પ્રિન્ટ બટન દબાવ્યું હોય તો:
-        else if (action === 'print') {
-            printInstantUpadReceipt(w, upadEntry, balance, modeText);
+
+        // 📊 બધા ફાર્મના કારીગરોની Excel / CSV ફાઈલ એક્સપોર્ટ કરવી (Admin Only)
+        function exportAllWorkersExcel() {
+            if (currentUserRole !== 'admin') {
+                alert("❌ માત્ર Admin!");
+                return;
+            }
+
+            let cachedFarms = {};
+            try { cachedFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
+
+            let allList = [];
+            for (let fId in cachedAllFarmWorkers) {
+                let fWorkers = cachedAllFarmWorkers[fId] || {};
+                let fName = (cachedFarms[fId] && cachedFarms[fId].name) ? cachedFarms[fId].name : fId;
+                for (let wId in fWorkers) {
+                    let w = fWorkers[wId];
+                    if (w && w.name) {
+                        let salary = parseFloat(w.salary || 0);
+                        let totalUpad = (w.upads || []).reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+                        allList.push({
+                            farm: fName,
+                            name: w.name,
+                            mobile: w.mobile || "-",
+                            role: w.role || "કારીગર",
+                            salary: salary,
+                            upad: totalUpad,
+                            balance: (salary - totalUpad),
+                            address: w.address || "-",
+                            hastak: `${w.refName || '-'} ${w.refMobile ? '(' + w.refMobile + ')' : ''}`
+                        });
+                    }
+                }
+            }
+
+            if (allList.length === 0) {
+                alert("એક્સપોર્ટ કરવા માટે કોઈ કારીગરો મળ્યા નથી!");
+                return;
+            }
+
+            let csv = "\uFEFF# ,ફાર્મ / બ્રાન્ચ,કારીગરનું નામ,મોબાઈલ,હોદ્દો / કામ,સરનામું,હસ્તક / રેફરન્સ,કુલ પગાર (₹),કુલ ઉપાડ (₹),ચોખ્ખો બાકી પગાર (₹)\n";
+            allList.forEach((w, idx) => {
+                csv += `"${idx + 1}","${w.farm}","${w.name}","${w.mobile}","${w.role}","${w.address}","${w.hastak}","${w.salary}","${w.upad}","${w.balance}"\n`;
+            });
+
+            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `બધા_ફાર્મના_કારીગરો_રિપોર્ટ_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            alert("✅ તમામ ફાર્મના કારીગરોની Excel ફાઈલ સફળતાપૂર્વક ડાઉનલોડ થઈ ગઈ!");
         }
-        // ૩. સેવ અને WhatsApp બટન દબાવ્યું હોય તો:
-        else if (action === 'whatsapp') {
-            sendInstantUpadWhatsApp(w, upadEntry, balance, modeText);
-        }
-    }
 
-    // 🖨️ તુરંત ઉપાડ પહોંચ પ્રિન્ટ કરવી
-    function printInstantUpadReceipt(w, u, balance, modeText) {
-        let win = window.open('', '_blank', 'width=650,height=550');
-        if (!win) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
+        // 🖨️ બધા ફાર્મના કારીગરોનું સ્ટેટમેન્ટ A4 પ્રિન્ટ કરવું (Admin Only)
+        function printAllWorkersReport() {
+            if (currentUserRole !== 'admin') {
+                alert("❌ માત્ર Admin!");
+                return;
+            }
 
-        win.document.write(`
-            <html>
-            <head>
-                <title>ઉપાડ પહોંચ - ${w.name}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 25px; color: #333; }
-                    .card { border: 2px solid #1e293b; padding: 20px; border-radius: 8px; max-width: 520px; margin: auto; }
-                    .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                    th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <div class="header">
-                        <h2 style="margin:0; color:#4f46e5;">${currentFarmName}</h2>
-                        <h4 style="margin:4px 0; color:#b45309;">ઉપાડ (Advance Payment) પહોંચ</h4>
-                    </div>
-                    <p><b>તારીખ & સમય:</b> ${u.date} ${u.time || ''}</p>
-                    <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role || 'કારીગર'}</p>
-                    <table>
-                        <tr><th style="background:#f1f5f9; text-align:left;">આપેલો ઉપાડ (રકમ):</th><td style="font-size:16px; font-weight:bold; color:#ef4444; text-align:right;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td></tr>
-                        <tr><th style="background:#f1f5f9; text-align:left;">પેમેન્ટ પ્રકાર:</th><td><b>${modeText}</b></td></tr>
-                        <tr><th style="background:#f1f5f9; text-align:left;">ઉપાડની નોંધ / વિગત:</th><td>${u.note || '-'}</td></tr>
-                        <tr><th style="background:#ecfdf5; text-align:left; color:#047857;">હવે ચોખ્ખો બાકી પગાર:</th><td style="font-size:15px; font-weight:bold; color:#047857; text-align:right;">₹${balance.toLocaleString('en-IN')}</td></tr>
-                    </table>
-                    <div style="margin-top:40px; display:flex; justify-content:space-between;">
-                        <div>કારીગર સહી: ___________</div>
-                        <div>આપનાર / માલિક સહી: ___________</div>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `);
-        win.document.close();
-        win.focus();
-        win.print();
-    }
+            let cachedFarms = {};
+            try { cachedFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
 
-    // 📲 તુરંત ઉપાડ WhatsApp કરવો
-    function sendInstantUpadWhatsApp(w, u, balance, modeText) {
-        if (!w.mobile || w.mobile.length < 10) {
-            alert("વર્કરનો 10 આંકડાનો સાચો મોબાઈલ નંબર નથી!");
-            return;
-        }
-        let cleanMobile = w.mobile.replace(/[^0-9]/g, '');
-        if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile;
+            let allList = [];
+            let sumSal = 0, sumUp = 0, sumBal = 0;
 
-        let msg = `નમસ્તે ${w.name},\nતમને ${currentFarmName} તરફથી ઉપાડ ચૂકવેલ છે:\n\n` +
-                  `💰 આપેલ ઉપાડ: ₹${parseFloat(u.amount).toLocaleString('en-IN')}\n` +
-                  `📅 તારીખ & સમય: ${u.date} ${u.time || ''}\n` +
-                  `💳 પેમેન્ટ મોડ: ${modeText}\n` +
-                  `📝 નોંધ: ${u.note || '-'}\n` +
-                  `---------------------------\n` +
-                  `✅ હવે ચોખ્ખો બાકી પગાર: ₹${balance.toLocaleString('en-IN')}\n\nઆભાર!`;
+            for (let fId in cachedAllFarmWorkers) {
+                let fWorkers = cachedAllFarmWorkers[fId] || {};
+                let fName = (cachedFarms[fId] && cachedFarms[fId].name) ? cachedFarms[fId].name : fId;
+                for (let wId in fWorkers) {
+                    let w = fWorkers[wId];
+                    if (w && w.name) {
+                        let salary = parseFloat(w.salary || 0);
+                        let totalUpad = (w.upads || []).reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+                        let balance = salary - totalUpad;
+                        sumSal += salary; sumUp += totalUpad; sumBal += balance;
+                        allList.push({
+                            farm: fName,
+                            name: w.name,
+                            mobile: w.mobile || "-",
+                            role: w.role || "કારીગર",
+                            salary, totalUpad, balance
+                        });
+                    }
+                }
+            }
 
-        window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`);
-    }
+            if (allList.length === 0) {
+                alert("પ્રિન્ટ કરવા માટે કોઈ કારીગરો મળ્યા નથી!");
+                return;
+            }
 
-    function deleteWorkerUpad(index) {
-        if (!canUserDeleteUpad) { alert("❌ તમારી પાસે ઉપાડ ડિલીટ કરવાનો અધિકાર નથી!"); return; }
-        if (!confirm("શું તમે આ ઉપાડની એન્ટ્રી રદ કરવા માંગો છો?")) return;
+            let win = window.open('', '_blank', 'width=850,height=650');
+            if (!win) { alert("પોપ-અપ Allow કરો!"); return; }
 
-        let w = cloudWorkers[selectedWorkerIdForUpad];
-        w.upads.splice(index, 1);
-
-        cloudWorkers[selectedWorkerIdForUpad] = w;
-        localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
-
-        if (navigator.onLine && currentWorkerRef) {
-            currentWorkerRef.child(selectedWorkerIdForUpad).set(w);
-        } else {
-            addToSyncQueue({ path: `farm_workers/${currentFarmId}/${selectedWorkerIdForUpad}`, action: "set", data: w });
-        }
-        renderUpadModalDetails();
-        renderWorkersTable();
-    }
-
-    // 🖨️ પગાર & ઉપાડ સ્ટેટમેન્ટ પ્રિન્ટ કરવું
-    function printWorkerStatement() {
-        let w = cloudWorkers[selectedWorkerIdForUpad];
-        if (!w) return;
-
-        let salary = parseFloat(w.salary || 0);
-        let upads = w.upads || [];
-        let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
-        let balance = salary - totalUpad;
-
-        let printWindow = window.open('', '_blank', 'width=750,height=600');
-        if (!printWindow) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
-
-        let upadRows = "";
-        if (upads.length > 0) {
-            upads.forEach((u, i) => {  
-                let modeText = u.mode === 'cheque' ? `ચેક (${u.refNumber || '-'})` : (u.mode === 'gpay' ? `GPay (${u.refNumber || '-'})` : 'રોકડ');
-                let timeDisp = u.time ? ` ${u.time}` : '';
-                upadRows += `<tr>
-                    <td style="padding:8px;">${i + 1}</td>
-                    <td style="padding:8px;">${u.date}${timeDisp}</td>
-                    <td style="padding:8px;"><b>${modeText}</b></td>
-                    <td style="padding:8px;">${u.note || 'ઉપાડ'}</td>
-                    <td style="padding:8px; text-align:right; color:#ef4444;">(-) ₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
+            let rows = "";
+            allList.forEach((w, idx) => {
+                rows += `<tr>
+                    <td>${idx + 1}</td>
+                    <td><b>${w.name}</b></td>
+                    <td><span style="background:#e0e7ff; padding:2px 6px; border-radius:4px; font-weight:bold;">${w.farm}</span></td>
+                    <td>${w.role}</td>
+                    <td>${w.mobile}</td>
+                    <td style="text-align:right;">₹${w.salary.toLocaleString('en-IN')}</td>
+                    <td style="text-align:right; color:#ef4444;">₹${w.totalUpad.toLocaleString('en-IN')}</td>
+                    <td style="text-align:right; font-weight:bold; color:#047857;">₹${w.balance.toLocaleString('en-IN')}</td>
                 </tr>`;
             });
-        } else {
-            upadRows = `<tr><td colspan="5" style="text-align:center; padding:10px; color:#64748b;">(કોઈ ઉપાડ લીધેલ નથી)</td></tr>`;
-        }
 
-        printWindow.document.write(`
-            <html>
-            <head>
-                <title>પગાર સ્ટેટમેન્ટ - ${w.name}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 25px; color: #333; }
-                    .card { border: 2px solid #1e293b; padding: 20px; border-radius: 8px; max-width: 650px; margin: auto; }
-                    .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                    th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                    th { background: #f1f5f9; text-align: left; }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <div class="header">
-                        <h2 style="margin:0; color:#4f46e5;">${currentFarmName}</h2>
-                        <h4 style="margin:4px 0; color:#475569;">વર્કર પગાર & ઉપાડ ખાતાવહી પહોંચ</h4>
-                    </div>
-                    <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role} | <b>મોબાઈલ:</b> ${w.mobile || '-'}</p>
-                    <table style="margin-bottom:15px;">
-                        <tr style="background:#f8fafc; font-weight:bold;">
-                            <td>કુલ ફિક્સ પગાર:</td>
-                            <td style="text-align:right; color:#4f46e5; font-size:16px;">₹${salary.toLocaleString('en-IN')}</td>
-                        </tr>
-                    </table>
-                    <b>ઉપાડ (Advance) વિગત:</b>
+            win.document.write(`
+                <html>
+                <head>
+                    <title>બધા ફાર્મના કારીગરો રિપોર્ટ</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 25px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 7px; text-align: left; }
+                        th { background: #f1f5f9; }
+                    </style>
+                </head>
+                <body>
+                    <h2 style="margin:0; text-align:center; color:#4f46e5;">તમામ ફાર્મ / પાર્ટી પ્લોટ કારીગરોનું ખાતાવહી સ્ટેટમેન્ટ</h2>
+                    <p style="text-align:center; margin:4px 0 16px 0; color:#64748b;">તારીખ: ${new Date().toLocaleDateString('gu-IN')}</p>
                     <table>
                         <thead>
-                            <tr><th>#</th><th>તારીખ & સમય</th><th>પેમેન્ટ પ્રકાર</th><th>વિગત/નોંધ</th><th style="text-align:right;">રકમ</th></tr>
+                            <tr><th>#</th><th>કારીગરનું નામ</th><th>ફાર્મ</th><th>કામ / હોદ્દો</th><th>મોબાઈલ</th><th style="text-align:right;">કુલ પગાર</th><th style="text-align:right;">કુલ ઉપાડ</th><th style="text-align:right;">ચોખ્ખો બાકી</th></tr>
                         </thead>
-                        <tbody>${upadRows}</tbody>
+                        <tbody>${rows}</tbody>
                         <tfoot>
-                            <tr style="font-weight:bold; background:#fef2f2;">
-                                <td colspan="4" style="text-align:right;">કુલ લીધેલ ઉપાડ બાદ:</td>
-                                <td style="text-align:right; color:#ef4444;">₹${totalUpad.toLocaleString('en-IN')}</td>
-                            </tr>
-                            <tr style="font-weight:bold; background:#ecfdf5; font-size:15px;">
-                                <td colspan="4" style="text-align:right; color:#047857;">ચોખ્ખો ચૂકવવાપાત્ર બાકી પગાર (Net Balance):</td>
-                                <td style="text-align:right; color:#047857;">₹${balance.toLocaleString('en-IN')}</td>
+                            <tr style="font-weight:bold; background:#f8fafc;">
+                                <td colspan="5" style="text-align:right;">કુલ સરવાળો:</td>
+                                <td style="text-align:right;">₹${sumSal.toLocaleString('en-IN')}</td>
+                                <td style="text-align:right; color:#ef4444;">₹${sumUp.toLocaleString('en-IN')}</td>
+                                <td style="text-align:right; color:#047857;">₹${sumBal.toLocaleString('en-IN')}</td>
                             </tr>
                         </tfoot>
                     </table>
                     <div style="margin-top:40px; display:flex; justify-content:space-between;">
-                        <div>કારીગરની સહી: ____________</div>
-                        <div>માલિક / ઑફિસ સહી: ____________</div>
+                        <div>મેનેજર સહી: ____________</div>
+                        <div>CEO / માલિક સહી: ____________</div>
                     </div>
-                </div>
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-    }
-
-    // 📲 WhatsApp પર સ્ટેટમેન્ટ મોકલવું
-    function sendWorkerWhatsAppStatement() {
-        let w = cloudWorkers[selectedWorkerIdForUpad];
-        if (!w || !w.mobile || w.mobile.length < 10) {
-            alert("કૃપા કરીને વર્કરનો સાચો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો!");
-            return;
+                </body>
+                </html>
+            `);
+            win.document.close();
+            win.focus();
+            win.print();
         }
 
-        let salary = parseFloat(w.salary || 0);
-        let upads = w.upads || [];
-        let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
-        let balance = salary - totalUpad;
+        // 💵 PART 2: પગાર ચુકવણી મોડલ ફંક્શન્સ (સર્વગ્રાહી ફાર્મ સપોર્ટ સાથે)
+        function openSalaryPayModal(wId) {
+            selectedWorkerIdForSalary = wId;
+            let { worker: w } = getWorkerById(wId);
+            if (!w) return;
 
-        let cleanMobile = w.mobile.replace(/[^0-9]/g, '');
-        if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile;
+            document.getElementById("payWorkerNameDisplay").innerText = w.name;
+            let now = new Date();
+            document.getElementById("salMonth").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            document.getElementById("salPayDate").value = now.toISOString().slice(0, 10);
+            document.getElementById("salPayTime").value = now.toTimeString().slice(0, 5);
+            document.getElementById("salPayMode").value = "cash";
+            document.getElementById("salRefGroup").style.display = "none";
+            document.getElementById("salRefInput").value = "";
+            document.getElementById("salNote").value = "";
 
-        let msg = `નમસ્તે ${w.name},\nતમારું પગાર & ઉપાડ ખાતું (${currentFarmName}):\n\n` +
-                  `💰 કુલ પગાર: ₹${salary.toLocaleString('en-IN')}\n` +
-                  `🔻 કુલ ઉપાડ બાદ: ₹${totalUpad.toLocaleString('en-IN')}\n` +
-                  `---------------------------\n` +
-                  `✅ ચોખ્ખો બાકી પગાર: ₹${balance.toLocaleString('en-IN')}\n\nઆભાર!`;
+            calculateSalaryPayDetails();
+            document.getElementById("workerSalaryPayModal").style.display = "flex";
+        }
 
-        window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`);
-    }
+        function closeSalaryPayModal() {
+            document.getElementById("workerSalaryPayModal").style.display = "none";
+        }
 
-    // સ્ટાફ અલગ અલગ પરવાનગી ટોગલ્સ
-    function toggleStaffWorkerPerm(sId, isChecked) {
-        staffPermRef.child(sId).child("canViewWorkers").set(isChecked);
-    }
+        function onSalaryPaymentModeChange() {
+            let mode = document.getElementById("salPayMode").value;
+            let grp = document.getElementById("salRefGroup");
+            let lbl = document.getElementById("salRefLabel");
+            let inp = document.getElementById("salRefInput");
 
-    function toggleStaffWorkerProfilePerm(sId, isChecked) {
-        staffPermRef.child(sId).child("canEditWorkerProfile").set(isChecked);
-    }
+            if (mode === "cheque") {
+                grp.style.display = "block";
+                lbl.innerText = "ચેક નંબર (Cheque Number) *";
+                inp.placeholder = "દા.ત. CHQ-885412";
+            } else if (mode === "gpay") {
+                grp.style.display = "block";
+                lbl.innerText = "GPay / UPI મોબાઇલ નંબર અથવા Txn ID *";
+                inp.placeholder = "દા.ત. 9898XXXXXX અથવા UPI-Txn ID";
+            } else {
+                grp.style.display = "none";
+                inp.value = "";
+            }
+        }
 
-    function toggleStaffUpadPerm(sId, isChecked) {
-        staffPermRef.child(sId).child("canAddUpad").set(isChecked);
-    }  
+        function calculateSalaryPayDetails() {
+            let { worker: w } = getWorkerById(selectedWorkerIdForSalary);
+            if (!w) return;
 
-    function toggleStaffWorkerDeletePerm(sId, isChecked) {
-        staffPermRef.child(sId).child("canDeleteWorker").set(isChecked);
-        staffPermRef.child(sId).child("canDeleteWorkers").remove(); // જૂની કી કાયમ માટે હટાવો
-    }
+            let baseSalary = parseFloat(w.salary || 0);
+            let upads = w.upads || [];
+            let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+            let net = Math.max(0, baseSalary - totalUpad);
 
-    function toggleStaffUpadDeletePerm(sId, isChecked) {
-        staffPermRef.child(sId).child("canDeleteUpad").set(isChecked);
-        staffPermRef.child(sId).child("canDeleteWorkers").remove(); // જૂની કી કાયમ માટે હટાવો
-    }
+            document.getElementById("payBaseSalary").innerText = "₹" + baseSalary.toLocaleString('en-IN');
+            document.getElementById("payTotalUpad").innerText = "(-) ₹" + totalUpad.toLocaleString('en-IN');
+            document.getElementById("payNetSalary").innerText = "₹" + net.toLocaleString('en-IN');
+            document.getElementById("salActualPaid").value = net;
+        }
+
+        function confirmSalaryPayment() {
+            let { worker: w, farmId: targetFId } = getWorkerById(selectedWorkerIdForSalary);
+            if (!w) return;
+
+            let salMonth = document.getElementById("salMonth").value;
+            let actualPaid = parseFloat(document.getElementById("salActualPaid").value) || 0;
+            let mode = document.getElementById("salPayMode").value;
+            let refNo = document.getElementById("salRefInput").value.trim();
+            let dateVal = document.getElementById("salPayDate").value;
+            let timeVal = document.getElementById("salPayTime").value;
+            let note = document.getElementById("salNote").value.trim(); 
+
+            if (!salMonth) { alert("કૃપા કરીને મહિનો પસંદ કરો!"); return; }
+            if (actualPaid <= 0) { alert("કૃપા કરીને માન્ય પગાર રકમ દાખલ કરો!"); return; }
+            if (!dateVal) { alert("કૃપા કરીને ચુકવણીની તારીખ પસંદ કરો!"); return; }
+            if ((mode === "cheque" || mode === "gpay") && !refNo) {
+                alert(`કૃપા કરીને ${mode === "cheque" ? "ચેક નંબર" : "GPay નંબર/Txn ID"} દાખલ કરો!`);
+                return;
+            }
+
+            let parts = dateVal.split("-");
+            let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+            if (!w.salaryPayments) w.salaryPayments = [];
+
+            w.salaryPayments = w.salaryPayments.filter(p => p.month !== salMonth);
+
+            w.salaryPayments.push({
+                id: "pay_" + Date.now(),
+                month: salMonth,
+                amount: actualPaid,
+                baseSalary: parseFloat(w.salary || 0),
+                mode: mode,
+                refDetails: refNo,
+                date: formattedDate,
+                time: timeVal,
+                rawDate: dateVal,
+                note: note,
+                timestamp: Date.now()
+            });
+
+            if (targetFId === currentFarmId) {
+                cloudWorkers[selectedWorkerIdForSalary] = w;
+                localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            }
+
+            let fWorkers = {};
+            try { fWorkers = JSON.parse(localStorage.getItem("cached_workers_" + targetFId) || "{}"); } catch(e){}
+            fWorkers[selectedWorkerIdForSalary] = w;
+            localStorage.setItem("cached_workers_" + targetFId, JSON.stringify(fWorkers));
+
+            if (cachedAllFarmWorkers[targetFId]) {
+                cachedAllFarmWorkers[targetFId][selectedWorkerIdForSalary] = w;
+                localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+            }
+
+            if (navigator.onLine) {
+                firebase.database().ref("farm_workers").child(targetFId).child(selectedWorkerIdForSalary).set(w);
+            } else {
+                addToSyncQueue({ path: `farm_workers/${targetFId}/${selectedWorkerIdForSalary}`, action: "set", data: w });
+            }
+
+            alert(`✅ ${w.name} નો પગાર (મહિનો: ${salMonth}) સફળતાપૂર્વક ચૂકવાઈ ગયો!`);
+            closeSalaryPayModal();
+            renderWorkersTable();
+        }
+
+        // 📑 PART 1: તારીખ મુજબ વાર્ષિક/માસિક સ્ટેટમેન્ટ રિપોર્ટ ફંક્શન્સ
+        function openWorkerReportModal() {
+            let select = document.getElementById("rptWorkerSelect");
+            select.innerHTML = `<option value="ALL">👥 બધા જ કારીગરો (All Workers)</option>`;
+            
+            let sourceList = isShowAllFarmsWorkers ? cachedAllFarmWorkers : { [currentFarmId]: cloudWorkers };
+            for (let fId in sourceList) {
+                let workers = sourceList[fId] || {};
+                for (let wId in workers) {
+                    let w = workers[wId];
+                    if (w && w.name) {
+                        select.innerHTML += `<option value="${wId}">👤 ${w.name} (${w.role || 'કારીગર'})</option>`;
+                    }
+                }
+            }
+
+            let now = new Date();
+            let firstDay = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+            let today = now.toISOString().slice(0, 10);
+
+            document.getElementById("rptStartDate").value = firstDay;
+            document.getElementById("rptEndDate").value = today;
+
+            generateWorkerDateReport();
+            document.getElementById("workerStatementReportModal").style.display = "flex";
+        }
+
+        function closeWorkerReportModal() {
+            document.getElementById("workerStatementReportModal").style.display = "none";
+        }
+
+        let currentReportData = [];
+
+        function generateWorkerDateReport() {
+            let targetWorkerId = document.getElementById("rptWorkerSelect").value;
+            let sDate = document.getElementById("rptStartDate").value;
+            let eDate = document.getElementById("rptEndDate").value;
+
+            if (!sDate || !eDate) { alert("કૃપા કરીને શરૂઆત અને અંતિમ તારીખ પસંદ કરો!"); return; }
+
+            let start = new Date(sDate + "T00:00:00");
+            let end = new Date(eDate + "T23:59:59");
+
+            currentReportData = [];
+            let totalUpad = 0;
+            let totalPaidSal = 0;
+
+            let sourceList = isShowAllFarmsWorkers ? cachedAllFarmWorkers : { [currentFarmId]: cloudWorkers };
+
+            for (let fId in sourceList) {
+                let workers = sourceList[fId] || {};
+                for (let wId in workers) {
+                    if (targetWorkerId !== "ALL" && targetWorkerId !== wId) continue;
+                    let w = workers[wId];
+                    if (!w) continue;
+
+                    (w.upads || []).forEach(u => {
+                        let parts = u.date.split("/");
+                        let uDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
+                        if (uDate >= start && uDate <= end) {
+                            totalUpad += parseFloat(u.amount || 0); 
+                            let upadModeText = u.mode === 'cheque' ? `ચેક (${u.refNumber || ''})` : (u.mode === 'gpay' ? `GPay (${u.refNumber || ''})` : 'રોકડ (Cash)');
+                            currentReportData.push({
+                                dateObj: uDate,
+                                dateStr: u.date,
+                                timeStr: u.time || "-",
+                                workerName: w.name,
+                                type: "ઉપાડ (Advance)",
+                                mode: upadModeText,
+                                ref: u.note || "-",
+                                upadAmount: parseFloat(u.amount || 0),
+                                salaryAmount: 0
+                            });
+                        }
+                    });
+
+                    (w.salaryPayments || []).forEach(p => {
+                        let pDate = p.rawDate ? new Date(p.rawDate + "T12:00:00") : new Date(p.timestamp);
+                        if (pDate >= start && pDate <= end) {
+                            totalPaidSal += parseFloat(p.amount || 0);
+                            let modeText = p.mode === "cash" ? "રોકડ (Cash)" : (p.mode === "cheque" ? `ચેક (${p.refDetails})` : `GPay (${p.refDetails})`);
+                            currentReportData.push({
+                                dateObj: pDate,
+                                dateStr: p.date,
+                                timeStr: p.time || "-",
+                                workerName: w.name,
+                                type: `પગાર (${p.month})`,
+                                mode: modeText,
+                                ref: p.note || "-",
+                                upadAmount: 0,
+                                salaryAmount: parseFloat(p.amount || 0)
+                            });
+                        }
+                    });
+                }
+            }
+
+            currentReportData.sort((a, b) => b.dateObj - a.dateObj);
+
+            document.getElementById("rptTotalUpadSum").innerText = "₹" + totalUpad.toLocaleString('en-IN');
+            document.getElementById("rptTotalSalaryPaidSum").innerText = "₹" + totalPaidSal.toLocaleString('en-IN');
+            document.getElementById("rptTotalTxnCount").innerText = currentReportData.length;
+
+            let tbody = document.getElementById("rptTableBody");
+            tbody.innerHTML = "";
+
+            if (currentReportData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">પસંદ કરેલ સમયગાળામાં કોઈ વ્યવહાર મળ્યો નથી.</td></tr>`;
+                return;
+            }
+
+            currentReportData.forEach(item => {
+                let row = `<tr>
+                    <td style="padding:6px;">${item.dateStr} <small style="color:#64748b;">${item.timeStr}</small></td>
+                    <td style="padding:6px;"><b>${item.workerName}</b></td>
+                    <td style="padding:6px;"><span style="background:${item.upadAmount > 0 ? '#fee2e2' : '#dcfce7'}; color:${item.upadAmount > 0 ? '#b91c1c' : '#15803d'}; padding:2px 6px; border-radius:4px; font-weight:700;">${item.type}</span></td>
+                    <td style="padding:6px;">${item.mode} ${item.ref !== '-' ? `<small style="color:#64748b;">(${item.ref})</small>` : ''}</td>
+                    <td style="padding:6px; text-align:right; font-weight:700; color:#ef4444;">${item.upadAmount > 0 ? '₹' + item.upadAmount.toLocaleString('en-IN') : '-'}</td>
+                    <td style="padding:6px; text-align:right; font-weight:700; color:#10b981;">${item.salaryAmount > 0 ? '₹' + item.salaryAmount.toLocaleString('en-IN') : '-'}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function printWorkerDateReport() {
+            if (currentReportData.length === 0) { alert("પ્રિન્ટ કરવા માટે કોઈ ડેટા નથી!"); return; }
+
+            let sDate = document.getElementById("rptStartDate").value;
+            let eDate = document.getElementById("rptEndDate").value;
+            let workerText = document.getElementById("rptWorkerSelect").options[document.getElementById("rptWorkerSelect").selectedIndex].text;
+
+            let win = window.open('', '_blank', 'width=800,height=650');
+            if (!win) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
+
+            let rowsHTML = "";
+            currentReportData.forEach((item, idx) => {
+                rowsHTML += `<tr>
+                    <td>${idx + 1}</td>
+                    <td>${item.dateStr} ${item.timeStr !== '-' ? item.timeStr : ''}</td>
+                    <td><b>${item.workerName}</b></td>
+                    <td>${item.type}</td>
+                    <td>${item.mode}</td>
+                    <td style="text-align:right; color:#ef4444;">${item.upadAmount > 0 ? '₹' + item.upadAmount.toLocaleString('en-IN') : '-'}</td>
+                    <td style="text-align:right; color:#10b981;">${item.salaryAmount > 0 ? '₹' + item.salaryAmount.toLocaleString('en-IN') : '-'}</td>
+                </tr>`;
+            });
+
+            win.document.write(`
+                <html>
+                <head>
+                    <title>વર્કર સ્ટેટમેન્ટ રિપોર્ટ</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 25px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 7px; text-align: left; }
+                        th { background: #f1f5f9; }
+                    </style>
+                </head>
+                <body>
+                    <h2 style="margin:0; color:#4f46e5; text-align:center;">${currentFarmName}</h2>
+                    <h4 style="margin:5px 0 15px 0; text-align:center; color:#475569;">વર્કર પગાર & ઉપાડ ખાતાવહી રિપોર્ટ</h4>
+                    <p><b>કારીગર:</b> ${workerText} | <b>સમયગાળો:</b> ${sDate} થી ${eDate}</p>
+                    <table>
+                        <thead>
+                            <tr><th>#</th><th>તારીખ & સમય</th><th>કારીગરનું નામ</th><th>પ્રકાર</th><th>પેમેન્ટ મોડ</th><th style="text-align:right;">ઉપાડ</th><th style="text-align:right;">ચૂકવેલ પગાર</th></tr>
+                        </thead>
+                        <tbody>${rowsHTML}</tbody>
+                    </table>
+                    <div style="margin-top:35px; display:flex; justify-content:space-between;">
+                        <div>તપાસનાર સહી: ____________</div>
+                        <div>ઓફિસ / માલિક સહી: ____________</div>
+                    </div>
+                </body>
+                </html>
+            `);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+
+        function openAddWorkerModal() {   
+            if (!canUserEditWorkerProfile) { alert("❌ તમારી પાસે નવો વર્કર ઉમેરવાનો અધિકાર નથી!"); return; }
+            document.getElementById("editWorkerId").value = "";
+            document.getElementById("workerModalTitle").innerText = "➕ નવો વર્કર ઉમેરો";
+            document.getElementById("wName").value = "";
+            document.getElementById("wMobile").value = "";
+            document.getElementById("wRole").value = "";
+            document.getElementById("wSalary").value = "";
+            document.getElementById("wSalaryType").value = "monthly";
+            document.getElementById("wAddress").value = "";
+            document.getElementById("wRefName").value = "";
+            document.getElementById("wRefMobile").value = "";
+            document.getElementById("workerModal").style.display = "flex";
+        }
+
+        function openEditWorkerModal(wId) {   
+            if (!canUserEditWorkerProfile) { alert("❌ તમારી પાસે વર્કર વિગત સુધારવાનો અધિકાર નથી!"); return; }
+            let { worker: w } = getWorkerById(wId);
+            if (!w) return;
+            document.getElementById("editWorkerId").value = wId;
+            document.getElementById("workerModalTitle").innerText = "✏️ વર્કર વિગત સુધારો";
+            document.getElementById("wName").value = w.name || "";
+            document.getElementById("wMobile").value = w.mobile || "";
+            document.getElementById("wRole").value = w.role || "";
+            document.getElementById("wSalary").value = w.salary || "";
+            document.getElementById("wSalaryType").value = w.salaryType || "monthly";
+            document.getElementById("wAddress").value = w.address || "";
+            document.getElementById("wRefName").value = w.refName || "";
+            document.getElementById("wRefMobile").value = w.refMobile || "";
+            document.getElementById("workerModal").style.display = "flex";
+        }
+
+        function closeWorkerModal() {
+            document.getElementById("workerModal").style.display = "none";
+        }
+
+        function saveWorker() { 
+            if (!canUserEditWorkerProfile) { alert("❌ તમારી પાસે વર્કર સેવ કરવાની પરવાનગી નથી!"); return; }
+            let name = document.getElementById("wName").value.trim();
+            let salary = parseFloat(document.getElementById("wSalary").value) || 0;
+            if (!name || salary <= 0) {
+                alert("કૃપા કરીને વર્કરનું નામ અને માન્ય પગાર દાખલ કરો!");
+                return;
+            }
+
+            let wId = document.getElementById("editWorkerId").value || ("worker_" + Date.now());
+            let { worker: existingWorker, farmId: targetFarm } = getWorkerById(wId);
+            existingWorker = existingWorker || {};
+            let existingUpads = existingWorker.upads || [];
+            let existingSalaryPayments = existingWorker.salaryPayments || [];
+            targetFarm = existingWorker.farmId || targetFarm || currentFarmId;
+
+            let workerData = {
+                id: wId,
+                farmId: targetFarm,
+                name: name,
+                mobile: document.getElementById("wMobile").value.trim(),
+                role: document.getElementById("wRole").value.trim() || "કારીગર",
+                salary: salary,
+                salaryType: document.getElementById("wSalaryType").value,
+                address: document.getElementById("wAddress").value.trim(),
+                refName: document.getElementById("wRefName").value.trim(),
+                refMobile: document.getElementById("wRefMobile").value.trim(),
+                upads: existingUpads,
+                salaryPayments: existingSalaryPayments
+            };
+
+            if (targetFarm === currentFarmId) {
+                cloudWorkers[wId] = workerData;
+                localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            }
+
+            let fWorkers = {};
+            try { fWorkers = JSON.parse(localStorage.getItem("cached_workers_" + targetFarm) || "{}"); } catch(e){}
+            fWorkers[wId] = workerData;
+            localStorage.setItem("cached_workers_" + targetFarm, JSON.stringify(fWorkers));
+
+            if (!cachedAllFarmWorkers[targetFarm]) cachedAllFarmWorkers[targetFarm] = {};
+            cachedAllFarmWorkers[targetFarm][wId] = workerData;
+            localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+
+            renderWorkersTable();
+
+            if (navigator.onLine) {
+                firebase.database().ref("farm_workers").child(targetFarm).child(wId).set(workerData);
+            } else {
+                addToSyncQueue({ path: `farm_workers/${targetFarm}/${wId}`, action: "set", data: workerData });
+            }
+            alert("✅ વર્કર સફળતાપૂર્વક સેવ થઈ ગયા!");
+            closeWorkerModal();
+        }
+
+        function deleteWorker(wId, name) {
+            if (!canUserDeleteWorker) { alert("❌ તમારી પાસે વર્કર ખાતું ડિલીટ કરવાનો અધિકાર નથી!"); return; }
+            if (confirm(`શું તમે કારીગર "${name}" નું પૂરું ખાતું ડિલીટ કરવા માંગો છો?`)) {
+                let { farmId: targetFId } = getWorkerById(wId);
+
+                delete cloudWorkers[wId];
+                localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers)); 
+
+                let fWorkers = {};
+                try { fWorkers = JSON.parse(localStorage.getItem("cached_workers_" + targetFId) || "{}"); } catch(e){}
+                delete fWorkers[wId];
+                localStorage.setItem("cached_workers_" + targetFId, JSON.stringify(fWorkers));
+
+                if (cachedAllFarmWorkers[targetFId]) {
+                    delete cachedAllFarmWorkers[targetFId][wId];
+                    localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+                }
+
+                renderWorkersTable();
+                if (navigator.onLine) {
+                    firebase.database().ref("farm_workers").child(targetFId).child(wId).remove();
+                } else {
+                    addToSyncQueue({ path: `farm_workers/${targetFId}/${wId}`, action: "remove" });
+                }
+            }
+        }
+
+        function onUpadPaymentModeChange() {
+            let mode = document.getElementById("newUpadMode").value;
+            let grp = document.getElementById("upadRefGroup");
+            let inp = document.getElementById("newUpadRefInput");
+
+            if (mode === "cheque") {
+                grp.style.display = "block";
+                inp.placeholder = "ચેક નંબર (દા.ત. CHQ-998811) *";
+            } else if (mode === "gpay") {
+                grp.style.display = "block";
+                inp.placeholder = "GPay / UPI મોબાઇલ અથવા ટ્રાન્ઝેક્શન ID *";
+            } else {
+                grp.style.display = "none";
+                inp.value = "";
+            }
+        }
+
+        function openWorkerUpadModal(wId) {
+            selectedWorkerIdForUpad = wId;
+            let { worker: w } = getWorkerById(wId);
+            if (!w) return;
+
+            let now = new Date();
+            document.getElementById("upadWorkerNameDisplay").innerText = w.name;
+            document.getElementById("newUpadDate").value = now.toISOString().slice(0, 10);
+            document.getElementById("newUpadTime").value = now.toTimeString().slice(0, 5);
+            document.getElementById("newUpadAmount").value = "";
+            document.getElementById("newUpadNote").value = "";
+            document.getElementById("newUpadMode").value = "cash";
+            document.getElementById("upadRefGroup").style.display = "none";
+            document.getElementById("newUpadRefInput").value = "";
+
+            renderUpadModalDetails();
+            document.getElementById("workerUpadModal").style.display = "flex";
+        }
+
+        function closeWorkerUpadModal() {
+            document.getElementById("workerUpadModal").style.display = "none";
+        }   
+
+        function renderUpadModalDetails() {
+            let { worker: w } = getWorkerById(selectedWorkerIdForUpad);
+            if (!w) return;
+
+            let salary = parseFloat(w.salary || 0);
+            let upads = w.upads || [];
+            let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+            let balance = salary - totalUpad;
+
+            document.getElementById("stripSalary").innerText = "₹" + salary.toLocaleString('en-IN');
+            document.getElementById("stripUpad").innerText = "₹" + totalUpad.toLocaleString('en-IN');
+            document.getElementById("stripBalance").innerText = "₹" + balance.toLocaleString('en-IN');
+
+            let tbody = document.getElementById("upadHistoryBody");
+            tbody.innerHTML = "";
+            if (upads.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:10px; color:#94a3b8;">હજુ કોઈ ઉપાડ લીધેલ નથી.</td></tr>`;
+                return;
+            }
+
+            upads.forEach((u, idx) => {
+                let delBtn = canUserDeleteUpad ? `<button type="button" onclick="deleteWorkerUpad(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ઉપાડ રદ કરો">❌</button>` : `<span style="color:#94a3b8;" title="અધિકાર નથી">🔒</span>`;
+                
+                let modeBadge = `<span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">${u.mode === 'cheque' ? 'ચેક' : (u.mode === 'gpay' ? 'GPay' : 'રોકડ')}</span>`;
+                let refText = u.refNumber ? ` <small style="color:#475569;">(${u.refNumber})</small>` : '';
+                let noteText = u.note ? ` - ${u.note}` : '';
+
+                tbody.innerHTML += `<tr>
+                    <td style="padding:6px;">${u.date} <small style="color:#64748b;">${u.time || ''}</small></td>
+                    <td style="padding:6px;">${modeBadge}${refText}${noteText}</td>
+                    <td style="padding:6px; text-align:right; font-weight:700; color:#ef4444;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
+                    <td style="padding:6px; text-align:center;">${delBtn}</td>
+                </tr>`;
+            });
+        }
+
+        function addWorkerUpad(action = 'save') {
+            if (!canUserAddUpad) { alert("❌ તમારી પાસે ઉપાડ આપવાની પરવાનગી નથી!"); return; }
+            let amt = parseFloat(document.getElementById("newUpadAmount").value);
+            let dateVal = document.getElementById("newUpadDate").value;
+            let timeVal = document.getElementById("newUpadTime").value;
+            let mode = document.getElementById("newUpadMode").value;
+            let refNo = document.getElementById("newUpadRefInput").value.trim();
+            let note = document.getElementById("newUpadNote").value.trim();
+
+            if (!amt || amt <= 0) { alert("કૃપા કરીને માન્ય ઉપાડ રકમ લખો!"); return; }
+            if (!dateVal) { alert("કૃપા કરીને તારીખ પસંદ કરો!"); return; }
+            if ((mode === "cheque" || mode === "gpay") && !refNo) {
+                alert(`કૃપા કરીને ${mode === "cheque" ? "ચેક નંબર" : "GPay નંબર/Txn ID"} દાખલ કરો!`);
+                return;
+            }
+
+            let parts = dateVal.split("-");
+            let formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+            let { worker: w, farmId: targetFId } = getWorkerById(selectedWorkerIdForUpad);
+            if (!w) return;
+            if (!w.upads) w.upads = [];
+
+            let upadEntry = {
+                amount: amt,
+                date: formattedDate,
+                time: timeVal,
+                mode: mode,
+                refNumber: refNo,
+                note: note,
+                timestamp: Date.now()
+            };
+
+            w.upads.push(upadEntry);
+
+            if (targetFId === currentFarmId) {
+                cloudWorkers[selectedWorkerIdForUpad] = w;
+                localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            }
+
+            let fWorkers = {};
+            try { fWorkers = JSON.parse(localStorage.getItem("cached_workers_" + targetFId) || "{}"); } catch(e){}
+            fWorkers[selectedWorkerIdForUpad] = w;
+            localStorage.setItem("cached_workers_" + targetFId, JSON.stringify(fWorkers));
+
+            if (cachedAllFarmWorkers[targetFId]) {
+                cachedAllFarmWorkers[targetFId][selectedWorkerIdForUpad] = w;
+                localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+            }
+
+            if (navigator.onLine) {
+                firebase.database().ref("farm_workers").child(targetFId).child(selectedWorkerIdForUpad).set(w);
+            } else {
+                addToSyncQueue({ path: `farm_workers/${targetFId}/${selectedWorkerIdForUpad}`, action: "set", data: w });
+            }
+
+            document.getElementById("newUpadAmount").value = "";
+            document.getElementById("newUpadNote").value = "";
+            document.getElementById("newUpadRefInput").value = "";
+            renderUpadModalDetails();
+            renderWorkersTable();
+
+            let salary = parseFloat(w.salary || 0);
+            let totalUpad = w.upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+            let balance = salary - totalUpad;
+            let modeText = mode === 'cheque' ? `ચેક (${refNo})` : (mode === 'gpay' ? `GPay (${refNo})` : 'રોકડ (Cash)');
+
+            if (action === 'save') {
+                alert(`✅ ${w.name} ને ₹${amt.toLocaleString('en-IN')} નો ઉપાડ સફળતાપૂર્વક સેવ થઈ ગયો!`);
+            } else if (action === 'print') {
+                printInstantUpadReceipt(w, upadEntry, balance, modeText);
+            } else if (action === 'whatsapp') {
+                sendInstantUpadWhatsApp(w, upadEntry, balance, modeText);
+            }
+        }
+
+        function printInstantUpadReceipt(w, u, balance, modeText) {
+            let win = window.open('', '_blank', 'width=650,height=550');
+            if (!win) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
+
+            win.document.write(`
+                <html>
+                <head>
+                    <title>ઉપાડ પહોંચ - ${w.name}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 25px; color: #333; }
+                        .card { border: 2px solid #1e293b; padding: 20px; border-radius: 8px; max-width: 520px; margin: auto; }
+                        .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <div class="header">
+                            <h2 style="margin:0; color:#4f46e5;">${w.farmName || currentFarmName}</h2>
+                            <h4 style="margin:4px 0; color:#b45309;">ઉપાડ (Advance Payment) પહોંચ</h4>
+                        </div>
+                        <p><b>તારીખ & સમય:</b> ${u.date} ${u.time || ''}</p>
+                        <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role || 'કારીગર'}</p>
+                        <table>
+                            <tr><th style="background:#f1f5f9; text-align:left;">આપેલો ઉપાડ (રકમ):</th><td style="font-size:16px; font-weight:bold; color:#ef4444; text-align:right;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td></tr>
+                            <tr><th style="background:#f1f5f9; text-align:left;">પેમેન્ટ પ્રકાર:</th><td><b>${modeText}</b></td></tr>
+                            <tr><th style="background:#f1f5f9; text-align:left;">ઉપાડની નોંધ / વિગત:</th><td>${u.note || '-'}</td></tr>
+                            <tr><th style="background:#ecfdf5; text-align:left; color:#047857;">હવે ચોખ્ખો બાકી પગાર:</th><td style="font-size:15px; font-weight:bold; color:#047857; text-align:right;">₹${balance.toLocaleString('en-IN')}</td></tr>
+                        </table>
+                        <div style="margin-top:40px; display:flex; justify-content:space-between;">
+                            <div>કારીગર સહી: ___________</div>
+                            <div>આપનાર / માલિક સહી: ___________</div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+
+        function sendInstantUpadWhatsApp(w, u, balance, modeText) {
+            if (!w.mobile || w.mobile.length < 10) {
+                alert("વર્કરનો 10 આંકડાનો સાચો મોબાઈલ નંબર નથી!");
+                return;
+            }
+            let cleanMobile = w.mobile.replace(/[^0-9]/g, '');
+            if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile;
+
+            let msg = `નમસ્તે ${w.name},\nતમને ${w.farmName || currentFarmName} તરફથી ઉપાડ ચૂકવેલ છે:\n\n` +
+                      `💰 આપેલ ઉપાડ: ₹${parseFloat(u.amount).toLocaleString('en-IN')}\n` +
+                      `📅 તારીખ & સમય: ${u.date} ${u.time || ''}\n` +
+                      `💳 પેમેન્ટ મોડ: ${modeText}\n` +
+                      `📝 નોંધ: ${u.note || '-'}\n` +
+                      `---------------------------\n` +
+                      `✅ હવે ચોખ્ખો બાકી પગાર: ₹${balance.toLocaleString('en-IN')}\n\nઆભાર!`;
+
+            window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`);
+        }
+
+        function deleteWorkerUpad(index) {
+            if (!canUserDeleteUpad) { alert("❌ તમારી પાસે ઉપાડ ડિલીટ કરવાનો અધિકાર નથી!"); return; }
+            if (!confirm("શું તમે આ ઉપાડની એન્ટ્રી રદ કરવા માંગો છો?")) return;
+
+            let { worker: w, farmId: targetFId } = getWorkerById(selectedWorkerIdForUpad);
+            if (!w) return;
+            w.upads.splice(index, 1);
+
+            if (targetFId === currentFarmId) {
+                cloudWorkers[selectedWorkerIdForUpad] = w;
+                localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
+            }
+
+            let fWorkers = {};
+            try { fWorkers = JSON.parse(localStorage.getItem("cached_workers_" + targetFId) || "{}"); } catch(e){}
+            fWorkers[selectedWorkerIdForUpad] = w;
+            localStorage.setItem("cached_workers_" + targetFId, JSON.stringify(fWorkers));
+
+            if (cachedAllFarmWorkers[targetFId]) {
+                cachedAllFarmWorkers[targetFId][selectedWorkerIdForUpad] = w;
+                localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+            }
+
+            if (navigator.onLine) {
+                firebase.database().ref("farm_workers").child(targetFId).child(selectedWorkerIdForUpad).set(w);
+            } else {
+                addToSyncQueue({ path: `farm_workers/${targetFId}/${selectedWorkerIdForUpad}`, action: "set", data: w });
+            }
+            renderUpadModalDetails();
+            renderWorkersTable();
+        }
+
+        function printWorkerStatement() {
+            let { worker: w } = getWorkerById(selectedWorkerIdForUpad);
+            if (!w) return;
+
+            let salary = parseFloat(w.salary || 0);
+            let upads = w.upads || [];
+            let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+            let balance = salary - totalUpad;
+
+            let printWindow = window.open('', '_blank', 'width=750,height=600');
+            if (!printWindow) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
+
+            let upadRows = "";
+            if (upads.length > 0) {
+                upads.forEach((u, i) => {  
+                    let modeText = u.mode === 'cheque' ? `ચેક (${u.refNumber || '-'})` : (u.mode === 'gpay' ? `GPay (${u.refNumber || '-'})` : 'રોકડ');
+                    let timeDisp = u.time ? ` ${u.time}` : '';
+                    upadRows += `<tr>
+                        <td style="padding:8px;">${i + 1}</td>
+                        <td style="padding:8px;">${u.date}${timeDisp}</td>
+                        <td style="padding:8px;"><b>${modeText}</b></td>
+                        <td style="padding:8px;">${u.note || 'ઉપાડ'}</td>
+                        <td style="padding:8px; text-align:right; color:#ef4444;">(-) ₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
+                    </tr>`;
+                });
+            } else {
+                upadRows = `<tr><td colspan="5" style="text-align:center; padding:10px; color:#64748b;">(કોઈ ઉપાડ લીધેલ નથી)</td></tr>`;
+            }
+
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>પગાર સ્ટેટમેન્ટ - ${w.name}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 25px; color: #333; }
+                        .card { border: 2px solid #1e293b; padding: 20px; border-radius: 8px; max-width: 650px; margin: auto; }
+                        .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                        th { background: #f1f5f9; text-align: left; }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <div class="header">
+                            <h2 style="margin:0; color:#4f46e5;">${w.farmName || currentFarmName}</h2>
+                            <h4 style="margin:4px 0; color:#475569;">વર્કર પગાર & ઉપાડ ખાતાવહી પહોંચ</h4>
+                        </div>
+                        <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role} | <b>મોબાઈલ:</b> ${w.mobile || '-'}</p>
+                        <table style="margin-bottom:15px;">
+                            <tr style="background:#f8fafc; font-weight:bold;">
+                                <td>કુલ ફિક્સ પગાર:</td>
+                                <td style="text-align:right; color:#4f46e5; font-size:16px;">₹${salary.toLocaleString('en-IN')}</td>
+                            </tr>
+                        </table>
+                        <b>ઉપાડ (Advance) વિગત:</b>
+                        <table>
+                            <thead>
+                                <tr><th>#</th><th>તારીખ & સમય</th><th>પેમેન્ટ પ્રકાર</th><th>વિગત/નોંધ</th><th style="text-align:right;">રકમ</th></tr>
+                            </thead>
+                            <tbody>${upadRows}</tbody>
+                            <tfoot>
+                                <tr style="font-weight:bold; background:#fef2f2;">
+                                    <td colspan="4" style="text-align:right;">કુલ લીધેલ ઉપાડ બાદ:</td>
+                                    <td style="text-align:right; color:#ef4444;">₹${totalUpad.toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr style="font-weight:bold; background:#ecfdf5; font-size:15px;">
+                                    <td colspan="4" style="text-align:right; color:#047857;">ચોખ્ખો ચૂકવવાપાત્ર બાકી પગાર (Net Balance):</td>
+                                    <td style="text-align:right; color:#047857;">₹${balance.toLocaleString('en-IN')}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div style="margin-top:40px; display:flex; justify-content:space-between;">
+                            <div>કારીગરની સહી: ____________</div>
+                            <div>માલિક / ઑફિસ સહી: ____________</div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        }
+
+        function sendWorkerWhatsAppStatement() {
+            let { worker: w } = getWorkerById(selectedWorkerIdForUpad);
+            if (!w || !w.mobile || w.mobile.length < 10) {
+                alert("કૃપા કરીને વર્કરનો સાચો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો!");
+                return;
+            }
+
+            let salary = parseFloat(w.salary || 0);
+            let upads = w.upads || [];
+            let totalUpad = upads.reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+            let balance = salary - totalUpad;
+
+            let cleanMobile = w.mobile.replace(/[^0-9]/g, '');
+            if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile;
+
+            let msg = `નમસ્તે ${w.name},\nતમારું પગાર & ઉપાડ ખાતું (${w.farmName || currentFarmName}):\n\n` +
+                      `💰 કુલ પગાર: ₹${salary.toLocaleString('en-IN')}\n` +
+                      `🔻 કુલ ઉપાડ બાદ: ₹${totalUpad.toLocaleString('en-IN')}\n` +
+                      `---------------------------\n` +
+                      `✅ ચોખ્ખો બાકી પગાર: ₹${balance.toLocaleString('en-IN')}\n\nઆભાર!`;
+
+            window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`);
+        }
+
+        function toggleStaffWorkerPerm(sId, isChecked) {
+            staffPermRef.child(sId).child("canViewWorkers").set(isChecked);
+        }
+
+        function toggleStaffWorkerProfilePerm(sId, isChecked) {
+            staffPermRef.child(sId).child("canEditWorkerProfile").set(isChecked);
+        }
+
+        function toggleStaffUpadPerm(sId, isChecked) {
+            staffPermRef.child(sId).child("canAddUpad").set(isChecked);
+        }  
+
+        function toggleStaffWorkerDeletePerm(sId, isChecked) {
+            staffPermRef.child(sId).child("canDeleteWorker").set(isChecked);
+            staffPermRef.child(sId).child("canDeleteWorkers").remove();
+        }
+
+        function toggleStaffUpadDeletePerm(sId, isChecked) {
+            staffPermRef.child(sId).child("canDeleteUpad").set(isChecked);
+            staffPermRef.child(sId).child("canDeleteWorkers").remove();
+        }
 
     // ૩. નવું ફાર્મ ઉમેરવાના ફંક્શન્સ
     function openAddFarmModal() {
