@@ -284,10 +284,16 @@
     <div class="card">
         <div class="section-header">
             <div class="section-title">📊 નાણાકીય વિગત અને બુકિંગ રિપોર્ટ</div>
-            <div style="display:flex; gap:8px;">
-                <button class="btn btn-outline" onclick="downloadBackupJSON()" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">💾 બેકઅપ લો (JSON)</button>
+            <div style="display:flex; gap:8px;">   
+                <!-- ૧. હાલના ફાર્મ (જેમ કે સીતારામ વાડી) નું અલગ બેકઅપ -->
+                <button class="btn btn-outline" onclick="downloadFarmBackupJSON()" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd; font-weight:700;">💾 હાલનું ફાર્મ બેકઅપ</button>
+
+                <!-- ૨. નવું બટન: આખા સોફ્ટવેરનું 👑 ALL MASTER BACKUP -->
+                <button class="btn" onclick="downloadAllMasterBackupJSON()" style="background:#4f46e5; color:white; font-weight:700; box-shadow:0 2px 4px rgba(79,70,229,0.3);">👑 ALL MASTER BACKUP</button>
+
                 <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="handleRestoreJSON(event)">
-                <button class="btn btn-outline" onclick="document.getElementById('restoreFileInput').click()" style="background:#fef3c7; color:#92400e; border-color:#fde68a;">📂 બેકઅપ રિસ્ટોર</button>
+                <button class="btn btn-outline" onclick="document.getElementById('restoreFileInput').click()" style="background:#fef3c7; color:#92400e; border-color:#fde68a; font-weight:700;">📂 બેકઅપ રિસ્ટોર</button>
+                <button class="btn btn-outline" onclick="restoreFromLocalStorageBackup()" style="background:#ecfdf5; color:#065f46; border-color:#86efac; font-weight:700;" title="LocalStorage માંથી તાત્કાલિક છેલ્લો ડેટા પાછો લાવો">⚡ લોકલ રિસ્ટોર</button>
                 <button class="btn btn-success" onclick="exportExcel()">📑 Excel / CSV એક્સપોર્ટ</button>
                 <button class="btn btn-danger" id="clearAllBtn" onclick="clearAllData()">🗑 ડેટા ક્લિયર</button>
             </div>
@@ -5414,128 +5420,6 @@
         }
     }
 
-    // 💾 ૧. સંપૂર્ણ ડેટાનું JSON બેકઅપ ડાઉનલોડ કરવું
-    function downloadBackupJSON() {
-        let backupData = {
-            exportDate: new Date().toISOString(),
-            farmId: currentFarmId,
-            farmName: currentFarmName,
-            bookings: cloudBookings,
-            workers: cloudWorkers,
-            allFarmBookings: cachedAllFarmBookings,
-            allFarmWorkers: cachedAllFarmWorkers,
-            expenses: cloudExpenses,
-            capital: cloudCapital,
-            rojmel: cloudRojmel,
-            vendors: cloudVendors,
-            inventory: cloudInventory,
-            customCategories: cloudCustomCats,
-            staffList: staffListObj
-        };
-
-        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-        let downloadAnchor = document.createElement("a");
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `Full_Backup_${currentFarmName || 'AllFarms'}_${new Date().toISOString().slice(0, 10)}.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-        alert("✅ સોફ્ટવેરનું સંપૂર્ણ બેકઅપ સફળતાપૂર્વક ડાઉનલોડ થઈ ગયું છે!");
-    }
-
-    // 📂 ૨. JSON ફાઈલમાંથી બેકઅપ રિસ્ટોર
-    function handleRestoreJSON(event) {
-        if (currentUserRole !== 'admin') {
-            alert("❌ માત્ર Admin ને બેકઅપ રિસ્ટોર કરવાનો અધિકાર છે!");
-            return;
-        }
-
-        let file = event.target.files[0];
-        if (!file) return;
-
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                let data = JSON.parse(e.target.result);
-                if (!confirm(`ચેતવણી: આ બેકઅપ રિસ્ટોર કરવાથી તમામ ડેટા અપડેટ થશે! શું તમે આગળ વધવા માંગો છો?`)) {
-                    event.target.value = "";
-                    return;
-                }
-
-                if (data.allFarmBookings) {
-                    cachedAllFarmBookings = Object.assign(cachedAllFarmBookings, data.allFarmBookings);
-                    localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
-                    if (navigator.onLine) firebase.database().ref("farm_bookings").update(data.allFarmBookings);
-                }
-                if (data.bookings && currentFarmId) {
-                    cloudBookings = Object.assign(cloudBookings, data.bookings);
-                    localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
-                    if (navigator.onLine && currentBookingRef) currentBookingRef.set(cloudBookings);
-                }
-
-                if (data.allFarmWorkers) {
-                    cachedAllFarmWorkers = Object.assign(cachedAllFarmWorkers, data.allFarmWorkers);
-                    localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
-                    if (navigator.onLine) firebase.database().ref("farm_workers").update(data.allFarmWorkers);
-                }
-                if (data.workers && currentFarmId) {
-                    cloudWorkers = Object.assign(cloudWorkers, data.workers);
-                    localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
-                    if (navigator.onLine && currentWorkerRef) currentWorkerRef.set(cloudWorkers);
-                }
-
-                if (data.expenses) {
-                    cloudExpenses = Object.assign(cloudExpenses, data.expenses);
-                    localStorage.setItem("cached_company_expenses", JSON.stringify(cloudExpenses));
-                    if (navigator.onLine) expensesRef.set(cloudExpenses);
-                }
-                if (data.capital) {
-                    cloudCapital = Object.assign(cloudCapital, data.capital);
-                    localStorage.setItem("cached_company_capital", JSON.stringify(cloudCapital));
-                    if (navigator.onLine) capitalRef.set(cloudCapital);
-                }
-
-                if (data.rojmel) {
-                    cloudRojmel = Object.assign(cloudRojmel, data.rojmel);
-                    localStorage.setItem("cached_daily_rojmel", JSON.stringify(cloudRojmel));
-                    if (navigator.onLine) rojmelRef.set(cloudRojmel);
-                }
-
-                if (data.vendors) {
-                    cloudVendors = Object.assign(cloudVendors, data.vendors);
-                    localStorage.setItem("cached_vendors", JSON.stringify(cloudVendors));
-                    if (navigator.onLine) vendorRef.set(cloudVendors);
-                }
-                if (data.inventory) {
-                    cloudInventory = Object.assign(cloudInventory, data.inventory);
-                    localStorage.setItem("cached_inventory", JSON.stringify(cloudInventory));
-                    if (navigator.onLine) inventoryRef.set(cloudInventory);
-                }
-                if (data.customCategories) {
-                    cloudCustomCats = Object.assign(cloudCustomCats, data.customCategories);
-                    localStorage.setItem("cached_expense_categories", JSON.stringify(cloudCustomCats));
-                    if (navigator.onLine) customCatsRef.set(cloudCustomCats);
-                }
-
-                generateCalendar();
-                renderWorkersTable();
-                filterData();
-                renderExpensesTable();
-                renderCapitalTable();
-                renderRojmelData();
-                renderVendorsTable();
-                renderInventoryTable();
-                updateAccountsOverviewSummary();
-                alert("✅ તમામ ડેટા સફળતાપૂર્વક રિસ્ટોર થઈ ગયો છે!");
-            } catch(err) {
-                alert("❌ ખોટી બેકઅપ ફાઈલ! કૃપા કરીને સાચી JSON ફાઈલ પસંદ કરો.");
-                console.error(err);
-            }
-            event.target.value = "";
-        };
-        reader.readAsText(file);
-    }
-
     // 📑 Excel/CSV એક્સપોર્ટ (રસીદ નંબર & નોંધ ૧, ૨, ૩ સહિત)
     function exportExcel() {
         let bookings = getAllBookings();
@@ -6960,6 +6844,399 @@
     window.addEventListener("pagehide", function() {
         if (typeof autoBackupAllData === "function") autoBackupAllData();
     });
+</script>  
+<!-- ========================================================================= -->
+<!-- 💾 A to Z ALL-IN-ONE STANDALONE MASTER BACKUP & 3-SEC AUTO SYNC ENGINE -->
+<!-- ========================================================================= -->
+<script>
+    var lastBackupDataHash = "";
+
+    // 🔄 ૧. સર્વગ્રાહી માસ્ટર ડેટા પેકેજ બનાવતું ફંક્શન (તારીખ & સમય સહિત)
+    function generateMasterBackupPackage() {
+        let now = new Date();
+        let dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+        let timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        let formattedDateTime = `${dateStr} ${timeStr}`;
+
+        let allFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}");
+
+        let masterBookings = JSON.parse(localStorage.getItem("cached_all_farm_bookings") || "{}");
+        if (typeof currentFarmId !== "undefined" && currentFarmId && currentFarmId !== "ALL") {
+            if (typeof cloudBookings !== "undefined" && Object.keys(cloudBookings).length > 0) {
+                masterBookings[currentFarmId] = Object.assign({}, masterBookings[currentFarmId] || {}, cloudBookings);
+            }
+        }
+
+        let masterWorkers = JSON.parse(localStorage.getItem("cached_all_farm_workers") || "{}");
+        if (typeof currentFarmId !== "undefined" && currentFarmId && currentFarmId !== "ALL") {
+            if (typeof cloudWorkers !== "undefined" && Object.keys(cloudWorkers).length > 0) {
+                masterWorkers[currentFarmId] = Object.assign({}, masterWorkers[currentFarmId] || {}, cloudWorkers);
+            }
+        }
+
+        let masterExpenses = (typeof cloudExpenses !== "undefined" && Object.keys(cloudExpenses).length > 0)
+            ? cloudExpenses
+            : JSON.parse(localStorage.getItem("cached_company_expenses") || "{}");
+
+        let masterCapital = (typeof cloudCapital !== "undefined" && Object.keys(cloudCapital).length > 0)
+            ? cloudCapital
+            : JSON.parse(localStorage.getItem("cached_company_capital") || "{}");
+
+        let masterRojmel = (typeof cloudRojmel !== "undefined" && Object.keys(cloudRojmel).length > 0)
+            ? cloudRojmel
+            : JSON.parse(localStorage.getItem("cached_daily_rojmel") || "{}");
+
+        let masterVendors = (typeof cloudVendors !== "undefined" && Object.keys(cloudVendors).length > 0)
+            ? cloudVendors
+            : JSON.parse(localStorage.getItem("cached_vendors") || "{}");
+
+        let masterInventory = (typeof cloudInventory !== "undefined" && Object.keys(cloudInventory).length > 0)
+            ? cloudInventory
+            : JSON.parse(localStorage.getItem("cached_inventory") || "{}");
+
+        let masterCategories = (typeof cloudCustomCats !== "undefined" && Object.keys(cloudCustomCats).length > 0)
+            ? cloudCustomCats
+            : JSON.parse(localStorage.getItem("cached_expense_categories") || "{}");
+
+        let masterStaff = (typeof staffListObj !== "undefined" && Object.keys(staffListObj).length > 0)
+            ? staffListObj
+            : JSON.parse(localStorage.getItem("cached_staff_list") || "{}");
+
+        let masterAdminPass = (typeof currentAdminPass !== "undefined" && currentAdminPass)
+            ? currentAdminPass
+            : (localStorage.getItem("cached_admin_pass") || "1234");
+
+        return {
+            softwareTitle: "બુકિંગ અને પેમેન્ટ મેનેજમેન્ટ સિસ્ટમ (CEO Edition)",
+            backupVersion: "3.5_ATOZ_AUTO_SYNC",
+            exportDateFormatted: formattedDateTime,
+            backupTimestamp: now.getTime(),
+            currentFarmId: (typeof currentFarmId !== "undefined" ? currentFarmId : "ALL"),
+            currentFarmName: (typeof currentFarmName !== "undefined" ? currentFarmName : "તમામ ફાર્મ"),
+            farms: allFarms,
+            adminConfig: { password: masterAdminPass },
+            staffPermissions: masterStaff,
+            allFarmBookings: masterBookings,
+            allFarmWorkers: masterWorkers,
+            companyExpenses: masterExpenses,
+            companyCapital: masterCapital,
+            dailyRojmel: masterRojmel,
+            vendors: masterVendors,
+            inventory: masterInventory,
+            expenseCategories: masterCategories
+        };
+    }
+
+    // ⚡ ૨. દર ૩ સેકન્ડે ઑટોમેટિક બેકઅપ (LocalStorage + Firebase Cloud)
+    function autoBackupEvery3Seconds() {
+        try {
+            let pkg = generateMasterBackupPackage();
+            let currentJSON = JSON.stringify(pkg);
+
+            // જો કોઈ નવો ફેરફાર થયો હોય તો જ સેવ કરશે (જેથી બ્રાઉઝર લેગ ન થાય)
+            if (currentJSON !== lastBackupDataHash) {
+                lastBackupDataHash = currentJSON;
+
+                // (A) LocalStorage માં તાત્કાલિક કાયમી સેવ (ઑફલાઇન હોય તો પણ ૧૦૦% સેફ)
+                localStorage.setItem("system_master_auto_backup", currentJSON);
+                localStorage.setItem("system_last_backup_datetime", pkg.exportDateFormatted);
+
+                // (B) જો ઓનલાઇન હોય તો Firebase ક્લાઉડમાં પણ માસ્ટર બેકઅપ સેવ
+                if (navigator.onLine && typeof firebase !== "undefined" && firebase.apps && firebase.apps.length) {
+                    firebase.database().ref("master_cloud_backup").set({
+                        lastBackupTime: pkg.exportDateFormatted,
+                        timestamp: pkg.backupTimestamp,
+                        backupData: pkg
+                    }).catch(e => console.log("Cloud Auto Backup Silent Catch:", e));
+                }
+            }
+        } catch (err) {
+            console.error("3-Sec Auto Backup Error:", err);
+        }
+    }
+
+    // ⏱️ દર ૩ સેકન્ડે આપોઆપ રન થશે
+    setInterval(autoBackupEvery3Seconds, 3000);
+
+   // 💾 ૩. (A) હાલના ફાર્મનું અલગ બેકઅપ (જેમ કે સીતારામ વાડી)
+    function downloadFarmBackupJSON() {
+        try {
+            let now = new Date();
+            let dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            let timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+            let fId = currentFarmId || "farm_1";
+            let fName = currentFarmName || "હાલનું ફાર્મ";
+
+            let farmBookings = {};
+            if (fId === "ALL") {
+                farmBookings = cachedAllFarmBookings;
+            } else {
+                farmBookings[fId] = cloudBookings;
+            }
+
+            let farmWorkers = {};
+            if (fId === "ALL") {
+                farmWorkers = cachedAllFarmWorkers;
+            } else {
+                farmWorkers[fId] = cloudWorkers;
+            }
+
+            let farmPackage = {
+                backupType: "SINGLE_FARM_BACKUP",
+                farmId: fId,
+                farmName: fName,
+                exportDateFormatted: `${dateStr} ${timeStr}`,
+                backupTimestamp: now.getTime(),
+                bookings: cloudBookings,
+                allFarmBookings: farmBookings,
+                workers: cloudWorkers,
+                allFarmWorkers: farmWorkers
+            };
+
+            let jsonString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(farmPackage, null, 2));
+            let downloadAnchor = document.createElement("a");
+            downloadAnchor.setAttribute("href", jsonString);
+            let slug = fName.replace(/[^a-zA-Z0-9_\u0A80-\u0AFF]/g, '_');
+            let fileDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            downloadAnchor.setAttribute("download", `Farm_Backup_${slug}_${fileDate}.json`);
+
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            alert(`✅ "${fName}" નું અલગ બેકઅપ સફળતાપૂર્વક લેવાઈ ગયું છે!\n📅 તારીખ & સમય: ${dateStr} ${timeStr}`);
+        } catch (err) {
+            alert("❌ ફાર્મ બેકઅપ લેવામાં ભૂલ: " + err.message);
+        }
+    }
+
+    // 👑 ૩. (B) નવું બટન: આખા સોફ્ટવેરનું ALL MASTER BACKUP (A to Z તમામ ફાર્મ & ડેટા)
+    function downloadAllMasterBackupJSON() {
+        try {
+            let pkg = generateMasterBackupPackage();
+            let jsonString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(pkg, null, 2));
+            let downloadAnchor = document.createElement("a");
+            downloadAnchor.setAttribute("href", jsonString);
+
+            let now = new Date();
+            let fileDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            downloadAnchor.setAttribute("download", `Master_ATOZ_Backup_AllFarms_${fileDate}.json`);
+
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            alert(`✅ સંપૂર્ણ ALL MASTER BACKUP સફળતાપૂર્વક લેવાઈ ગયું છે!\n\n👑 આમાં બધા જ ફાર્મ, બુકિંગ્સ, પાર્ટી હિસાબ, મંડપ, વોચમેન, વાહન, એક્સ્ટ્રા, કારીગર પગાર-ઉપાડ, રોજમેળ, ખર્ચા, સ્ટોક અને સ્ટાફ પરવાનગી બધું જ આવી ગયું છે.\n📅 તારીખ & સમય: ${pkg.exportDateFormatted}`);
+        } catch (err) {
+            alert("❌ માસ્ટર બેકઅપ લેવામાં ભૂલ: " + err.message);
+        }
+    }
+    function downloadBackupJSON() { downloadAllMasterBackupJSON(); }
+
+    // 📂 ૪. JSON ફાઈલમાંથી A to Z ડેટા રિસ્ટોર
+    function handleRestoreJSON(event) {
+        let role = (typeof currentUserRole !== "undefined" ? currentUserRole : sessionStorage.getItem("loggedUserRole"));
+        if (role !== 'admin') {
+            alert("❌ માત્ર Admin (માલિક) ને બેકઅપ રિસ્ટોર કરવાનો અધિકાર છે!");
+            if (event && event.target) event.target.value = "";
+            return;
+        }
+
+        let file = event && event.target && event.target.files ? event.target.files[0] : null;
+        if (!file) return;
+
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let data = JSON.parse(e.target.result);
+                if (!data || (!data.allFarmBookings && !data.bookings && !data.farms)) {
+                    alert("❌ આ અમાન્ય (Invalid) બેકઅપ ફાઈલ છે! સાચી બેકઅપ JSON ફાઈલ પસંદ કરો.");
+                    event.target.value = "";
+                    return;
+                }
+
+                let backupDate = data.exportDateFormatted || data.exportDate || "અગાઉનું બેકઅપ";
+                if (!confirm(`⚠️ ચેતવણી: આ બેકઅપ (${backupDate}) રિસ્ટોર કરવાથી તમામ ફાર્મ, બુકિંગ્સ, પાર્ટી હિસાબ, કારીગર, રોજમેળ, ખર્ચા, સ્ટોક અને સ્ટાફ પાસવર્ડ રિસ્ટોર થઈ જશે.\n\nશું તમે આગળ વધવા માંગો છો?`)) {
+                    event.target.value = "";
+                    return;
+                }
+
+                executeMasterRestore(data);
+                alert(`✅ અભિનંદન! બેકઅપ (${backupDate}) માંથી તમામ A to Z ડેટા સફળતાપૂર્વક રિસ્ટોર થઈ ગયો છે!`);
+            } catch (err) {
+                alert("❌ બેકઅપ ફાઈલ વાંચવામાં ભૂલ: " + err.message);
+            }
+            event.target.value = "";
+        };
+        reader.readAsText(file);
+    }
+
+    // 🔄 ૫. LocalStorage માંથી ૧-ક્લિક ડાયરેક્ટ રિસ્ટોર
+    function restoreFromLocalStorageBackup() {
+        let role = (typeof currentUserRole !== "undefined" ? currentUserRole : sessionStorage.getItem("loggedUserRole"));
+        if (role !== 'admin') {
+            alert("❌ માત્ર Admin ને રિસ્ટોર કરવાનો અધિકાર છે!");
+            return;
+        }
+
+        let raw = localStorage.getItem("system_master_auto_backup");
+        let lastTime = localStorage.getItem("system_last_backup_datetime") || "છેલ્લું ઓટો-બેકઅપ";
+        if (!raw) {
+            alert("❌ LocalStorage માં કોઈ ઓટો-બેકઅપ મળ્યું નથી! JSON ફાઈલથી રિસ્ટોર કરો.");
+            return;
+        }
+
+        if (confirm(`શું તમે LocalStorage માં સાચવેલ છેલ્લું બેકઅપ (${lastTime}) રિસ્ટોર કરવા માંગો છો?`)) {
+            try {
+                let data = JSON.parse(raw);
+                executeMasterRestore(data);
+                alert(`✅ LocalStorage માંથી તમામ A to Z ડેટા સફળતાપૂર્વક રિસ્ટોર થઈ ગયો છે!`);
+            } catch (e) {
+                alert("❌ રિસ્ટોરમાં ભૂલ: " + e.message);
+            }
+        }
+    }
+
+    // 🚀 ૬. સમગ્ર સિસ્ટમમાં ડેટા લાગુ કરવો
+    function executeMasterRestore(data) {
+        let isOnline = navigator.onLine && typeof firebase !== "undefined" && firebase.apps && firebase.apps.length;
+
+     // 🛡️ જો માત્ર સિંગલ ફાર્મ (દા.ત. સીતારામ વાડી) નું બેકઅપ રિસ્ટોર થતું હોય તો બીજા ફાર્મને નુકસાન ન થાય:
+        if (data.backupType === "SINGLE_FARM_BACKUP" && data.farmId) {
+            let targetFId = data.farmId;
+            if (!cachedAllFarmBookings) cachedAllFarmBookings = {};
+            cachedAllFarmBookings[targetFId] = data.bookings || {};
+            localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
+            if (isOnline) firebase.database().ref("farm_bookings").child(targetFId).set(data.bookings || {});
+
+            if (!cachedAllFarmWorkers) cachedAllFarmWorkers = {};
+            cachedAllFarmWorkers[targetFId] = data.workers || {};
+            localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+            if (isOnline) firebase.database().ref("farm_workers").child(targetFId).set(data.workers || {});
+
+            if (targetFId === currentFarmId) {
+                cloudBookings = data.bookings || {};
+                cloudWorkers = data.workers || {};
+                localStorage.setItem("cached_bookings_" + targetFId, JSON.stringify(cloudBookings));
+                localStorage.setItem("cached_workers_" + targetFId, JSON.stringify(cloudWorkers));
+            }
+
+            if (typeof generateCalendar === "function") generateCalendar();
+            if (typeof renderWorkersTable === "function") renderWorkersTable();
+            if (typeof filterData === "function") filterData();
+            if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
+            return;
+        }
+
+        if (data.farms && Object.keys(data.farms).length > 0) {
+            localStorage.setItem("cached_farms", JSON.stringify(data.farms));
+            if (isOnline) firebase.database().ref("farms").set(data.farms);
+            if (typeof populateFarmDropdownUI === "function") populateFarmDropdownUI(data.farms);
+        }
+
+        if (data.adminConfig && data.adminConfig.password) {
+            if (typeof currentAdminPass !== "undefined") currentAdminPass = data.adminConfig.password;
+            localStorage.setItem("cached_admin_pass", data.adminConfig.password);
+            if (isOnline) firebase.database().ref("admin_config").set(data.adminConfig);
+        }
+
+        let staffToRestore = data.staffPermissions || data.staffList;
+        if (staffToRestore && Object.keys(staffToRestore).length > 0) {
+            if (typeof staffListObj !== "undefined") staffListObj = staffToRestore;
+            localStorage.setItem("cached_staff_list", JSON.stringify(staffToRestore));
+            if (isOnline) firebase.database().ref("staff_permissions").set(staffToRestore);
+            if (typeof renderStaffPermissionsUI === "function") renderStaffPermissionsUI();
+            if (typeof updateLoginUserDropdown === "function") updateLoginUserDropdown();
+        }
+
+        let bookingsToRestore = data.allFarmBookings || {};
+        if (data.bookings && Object.keys(bookingsToRestore).length === 0) {
+            let fId = data.farmId || data.currentFarmId || (typeof currentFarmId !== "undefined" ? currentFarmId : "farm_1");
+            bookingsToRestore[fId] = data.bookings;
+        }
+
+        if (Object.keys(bookingsToRestore).length > 0) {
+            if (typeof cachedAllFarmBookings !== "undefined") cachedAllFarmBookings = bookingsToRestore;
+            localStorage.setItem("cached_all_farm_bookings", JSON.stringify(bookingsToRestore));
+            if (isOnline) firebase.database().ref("farm_bookings").set(bookingsToRestore);
+
+            let curFId = (typeof currentFarmId !== "undefined" && currentFarmId !== "ALL") ? currentFarmId : Object.keys(bookingsToRestore)[0];
+            if (curFId && bookingsToRestore[curFId]) {
+                if (typeof cloudBookings !== "undefined") cloudBookings = bookingsToRestore[curFId];
+                localStorage.setItem("cached_bookings_" + curFId, JSON.stringify(bookingsToRestore[curFId]));
+            }
+        }
+
+        let workersToRestore = data.allFarmWorkers || {};
+        if (data.workers && Object.keys(workersToRestore).length === 0) {
+            let fId = data.farmId || data.currentFarmId || (typeof currentFarmId !== "undefined" ? currentFarmId : "farm_1");
+            workersToRestore[fId] = data.workers;
+        }
+
+        if (Object.keys(workersToRestore).length > 0) {
+            if (typeof cachedAllFarmWorkers !== "undefined") cachedAllFarmWorkers = workersToRestore;
+            localStorage.setItem("cached_all_farm_workers", JSON.stringify(workersToRestore));
+            if (isOnline) firebase.database().ref("farm_workers").set(workersToRestore);
+
+            let curFId = (typeof currentFarmId !== "undefined" && currentFarmId !== "ALL") ? currentFarmId : Object.keys(workersToRestore)[0];
+            if (curFId && workersToRestore[curFId]) {
+                if (typeof cloudWorkers !== "undefined") cloudWorkers = workersToRestore[curFId];
+                localStorage.setItem("cached_workers_" + curFId, JSON.stringify(workersToRestore[curFId]));
+            }
+        }
+
+        if (data.companyExpenses || data.expenses) {
+            let exp = data.companyExpenses || data.expenses;
+            if (typeof cloudExpenses !== "undefined") cloudExpenses = exp;
+            localStorage.setItem("cached_company_expenses", JSON.stringify(exp));
+            if (isOnline) firebase.database().ref("company_expenses").set(exp);
+            if (typeof renderExpensesTable === "function") renderExpensesTable();
+        }
+
+        if (data.companyCapital || data.capital) {
+            let cap = data.companyCapital || data.capital;
+            if (typeof cloudCapital !== "undefined") cloudCapital = cap;
+            localStorage.setItem("cached_company_capital", JSON.stringify(cap));
+            if (isOnline) firebase.database().ref("company_capital").set(cap);
+            if (typeof renderCapitalTable === "function") renderCapitalTable();
+        }
+
+        if (data.dailyRojmel || data.rojmel) {
+            let roj = data.dailyRojmel || data.rojmel;
+            if (typeof cloudRojmel !== "undefined") cloudRojmel = roj;
+            localStorage.setItem("cached_daily_rojmel", JSON.stringify(roj));
+            if (isOnline) firebase.database().ref("daily_rojmel").set(roj);
+            if (typeof renderRojmelData === "function") renderRojmelData();
+        }
+
+        if (data.vendors) {
+            if (typeof cloudVendors !== "undefined") cloudVendors = data.vendors;
+            localStorage.setItem("cached_vendors", JSON.stringify(data.vendors));
+            if (isOnline) firebase.database().ref("vendors").set(data.vendors);
+            if (typeof renderVendorsTable === "function") renderVendorsTable();
+        }
+
+        if (data.inventory) {
+            if (typeof cloudInventory !== "undefined") cloudInventory = data.inventory;
+            localStorage.setItem("cached_inventory", JSON.stringify(data.inventory));
+            if (isOnline) firebase.database().ref("inventory").set(data.inventory);
+            if (typeof renderInventoryTable === "function") renderInventoryTable();
+        }
+
+        if (data.expenseCategories || data.customCategories) {
+            let cats = data.expenseCategories || data.customCategories;
+            if (typeof cloudCustomCats !== "undefined") cloudCustomCats = cats;
+            localStorage.setItem("cached_expense_categories", JSON.stringify(cats));
+            if (isOnline) firebase.database().ref("expense_categories").set(cats);
+            if (typeof updateExpenseCategoryDropdowns === "function") updateExpenseCategoryDropdowns();
+        }
+
+        if (typeof generateCalendar === "function") generateCalendar();
+        if (typeof renderWorkersTable === "function") renderWorkersTable();
+        if (typeof filterData === "function") filterData();
+        if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
+    }
 </script>
 </body> 
 </html>
