@@ -447,24 +447,28 @@
 
         <!-- 🚚 Modal: સામાન બહાર આપેલ / ભાડે આપેલ & સ્ટોક ટ્રેકિંગ ખાતાવહી -->
         <div class="modal" id="outwardInventoryModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(3px); justify-content:center; align-items:center; z-index:9999;">
-            <div class="modal-content" style="max-width:920px; width:96%; max-height:92vh; overflow-y:auto; background:#ffffff; border-radius:14px; padding:22px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
+            <div class="modal-content" style="max-width:980px; width:96%; max-height:92vh; overflow-y:auto; background:#ffffff; border-radius:14px; padding:22px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
                 <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #ea580c; padding-bottom:10px; margin-bottom:14px;">
                     <span style="color:#c2410c; font-size:18px; font-weight:800;">🚚 રોજિંદો સામાન બહાર આપેલ / ભાડે & પરત જમા ખાતાવહી</span>
                     <button class="btn btn-outline" onclick="closeOutwardInventoryModal()" style="padding:3px 9px; font-size:12px;">✕ બંધ કરો</button>
                 </div>
 
-                <!-- લાઈવ સ્ટોક સમરી કાર્ડ્સ -->
-                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:14px; text-align:center;">
+                <!-- લાઈવ સ્ટોક અને ભાડા રકમ સમરી કાર્ડ્સ -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; text-align:center;">
                     <div style="background:#fef2f2; border:1.5px solid #fca5a5; padding:10px; border-radius:8px;">
-                        <span style="font-size:11.5px; color:#991b1b; font-weight:700; display:block;">🔴 હાલ બહાર આપેલ કુલ નંગ (Pending Out)</span>
+                        <span style="font-size:11.5px; color:#991b1b; font-weight:700; display:block;">🔴 બહાર આપેલ કુલ નંગ (Pending)</span>
                         <b id="outwardTotalPendingQty" style="font-size:20px; color:#b91c1c;">0</b>
                     </div>
+                    <div style="background:#fefce8; border:1.5px solid #fde047; padding:10px; border-radius:8px;">
+                        <span style="font-size:11.5px; color:#854d0e; font-weight:700; display:block;">💰 કુલ ભાડું રકમ (Total Rent)</span>
+                        <b id="outwardTotalRentAmount" style="font-size:20px; color:#b45309;">₹0</b>
+                    </div>
                     <div style="background:#ecfdf5; border:1.5px solid #86efac; padding:10px; border-radius:8px;">
-                        <span style="font-size:11.5px; color:#166534; font-weight:700; display:block;">🟢 પરત જમા થયેલ કુલ નંગ (Returned)</span>
+                        <span style="font-size:11.5px; color:#166534; font-weight:700; display:block;">🟢 પરત જમા થયેલ નંગ</span>
                         <b id="outwardTotalReturnedQty" style="font-size:20px; color:#15803d;">0</b>
                     </div>
                     <div style="background:#eff6ff; border:1.5px solid #93c5fd; padding:10px; border-radius:8px;">
-                        <span style="font-size:11.5px; color:#1e40af; font-weight:700; display:block;">📦 કુલ બહાર આપેલ વ્યવહારો</span>
+                        <span style="font-size:11.5px; color:#1e40af; font-weight:700; display:block;">📦 કુલ બહાર આપેલ એન્ટ્રી</span>
                         <b id="outwardTotalTxnCount" style="font-size:20px; color:#1d4ed8;">0</b>
                     </div>
                 </div>
@@ -473,37 +477,56 @@
                 <div style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:10px; padding:14px; margin-bottom:14px;">
                     <b style="font-size:13.5px; color:#9a3412; display:block; margin-bottom:10px;">➕ બહાર આપેલ / ભાડે આપેલ સામાનની નવી એન્ટ્રી કરો:</b>
                     
-                    <div style="display:grid; grid-template-columns: 1.5fr 1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <!-- ૧. ફાર્મ પસંદગી -->
+                    <div style="margin-bottom:8px;">
+                        <label style="font-size:11.5px; font-weight:700; color:#431407; display:block; margin-bottom:3px;">🏰 કયા ફાર્મમાંથી સામાન બહાર ગયો છે? *</label>
+                        <select id="outFarmSelect" class="form-control" style="font-weight:700; color:#1e1b4b; background:#fff; border:1.5px solid #ea580c;">
+                            <!-- ફાર્મ ડાયનેમિક લોડ થશે -->
+                        </select>
+                    </div>
+
+                    <!-- ૨. સામાન, નંગ, એકમ, ૧ નંગનો ભાવ અને કુલ રકમ -->
+                    <div style="display:grid; grid-template-columns: 1.4fr 1fr 0.8fr 1fr 1.2fr; gap:8px; margin-bottom:8px; align-items:end;">
                         <div>
-                            <label style="font-size:11px; font-weight:700; color:#431407;">સામાનનું નામ (ખુરશી, ટેબલ, વાસણ વગેરે) *</label>
-                            <input type="text" id="outItemName" class="form-control" placeholder="દા.ત. પ્લાસ્ટિક ખુરશી / રાઉન્ડ ટેબલ / વાસણ સેટ" style="font-size:12.5px; font-weight:700;">
+                            <label style="font-size:11px; font-weight:700; color:#431407;">સામાનનું નામ (ખુરશી, ટેબલ વગેરે) *</label>
+                            <input type="text" id="outItemName" class="form-control" placeholder="દા.ત. પ્લાસ્ટિક ખુરશી / રાઉન્ડ ટેબલ" style="font-size:12.5px; font-weight:700;">
                         </div>
                         <div>
-                            <label style="font-size:11px; font-weight:700; color:#431407;">આપેલ સંખ્યા / નંગ *</label>
-                            <input type="number" id="outItemQty" class="form-control" placeholder="દા.ત. 100" style="font-size:14px; font-weight:800; color:#c2410c;">
+                            <label style="font-size:11px; font-weight:700; color:#431407;">આપેલ સંખ્યા (નંગ) *</label>
+                            <input type="number" id="outItemQty" class="form-control" oninput="calculateOutwardTotalAmount()" placeholder="દા.ત. 400" style="font-size:14px; font-weight:800; color:#c2410c;">
                         </div>
                         <div>
-                            <label style="font-size:11px; font-weight:700; color:#431407;">એકમ (નંગ / સેટ)</label>
-                            <input type="text" id="outItemUnit" class="form-control" value="નંગ" placeholder="નંગ / સેટ">
+                            <label style="font-size:11px; font-weight:700; color:#431407;">એકમ</label>
+                            <input type="text" id="outItemUnit" class="form-control" value="નંગ" placeholder="નંગ/સેટ">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#431407;">૧ નંગનો ભાવ (₹)</label>
+                            <input type="number" id="outItemRate" class="form-control" oninput="calculateOutwardTotalAmount()" placeholder="દા.ત. 10" style="font-size:14px; font-weight:800; color:#15803d;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#431407;">કુલ ભાડું રકમ (₹)</label>
+                            <input type="number" id="outItemTotalAmount" class="form-control" readonly placeholder="0" style="font-size:15px; font-weight:900; color:#b45309; background:#fef3c7; border:1.5px solid #fde047;">
                         </div>
                     </div>
 
+                    <!-- ૩. પાર્ટી, મોબાઈલ અને સ્થળ -->
                     <div style="display:grid; grid-template-columns: 1.2fr 1fr 1.5fr; gap:8px; margin-bottom:8px;">
                         <div>
                             <label style="font-size:11px; font-weight:700; color:#431407;">કઈ પાર્ટી / ગ્રાહકને આપેલ છે? *</label>
-                            <input type="text" id="outPartyName" class="form-control" placeholder="પાર્ટી / કેટરર્સનું નામ">
+                            <input type="text" id="outPartyName" class="form-control" placeholder="પાર્ટી / ગ્રાહકનું નામ">
                         </div>
                         <div>
                             <label style="font-size:11px; font-weight:700; color:#431407;">પાર્ટીનો મોબાઈલ નંબર</label>
                             <input type="tel" id="outPartyMobile" class="form-control" placeholder="10 આંકડાનો નંબર">
                         </div>
                         <div>
-                            <label style="font-size:11px; font-weight:700; color:#431407;">કઈ જગ્યા પર સામાન રાખેલ / મોકલેલ છે? (સ્થળ) *</label>
-                            <input type="text" id="outLocation" class="form-control" placeholder="દા.ત. ખોડિયાર વાડી હોલ / પ્લોટ નં ૫">
+                            <label style="font-size:11px; font-weight:700; color:#431407;">કઈ જગ્યા પર સામાન રાખેલ/મોકલેલ છે? (સ્થળ)</label>
+                            <input type="text" id="outLocation" class="form-control" placeholder="દા.ત. ખોડિયાર વાડી / પ્લોટ નં ૫">
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:8px; align-items:end;">
+                    <!-- ૪. તારીખ, અપેક્ષિત પરત, નોંધ અને સેવ બટન -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr auto; gap:8px; align-items:end;">
                         <div>
                             <label style="font-size:11px; font-weight:700; color:#431407;">બહાર આપ્યા તારીખ *</label>
                             <input type="date" id="outDispatchDate" class="form-control" style="font-size:12px;">
@@ -513,19 +536,22 @@
                             <input type="date" id="outExpectedReturnDate" class="form-control" style="font-size:12px;">
                         </div>
                         <div>
-                            <label style="font-size:11px; font-weight:700; color:#431407;">ભાડું / ડિપોઝીટ / નોંધ</label>
-                            <input type="text" id="outNote" class="form-control" placeholder="દા.ત. ભાડું ₹2000 બાકી">
+                            <label style="font-size:11px; font-weight:700; color:#431407;">ડિપોઝીટ / વિશેષ નોંધ</label>
+                            <input type="text" id="outNote" class="form-control" placeholder="દા.ત. એડવાન્સ ₹500 જમા">
                         </div>
                         <div>
-                            <button class="btn" onclick="saveOutwardDispatchEntry()" style="background:#ea580c; color:white; font-weight:800; padding:9px 18px; white-space:nowrap;">💾 એન્ટ્રી સાચવો</button>
+                            <button class="btn" onclick="saveOutwardDispatchEntry()" style="background:#ea580c; color:white; font-weight:800; padding:9px 18px; white-space:nowrap; box-shadow:0 2px 4px rgba(234,88,12,0.3);">💾 એન્ટ્રી સાચવો</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- ફિલ્ટર, સર્ચ અને Excel એક્સપોર્ટ બાર -->
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
-                    <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:260px;">
-                        <input type="text" id="outwardSearchInput" class="form-control" onkeyup="renderOutwardInventoryTable()" placeholder="સામાનનું નામ, પાર્ટી અથવા સ્થળ શોધો..." style="font-size:12.5px;">
+                    <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:280px; flex-wrap:wrap;">
+                        <input type="text" id="outwardSearchInput" class="form-control" onkeyup="renderOutwardInventoryTable()" placeholder="સામાન, પાર્ટી, ફાર્મ કે સ્થળ શોધો..." style="font-size:12px; flex:1; min-width:180px;">
+                        <select id="outwardFilterFarm" class="form-control" onchange="renderOutwardInventoryTable()" style="width:170px; font-size:12px; font-weight:700;">
+                            <option value="ALL">🏰 બધા ફાર્મ</option>
+                        </select>
                         <select id="outwardFilterStatus" class="form-control" onchange="renderOutwardInventoryTable()" style="width:160px; font-size:12px; font-weight:700;">
                             <option value="ALL">બધા સ્ટેટસ જુઓ</option>
                             <option value="PENDING" selected>🔴 માત્ર બહાર છે (બાકી)</option>
@@ -536,22 +562,25 @@
                 </div>
 
                 <!-- સામાન બહાર આપેલ લાઈવ ખાતાવહી ટેબલ -->
-                <div style="max-height:300px; overflow-y:auto; border:1.5px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:12px;">
+                <div style="max-height:320px; overflow-y:auto; border:1.5px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:12px;">
                     <table style="width:100%; font-size:12px; border-collapse:collapse;">
                         <thead style="background:#f1f5f9; position:sticky; top:0; z-index:2;">
                             <tr>
                                 <th style="padding:8px 6px;">#</th>
                                 <th style="padding:8px 6px;">આપ્યા તારીખ</th>
+                                <th style="padding:8px 6px;">ફાર્મ / બ્રાન્ચ</th>
                                 <th style="padding:8px 6px;">સામાનની વિગત (Item)</th>
                                 <th style="padding:8px 6px; text-align:center;">આપેલ નંગ</th>
+                                <th style="padding:8px 6px; text-align:right;">૧ નંગ ભાવ</th>
+                                <th style="padding:8px 6px; text-align:right;">કુલ રકમ (₹)</th>
                                 <th style="padding:8px 6px;">પાર્ટીનું નામ & મોબાઈલ</th>
-                                <th style="padding:8px 6px;">કઈ જગ્યા પર રાખેલ છે (સ્થળ)</th>
-                                <th style="padding:8px 6px; text-align:center;">પરત સ્થિતિ (Status)</th>
-                                <th style="padding:8px 6px; text-align:center;">ક્રિયા (Action)</th>
+                                <th style="padding:8px 6px;">કઈ જગ્યા પર છે (સ્થળ)</th>
+                                <th style="padding:8px 6px; text-align:center;">પરત સ્થિતિ</th>
+                                <th style="padding:8px 6px; text-align:center;">ક્રિયા</th>
                             </tr>
                         </thead>
                         <tbody id="outwardInventoryTableBody">
-                            <tr><td colspan="8" style="text-align:center; padding:18px; color:#94a3b8;">કોઈ સામાન બહાર નોંધાયેલ નથી.</td></tr>
+                            <tr><td colspan="11" style="text-align:center; padding:18px; color:#94a3b8;">કોઈ સામાન બહાર નોંધાયેલ નથી.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -561,7 +590,7 @@
                     <button class="btn btn-outline" onclick="closeOutwardInventoryModal()" style="padding:8px 20px;">બંધ કરો</button>
                 </div>
             </div>
-        </div>  
+        </div>
 
         <!-- 🚚 Dedicated JavaScript Engine for Outward Inventory Tracker -->
         <script>
@@ -576,15 +605,67 @@
                     appId: "1:136125878805:web:390d7d3427e2ce9750f41c"
                 });
             }
+
             const outwardInvRef = firebase.database().ref("outward_inventory");
             let cloudOutwardInv = JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
 
-            // Firebase Live Sync & LocalStorage Auto Cache
+            // સુરક્ષિત Firebase સિન્ક: જો ક્લાઉડ ખાલી હોય તો લોકલ ડેટા ભૂંસાશે નહીં
             outwardInvRef.on('value', (snap) => {
-                cloudOutwardInv = snap.val() || {};
-                localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
+                let val = snap.val();
+                if (val && Object.keys(val).length > 0) {
+                    cloudOutwardInv = val;
+                    localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
+                } else {
+                    let localData = JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
+                    if (Object.keys(localData).length > 0) {
+                        cloudOutwardInv = localData;
+                        if (navigator.onLine) outwardInvRef.update(cloudOutwardInv);
+                    }
+                }
                 renderOutwardInventoryTable();
             });
+
+            // ભાવ × નંગ ઓટોમેટિક ગણતરી
+            function calculateOutwardTotalAmount() {
+                let qty = parseFloat(document.getElementById("outItemQty").value) || 0;
+                let rate = parseFloat(document.getElementById("outItemRate").value) || 0;
+                let total = qty * rate;
+                document.getElementById("outItemTotalAmount").value = total > 0 ? total : 0;
+            }
+
+            // ફાર્મ ડ્રોપડાઉન ભરો
+            function populateOutwardFarmDropdowns() {
+                let cachedFarms = {};
+                try { cachedFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
+
+                let formSel = document.getElementById("outFarmSelect");
+                let filterSel = document.getElementById("outwardFilterFarm");
+
+                let farmOpts = "";
+                let hasFarms = false;
+
+                for (let fId in cachedFarms) {
+                    hasFarms = true;
+                    farmOpts += `<option value="${fId}">🏰 ${cachedFarms[fId].name}</option>`;
+                }
+
+                if (!hasFarms) {
+                    farmOpts = `<option value="farm_general">🏰 ${currentFarmName || 'મુખ્ય ફાર્મ'}</option>`;
+                }
+
+                if (formSel) {
+                    formSel.innerHTML = farmOpts;
+                    if (typeof currentFarmId !== "undefined" && currentFarmId && currentFarmId !== "ALL") {
+                        formSel.value = currentFarmId;
+                    }
+                }
+
+                if (filterSel) {
+                    let curVal = filterSel.value;
+                    filterSel.innerHTML = `<option value="ALL">🏰 બધા ફાર્મ</option>` + farmOpts;
+                    filterSel.value = curVal || "ALL";
+                }
+            }
 
             function openOutwardInventoryModal() {
                 let now = new Date();
@@ -592,10 +673,14 @@
                 document.getElementById("outExpectedReturnDate").value = "";
                 document.getElementById("outItemName").value = "";
                 document.getElementById("outItemQty").value = "";
+                document.getElementById("outItemRate").value = "";
+                document.getElementById("outItemTotalAmount").value = "";
                 document.getElementById("outPartyName").value = "";
                 document.getElementById("outPartyMobile").value = "";
                 document.getElementById("outLocation").value = "";
                 document.getElementById("outNote").value = "";
+
+                populateOutwardFarmDropdowns();
                 renderOutwardInventoryTable();
                 document.getElementById("outwardInventoryModal").style.display = "flex";
             }
@@ -604,31 +689,42 @@
                 document.getElementById("outwardInventoryModal").style.display = "none";
             }
 
-            // 💾 સામાન બહાર આપવાની નવી એન્ટ્રી સેવ કરવી
+            // 💾 સામાન બહાર આપવાની નવી એન્ટ્રી સેવ કરવી (ઓનલાઇન & ઑફલાઇન ૧૦૦% સેવ)
             function saveOutwardDispatchEntry() {
                 let item = document.getElementById("outItemName").value.trim();
                 let qty = parseFloat(document.getElementById("outItemQty").value) || 0;
                 let unit = document.getElementById("outItemUnit").value.trim() || "નંગ";
+                let rate = parseFloat(document.getElementById("outItemRate").value) || 0;
+                let totalAmt = parseFloat(document.getElementById("outItemTotalAmount").value) || (qty * rate);
+
                 let party = document.getElementById("outPartyName").value.trim();
                 let mobile = document.getElementById("outPartyMobile").value.trim();
-                let loc = document.getElementById("outLocation").value.trim();
+                let loc = document.getElementById("outLocation").value.trim() || "-";
                 let dDate = document.getElementById("outDispatchDate").value;
                 let rDate = document.getElementById("outExpectedReturnDate").value;
                 let note = document.getElementById("outNote").value.trim();
 
-                if (!item || qty <= 0 || !party || !loc || !dDate) {
-                    alert("કૃપા કરીને સામાનનું નામ, નંગ, પાર્ટીનું નામ, જગ્યા/સ્થળ અને તારીખ અવશ્ય દાખલ કરો!");
+                let farmSel = document.getElementById("outFarmSelect");
+                let farmId = farmSel ? farmSel.value : (currentFarmId || "farm_1");
+                let farmName = (farmSel && farmSel.selectedIndex >= 0) ? farmSel.options[farmSel.selectedIndex].text.replace('🏰 ', '') : (currentFarmName || "જનરલ ફાર્મ");
+
+                if (!item || qty <= 0 || !party || !dDate) {
+                    alert("કૃપા કરીને સામાનનું નામ, નંગ, પાર્ટીનું નામ અને તારીખ અવશ્ય દાખલ કરો!");
                     return;
                 }
 
                 let id = "out_" + Date.now();
                 let entryData = {
                     id: id,
+                    farmId: farmId,
+                    farmName: farmName,
                     itemName: item,
                     qty: qty,
                     returnedQty: 0,
                     pendingQty: qty,
                     unit: unit,
+                    rate: rate,
+                    totalRent: totalAmt,
                     partyName: party,
                     partyMobile: mobile,
                     location: loc,
@@ -636,19 +732,18 @@
                     expectedReturnDate: rDate,
                     actualReturnDate: "",
                     note: note,
-                    status: "PENDING", // PENDING = બહાર છે, RETURNED = જમા થઈ ગયો
-                    farmName: (typeof currentFarmName !== "undefined" ? currentFarmName : "જનરલ ફાર્મ"),
+                    status: "PENDING",
                     timestamp: Date.now()
                 };
 
-                // તાત્કાલિક LocalStorage માં સેવ (Offline Support)
+                // તાત્કાલિક LocalStorage માં સેવ (ગમે ત્યારે ઑફલાઇન સુરક્ષિત)
                 cloudOutwardInv[id] = entryData;
                 localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
-                // Firebase Sync
+                // Firebase ક્લાઉડ સિન્ક
                 if (navigator.onLine) {
-                    outwardInvRef.child(id).set(entryData);
+                    outwardInvRef.child(id).set(entryData).catch(e => console.warn("Firebase sync error:", e));
                 } else if (typeof addToSyncQueue === "function") {
                     addToSyncQueue({ path: "outward_inventory/" + id, action: "set", data: entryData });
                 }
@@ -656,12 +751,14 @@
                 // ફોર્મ ક્લિયર
                 document.getElementById("outItemName").value = "";
                 document.getElementById("outItemQty").value = "";
+                document.getElementById("outItemRate").value = "";
+                document.getElementById("outItemTotalAmount").value = "";
                 document.getElementById("outPartyName").value = "";
                 document.getElementById("outPartyMobile").value = "";
                 document.getElementById("outLocation").value = "";
                 document.getElementById("outNote").value = "";
 
-                alert(`✅ સામાન "${item} (${qty} ${unit})" પાર્ટી "${party}" ને આપેલ તરીકે સફળતાપૂર્વક નોંધાઈ ગયો!`);
+                alert(`✅ સામાન "${item} (${qty} ${unit} - કુલ ₹${totalAmt})" સફળતાપૂર્વક સેવ થઈ ગયો!`);
                 renderOutwardInventoryTable();
             }
 
@@ -670,8 +767,8 @@
                 let entry = cloudOutwardInv[id];
                 if (!entry) return;
 
-                let pending = parseFloat(entry.pendingQty || entry.qty);
-                let promptVal = prompt(`"${entry.partyName}" પાસેથી "${entry.itemName}" ના કેટલા નંગ પરત જમા આવ્યા? (કુલ બાકી: ${pending} ${entry.unit}):`, pending);
+                let pending = parseFloat(entry.pendingQty !== undefined ? entry.pendingQty : entry.qty);
+                let promptVal = prompt(`"${entry.partyName}" પાસેથી "${entry.itemName}" ના કેટલા નંગ પરત જમા આવ્યા? (બાકી: ${pending} ${entry.unit}):`, pending);
                 let returnedNow = parseFloat(promptVal);
 
                 if (isNaN(returnedNow) || returnedNow <= 0) return;
@@ -695,7 +792,7 @@
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
                 if (navigator.onLine) {
-                    outwardInvRef.child(id).update(entry);
+                    outwardInvRef.child(id).update(entry).catch(e => console.warn(e));
                 } else if (typeof addToSyncQueue === "function") {
                     addToSyncQueue({ path: "outward_inventory/" + id, action: "update", data: entry });
                 }
@@ -713,14 +810,14 @@
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
                 if (navigator.onLine) {
-                    outwardInvRef.child(id).remove();
+                    outwardInvRef.child(id).remove().catch(e => console.warn(e));
                 } else if (typeof addToSyncQueue === "function") {
                     addToSyncQueue({ path: "outward_inventory/" + id, action: "remove" });
                 }
                 renderOutwardInventoryTable();
             }
 
-            // 📋 ટેબલ રેન્ડરિંગ (અલગ કલર અને સંપૂર્ણ વિગત સાથે)
+            // 📋 ટેબલ રેન્ડરિંગ (ભાવ, કુલ રકમ અને ફાર્મ નામ સાથે)
             function renderOutwardInventoryTable() {
                 let tbody = document.getElementById("outwardInventoryTableBody");
                 if (!tbody) return;
@@ -728,50 +825,60 @@
 
                 let search = (document.getElementById("outwardSearchInput") ? document.getElementById("outwardSearchInput").value : "").toLowerCase().trim();
                 let statusFilter = document.getElementById("outwardFilterStatus") ? document.getElementById("outwardFilterStatus").value : "ALL";
+                let farmFilter = document.getElementById("outwardFilterFarm") ? document.getElementById("outwardFilterFarm").value : "ALL";
 
                 let list = Object.values(cloudOutwardInv);
                 list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
                 let totalPending = 0;
                 let totalReturned = 0;
+                let totalRentSum = 0;
                 let count = 0;
 
                 list.forEach(item => {
-                    let isPending = item.status === "PENDING" && (parseFloat(item.pendingQty || item.qty) > 0);
-                    if (isPending) {
-                        totalPending += parseFloat(item.pendingQty || item.qty);
-                    }
+                    let pendQty = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+                    let isPending = item.status === "PENDING" && pendQty > 0;
+
+                    if (farmFilter !== "ALL" && item.farmId && item.farmId !== farmFilter) return;
+
+                    if (isPending) totalPending += pendQty;
                     totalReturned += parseFloat(item.returnedQty || 0);
+                    totalRentSum += parseFloat(item.totalRent || 0);
 
                     if (statusFilter === "PENDING" && !isPending) return;
                     if (statusFilter === "RETURNED" && isPending) return;
 
                     if (search) {
-                        let textBlock = `${item.itemName} ${item.partyName} ${item.location} ${item.partyMobile} ${item.note}`.toLowerCase();
+                        let textBlock = `${item.itemName} ${item.partyName} ${item.location} ${item.partyMobile} ${item.farmName} ${item.note}`.toLowerCase();
                         if (!textBlock.includes(search)) return;
                     }
 
                     count++;
 
-                    // કલર કોડિંગ: બહાર હોય તો લાલ/નારંગી બેકગ્રાઉન્ડ એલર્ટ
                     let rowBg = isPending ? "#fff1f2" : "#f0fdf4";
                     let statusBadge = isPending
-                        ? `<span style="background:#fee2e2; color:#b91c1c; border:1.5px solid #fca5a5; padding:3px 8px; border-radius:12px; font-weight:800; font-size:11px;">🔴 બહાર છે (${item.pendingQty} બાકી)</span>`
+                        ? `<span style="background:#fee2e2; color:#b91c1c; border:1.5px solid #fca5a5; padding:3px 8px; border-radius:12px; font-weight:800; font-size:11px;">🔴 બહાર (${pendQty} બાકી)</span>`
                         : `<span style="background:#dcfce7; color:#15803d; border:1.5px solid #86efac; padding:3px 8px; border-radius:12px; font-weight:800; font-size:11px;">🟢 સંપૂર્ણ જમા</span>`;
 
                     let returnBtn = isPending
                         ? `<button class="btn btn-success" style="padding:2px 8px; font-size:11px;" onclick="returnOutwardItem('${item.id}')">📥 જમા લો</button>`
                         : `<span style="color:#16a34a; font-weight:700; font-size:11px;">✓ જમા થયેલ</span>`;
 
+                    let rateDisp = item.rate > 0 ? `₹${item.rate}` : '-';
+                    let totalRentDisp = item.totalRent > 0 ? `₹${parseFloat(item.totalRent).toLocaleString('en-IN')}` : '-';
+
                     tbody.innerHTML += `
                     <tr style="background:${rowBg}; border-bottom:1px solid #e2e8f0;">
                         <td style="padding:7px 6px; text-align:center;">${count}</td>
                         <td style="padding:7px 6px; white-space:nowrap;"><b>${item.dispatchDate}</b></td>
+                        <td style="padding:7px 6px;"><span style="background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; font-weight:800; font-size:11px;">🏰 ${item.farmName || '-'}</span></td>
                         <td style="padding:7px 6px;">
                             <b style="color:#0f172a; font-size:13px;">${item.itemName}</b>
                             ${item.note ? `<br><small style="color:#64748b;">📝 ${item.note}</small>` : ''}
-                        </td>  
-                         <td style="padding:7px 6px; text-align:center; font-weight:800; color:#c2410c; font-size:13.5px;">${item.qty} ${item.unit}</td>
+                        </td>
+                        <td style="padding:7px 6px; text-align:center; font-weight:800; color:#c2410c; font-size:13.5px;">${item.qty} ${item.unit}</td>
+                        <td style="padding:7px 6px; text-align:right; font-weight:700; color:#166534;">${rateDisp}</td>
+                        <td style="padding:7px 6px; text-align:right; font-weight:800; color:#b45309; font-size:13.5px;">${totalRentDisp}</td>
                         <td style="padding:7px 6px;">
                             <b>${item.partyName}</b>
                             ${item.partyMobile ? `<br><small style="color:#0369a1;">📞 ${item.partyMobile}</small>` : ''}
@@ -789,15 +896,16 @@
                 });
 
                 if (count === 0) {
-                    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:18px; color:#94a3b8;">પસંદ કરેલ ફિલ્ટરમાં કોઈ સામાન રેકોર્ડ મળ્યો નથી.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:18px; color:#94a3b8;">પસંદ કરેલ ફિલ્ટરમાં કોઈ સામાન રેકોર્ડ મળ્યો નથી.</td></tr>`;
                 }
 
                 if (document.getElementById("outwardTotalPendingQty")) document.getElementById("outwardTotalPendingQty").innerText = totalPending;
                 if (document.getElementById("outwardTotalReturnedQty")) document.getElementById("outwardTotalReturnedQty").innerText = totalReturned;
+                if (document.getElementById("outwardTotalRentAmount")) document.getElementById("outwardTotalRentAmount").innerText = "₹" + totalRentSum.toLocaleString('en-IN');
                 if (document.getElementById("outwardTotalTxnCount")) document.getElementById("outwardTotalTxnCount").innerText = list.length;
             }
 
-            // 🖨️ સામાન બહાર આપેલ પહોંચ/ચલણ A4 પ્રિન્ટ ફંક્શન
+            // 🖨️ પહોંચ/ચલણ A4 પ્રિન્ટ ફંક્શન (ભાવ અને કુલ રકમ સાથે)
             function printOutwardChallan(id) {
                 let item = cloudOutwardInv[id];
                 if (!item) return;
@@ -806,6 +914,8 @@
                 if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
 
                 let statusText = item.status === "PENDING" ? "🔴 બહાર છે (પરત આવવાનો બાકી)" : "🟢 સંપૂર્ણ પરત જમા થયેલ";
+                let rateText = item.rate > 0 ? `₹${item.rate}` : '-';
+                let totalText = item.totalRent > 0 ? `₹${parseFloat(item.totalRent).toLocaleString('en-IN')}` : '-';
 
                 win.document.write(`
                     <html>
@@ -823,20 +933,22 @@
                     <body>
                         <div class="box">
                             <div class="header">
-                                <h2 style="margin:0; color:#ea580c;">${item.farmName || currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
+                                <h2 style="margin:0; color:#ea580c;">🏰 ${item.farmName || currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
                                 <h4 style="margin:4px 0; color:#475569;">સામાન ડિલિવરી / બહાર આપેલ પહોંચ (Challan)</h4>
                                 <small>તારીખ: ${item.dispatchDate}</small>
                             </div>
 
                             <p><b>ગ્રાહક / પાર્ટીનું નામ:</b> ${item.partyName}</p>
                             <p><b>મોબાઈલ નંબર:</b> ${item.partyMobile || '-'}</p>
-                            <p><b>સામાન પહોંચાડવાનું સ્થળ (જગ્યા):</b> <span style="background:#e0f2fe; padding:2px 8px; border-radius:4px; font-weight:bold;">${item.location}</span></p>
+                            <p><b>સામાન પહોંચાડવાનું સ્થળ:</b> <span style="background:#e0f2fe; padding:2px 8px; border-radius:4px; font-weight:bold;">${item.location}</span></p>
 
                             <table>
                                 <thead>
                                     <tr>
                                         <th>સામાનનું નામ (Item)</th>
                                         <th style="text-align:center;">કુલ નંગ</th>
+                                        <th style="text-align:right;">૧ નંગ ભાવ</th>
+                                        <th style="text-align:right;">કુલ રકમ</th>
                                         <th style="text-align:center;">પરત જમા</th>
                                         <th style="text-align:center;">બાકી નંગ</th>
                                     </tr>
@@ -845,15 +957,17 @@
                                     <tr>
                                         <td><b>${item.itemName}</b></td>
                                         <td style="text-align:center; font-weight:bold;">${item.qty} ${item.unit}</td>
+                                        <td style="text-align:right;">${rateText}</td>
+                                        <td style="text-align:right; font-weight:bold; color:#b45309;">${totalText}</td>
                                         <td style="text-align:center; color:#15803d; font-weight:bold;">${item.returnedQty || 0} ${item.unit}</td>
-                                        <td style="text-align:center; color:#b91c1c; font-weight:bold;">${item.pendingQty || 0} ${item.unit}</td>
+                                        <td style="text-align:center; color:#b91c1c; font-weight:bold;">${item.pendingQty !== undefined ? item.pendingQty : item.qty} ${item.unit}</td>
                                     </tr>
                                 </tbody>
                             </table>
 
                             <div style="margin-top:14px; font-size:12.5px;">
                                 <p><b>અપેક્ષિત પરત તારીખ:</b> ${item.expectedReturnDate || '-'}</p>
-                                <p><b>ભાડું / નોંધ:</b> ${item.note || '-'}</p>
+                                <p><b>નોંધ / વિગત:</b> ${item.note || '-'}</p>
                                 <p><b>સ્થિતિ (Status):</b> <b>${statusText}</b></p>
                             </div>
 
@@ -875,10 +989,10 @@
                 let list = Object.values(cloudOutwardInv);
                 if (list.length === 0) { alert("એક્સપોર્ટ કરવા માટે કોઈ ડેટા નથી!"); return; }
 
-                let csv = "\uFEFF# ,આપ્યા તારીખ,સામાનનું નામ,કુલ નંગ,બાકી નંગ,જમા નંગ,પાર્ટીનું નામ,મોબાઈલ,કઈ જગ્યા પર આપેલ (સ્થળ),અપેક્ષિત પરત તારીખ,ખરેખર પરત તારીખ,સ્ટેટસ,નોંધ\n";
+                let csv = "\uFEFF# ,આપ્યા તારીખ,ફાર્મનું નામ,સામાનનું નામ,કુલ નંગ,૧ નંગ ભાવ (₹),કુલ રકમ (₹),બાકી નંગ,જમા નંગ,પાર્ટીનું નામ,મોબાઈલ,સ્થળ,અપેક્ષિત પરત તારીખ,ખરેખર પરત તારીખ,સ્ટેટસ,નોંધ\n";
                 list.forEach((item, idx) => {
                     let st = item.status === "PENDING" ? "બહાર છે (બાકી)" : "સંપૂર્ણ પરત જમા";
-                    csv += `"${idx + 1}","${item.dispatchDate}","${item.itemName}","${item.qty} ${item.unit}","${item.pendingQty || 0}","${item.returnedQty || 0}","${item.partyName}","${item.partyMobile || ''}","${item.location}","${item.expectedReturnDate || '-'}","${item.actualReturnDate || '-'}","${st}","${(item.note || '').replace(/"/g, '""')}"\n`;
+                    csv += `"${idx + 1}","${item.dispatchDate}","${item.farmName || ''}","${item.itemName}","${item.qty} ${item.unit}","${item.rate || 0}","${item.totalRent || 0}","${item.pendingQty !== undefined ? item.pendingQty : item.qty}","${item.returnedQty || 0}","${item.partyName}","${item.partyMobile || ''}","${item.location}","${item.expectedReturnDate || '-'}","${item.actualReturnDate || '-'}","${st}","${(item.note || '').replace(/"/g, '""')}"\n`;
                 });
 
                 let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -888,16 +1002,6 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-            }
-
-            // માસ્ટર બેકઅપમાં આ નવો ડેટા આપોઆપ આવી જાય તે માટે ગ્લોબલ હુક
-            if (typeof generateMasterBackupPackage === "function") {
-                const prevMasterGen = generateMasterBackupPackage;
-                generateMasterBackupPackage = function() {
-                    let pkg = prevMasterGen();
-                    pkg.outwardInventory = cloudOutwardInv;
-                    return pkg;
-                };
             }
         </script>
 
