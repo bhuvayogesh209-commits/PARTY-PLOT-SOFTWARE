@@ -445,47 +445,50 @@
             </div>
         </div>
 
-        <!-- 🚚 Modal: સામાન બહાર આપેલ / ભાડે આપેલ & સ્ટોક ટ્રેકિંગ ખાતાવહી -->
+        <!-- 🚚 Modal: સામાન બહાર આપેલ / ભાડે આપેલ & સ્ટોક ટ્રેકિંગ ખાતાવહી (સંપૂર્ણ હિસ્ટ્રી, તારીખ ફિલ્ટર, એડિટ & ઑફલાઇન સિંક) -->
         <div class="modal" id="outwardInventoryModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(3px); justify-content:center; align-items:center; z-index:9999;">
-            <div class="modal-content" style="max-width:980px; width:96%; max-height:92vh; overflow-y:auto; background:#ffffff; border-radius:14px; padding:22px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
+            <div class="modal-content" style="max-width:1050px; width:97%; max-height:94vh; overflow-y:auto; background:#ffffff; border-radius:14px; padding:20px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
                 <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #ea580c; padding-bottom:10px; margin-bottom:14px;">
-                    <span style="color:#c2410c; font-size:18px; font-weight:800;">🚚 રોજિંદો સામાન બહાર આપેલ / ભાડે & પરત જમા ખાતાવહી</span>
+                    <span style="color:#c2410c; font-size:18px; font-weight:800;">🚚 સામાન બહાર આપેલ / ભાડે & પરત જમા ખાતાવહી (સંપૂર્ણ લાઈવ સ્ટોક & હિસ્ટ્રી)</span>
                     <button class="btn btn-outline" onclick="closeOutwardInventoryModal()" style="padding:3px 9px; font-size:12px;">✕ બંધ કરો</button>
                 </div>
 
                 <!-- લાઈવ સ્ટોક અને ભાડા રકમ સમરી કાર્ડ્સ -->
-                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; text-align:center;">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:14px; text-align:center;">
                     <div style="background:#fef2f2; border:1.5px solid #fca5a5; padding:10px; border-radius:8px;">
-                        <span style="font-size:11.5px; color:#991b1b; font-weight:700; display:block;">🔴 બહાર આપેલ કુલ નંગ (Pending)</span>
+                        <span style="font-size:11.5px; color:#991b1b; font-weight:700; display:block;">🔴 બહાર છે (Pending નંગ)</span>
                         <b id="outwardTotalPendingQty" style="font-size:20px; color:#b91c1c;">0</b>
-                    </div>
-                    <div style="background:#fefce8; border:1.5px solid #fde047; padding:10px; border-radius:8px;">
-                        <span style="font-size:11.5px; color:#854d0e; font-weight:700; display:block;">💰 કુલ ભાડું રકમ (Total Rent)</span>
-                        <b id="outwardTotalRentAmount" style="font-size:20px; color:#b45309;">₹0</b>
                     </div>
                     <div style="background:#ecfdf5; border:1.5px solid #86efac; padding:10px; border-radius:8px;">
                         <span style="font-size:11.5px; color:#166534; font-weight:700; display:block;">🟢 પરત જમા થયેલ નંગ</span>
                         <b id="outwardTotalReturnedQty" style="font-size:20px; color:#15803d;">0</b>
                     </div>
+                    <div style="background:#fefce8; border:1.5px solid #fde047; padding:10px; border-radius:8px;">
+                        <span style="font-size:11.5px; color:#854d0e; font-weight:700; display:block;">💰 કુલ ભાડું રકમ</span>
+                        <b id="outwardTotalRentAmount" style="font-size:20px; color:#b45309;">₹0</b>
+                    </div>
                     <div style="background:#eff6ff; border:1.5px solid #93c5fd; padding:10px; border-radius:8px;">
-                        <span style="font-size:11.5px; color:#1e40af; font-weight:700; display:block;">📦 કુલ બહાર આપેલ એન્ટ્રી</span>
+                        <span style="font-size:11.5px; color:#1e40af; font-weight:700; display:block;">📦 કુલ નોંધાયેલ એન્ટ્રી</span>
                         <b id="outwardTotalTxnCount" style="font-size:20px; color:#1d4ed8;">0</b>
                     </div>
                 </div>
 
-                <!-- નવો સામાન બહાર આપવાનું ફોર્મ -->
+                <!-- સામાન બહાર આપવાનું & એડિટ કરવાનું ફોર્મ -->
                 <div style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:10px; padding:14px; margin-bottom:14px;">
-                    <b style="font-size:13.5px; color:#9a3412; display:block; margin-bottom:10px;">➕ બહાર આપેલ / ભાડે આપેલ સામાનની નવી એન્ટ્રી કરો:</b>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <b id="outFormTitle" style="font-size:13.5px; color:#9a3412;">➕ બહાર આપેલ / ભાડે આપેલ સામાનની નવી એન્ટ્રી કરો:</b>
+                        <button id="btnCancelOutwardEdit" class="btn btn-outline" onclick="cancelEditOutward()" style="display:none; padding:3px 10px; font-size:11.5px; color:#b91c1c; border-color:#fca5a5;">✕ એડિટ રદ કરો</button>
+                    </div>
+                    <input type="hidden" id="editOutwardId" value="">
                     
                     <!-- ૧. ફાર્મ પસંદગી -->
                     <div style="margin-bottom:8px;">
                         <label style="font-size:11.5px; font-weight:700; color:#431407; display:block; margin-bottom:3px;">🏰 કયા ફાર્મમાંથી સામાન બહાર ગયો છે? *</label>
                         <select id="outFarmSelect" class="form-control" style="font-weight:700; color:#1e1b4b; background:#fff; border:1.5px solid #ea580c;">
-                            <!-- ફાર્મ ડાયનેમિક લોડ થશે -->
                         </select>
                     </div>
 
-                    <!-- ૨. સામાન, નંગ, એકમ, ૧ નંગનો ભાવ અને કુલ રકમ -->
+                    <!-- ૨. સામાન, નંગ, એકમ, ભાવ અને કુલ રકમ -->
                     <div style="display:grid; grid-template-columns: 1.4fr 1fr 0.8fr 1fr 1.2fr; gap:8px; margin-bottom:8px; align-items:end;">
                         <div>
                             <label style="font-size:11px; font-weight:700; color:#431407;">સામાનનું નામ (ખુરશી, ટેબલ વગેરે) *</label>
@@ -540,29 +543,51 @@
                             <input type="text" id="outNote" class="form-control" placeholder="દા.ત. એડવાન્સ ₹500 જમા">
                         </div>
                         <div>
-                            <button class="btn" onclick="saveOutwardDispatchEntry()" style="background:#ea580c; color:white; font-weight:800; padding:9px 18px; white-space:nowrap; box-shadow:0 2px 4px rgba(234,88,12,0.3);">💾 એન્ટ્રી સાચવો</button>
+                            <button id="btnSaveOutward" class="btn" onclick="saveOutwardDispatchEntry()" style="background:#ea580c; color:white; font-weight:800; padding:9px 18px; white-space:nowrap; box-shadow:0 2px 4px rgba(234,88,12,0.3);">💾 એન્ટ્રી સાચવો</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- ફિલ્ટર, સર્ચ અને Excel એક્સપોર્ટ બાર -->
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
-                    <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:280px; flex-wrap:wrap;">
-                        <input type="text" id="outwardSearchInput" class="form-control" onkeyup="renderOutwardInventoryTable()" placeholder="સામાન, પાર્ટી, ફાર્મ કે સ્થળ શોધો..." style="font-size:12px; flex:1; min-width:180px;">
-                        <select id="outwardFilterFarm" class="form-control" onchange="renderOutwardInventoryTable()" style="width:170px; font-size:12px; font-weight:700;">
-                            <option value="ALL">🏰 બધા ફાર્મ</option>
-                        </select>
-                        <select id="outwardFilterStatus" class="form-control" onchange="renderOutwardInventoryTable()" style="width:160px; font-size:12px; font-weight:700;">
-                            <option value="ALL">બધા સ્ટેટસ જુઓ</option>
-                            <option value="PENDING" selected>🔴 માત્ર બહાર છે (બાકી)</option>
-                            <option value="RETURNED">🟢 માત્ર પરત જમા થયેલ</option>
-                        </select>
+                <!-- 🔍 શરૂઆત અને અંતિમ તારીખ મુજબ સર્ચ બોક્સ & રિપોર્ટ બાર (અલગ આપેલ) -->
+                <div style="background:#f1f5f9; border:1.5px solid #cbd5e1; border-radius:10px; padding:10px 14px; margin-bottom:12px;">
+                    <b style="font-size:12.5px; color:#1e293b; display:block; margin-bottom:8px;">🔍 તારીખ મુજબ રિપોર્ટ શોધો & ફિલ્ટર કરો:</b>
+                    <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.1fr 1.1fr auto; gap:8px; align-items:end;">
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#475569;">નામ / સામાન / સ્થળ સર્ચ:</label>
+                            <input type="text" id="outwardSearchInput" class="form-control" onkeyup="renderOutwardInventoryTable()" placeholder="શોધો..." style="font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#475569;">શરૂઆત તારીખ (From):</label>
+                            <input type="date" id="outwardFilterStartDate" class="form-control" onchange="renderOutwardInventoryTable()" style="font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#475569;">અંતિમ તારીખ (To):</label>
+                            <input type="date" id="outwardFilterEndDate" class="form-control" onchange="renderOutwardInventoryTable()" style="font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#475569;">ફાર્મ ફિલ્ટર:</label>
+                            <select id="outwardFilterFarm" class="form-control" onchange="renderOutwardInventoryTable()" style="font-size:12px; font-weight:700;">
+                                <option value="ALL">🏰 બધા ફાર્મ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#475569;">સ્ટેટસ ફિલ્ટર:</label>
+                            <select id="outwardFilterStatus" class="form-control" onchange="renderOutwardInventoryTable()" style="font-size:12px; font-weight:700;">
+                                <option value="ALL">📑 બધા રેકોર્ડ્સ (સંપૂર્ણ હિસ્ટ્રી)</option>
+                                <option value="PENDING" selected>🔴 માત્ર બહાર છે (બાકી)</option>
+                                <option value="RETURNED">🟢 માત્ર પરત જમા થયેલ</option>
+                            </select>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn btn-outline" onclick="resetOutwardFilters()" style="padding:7px 10px; font-size:12px;" title="બધા ફિલ્ટર હટાવો">🔄 રીસેટ</button>
+                            <button class="btn btn-success" onclick="exportOutwardInventoryExcel()" style="padding:7px 12px; font-size:12px; font-weight:700; white-space:nowrap;">📑 Excel</button>
+                            <button class="btn btn-primary" onclick="printOutwardHistoryReport()" style="padding:7px 12px; font-size:12px; font-weight:700; white-space:nowrap;">🖨️ રિપોર્ટ પ્રિન્ટ</button>
+                        </div>
                     </div>
-                    <button class="btn btn-success" onclick="exportOutwardInventoryExcel()" style="padding:7px 14px; font-size:12.5px; font-weight:700;">📑 Excel એક્સપોર્ટ</button>
                 </div>
 
-                <!-- સામાન બહાર આપેલ લાઈવ ખાતાવહી ટેબલ -->
-                <div style="max-height:320px; overflow-y:auto; border:1.5px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:12px;">
+                <!-- સામાન બહાર આપેલ લાઈવ & હિસ્ટ્રી ટેબલ -->
+                <div style="max-height:340px; overflow-y:auto; border:1.5px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:12px;">
                     <table style="width:100%; font-size:12px; border-collapse:collapse;">
                         <thead style="background:#f1f5f9; position:sticky; top:0; z-index:2;">
                             <tr>
@@ -570,23 +595,23 @@
                                 <th style="padding:8px 6px;">આપ્યા તારીખ</th>
                                 <th style="padding:8px 6px;">ફાર્મ / બ્રાન્ચ</th>
                                 <th style="padding:8px 6px;">સામાનની વિગત (Item)</th>
-                                <th style="padding:8px 6px; text-align:center;">આપેલ નંગ</th>
+                                <th style="padding:8px 6px; text-align:center;">કુલ નંગ</th>
                                 <th style="padding:8px 6px; text-align:right;">૧ નંગ ભાવ</th>
                                 <th style="padding:8px 6px; text-align:right;">કુલ રકમ (₹)</th>
                                 <th style="padding:8px 6px;">પાર્ટીનું નામ & મોબાઈલ</th>
-                                <th style="padding:8px 6px;">કઈ જગ્યા પર છે (સ્થળ)</th>
+                                <th style="padding:8px 6px;">સ્થળ</th>
                                 <th style="padding:8px 6px; text-align:center;">પરત સ્થિતિ</th>
                                 <th style="padding:8px 6px; text-align:center;">ક્રિયા</th>
                             </tr>
                         </thead>
                         <tbody id="outwardInventoryTableBody">
-                            <tr><td colspan="11" style="text-align:center; padding:18px; color:#94a3b8;">કોઈ સામાન બહાર નોંધાયેલ નથી.</td></tr>
+                            <tr><td colspan="11" style="text-align:center; padding:18px; color:#94a3b8;">કોઈ સામાન નોંધાયેલ નથી.</td></tr>
                         </tbody>
                     </table>
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <small style="color:#64748b;">* જ્યાં સુધી સામાન પાછો નહિ આવે ત્યાં સુધી તે લાલ/નારંગી હાઇલાઇટ કલરમાં દેખાશે.</small>
+                    <small style="color:#64748b;">* સામાન પરત આવી ગયા પછી પણ તે હિસ્ટ્રીમાં કાયમ સચવાશે. ફિલ્ટરમાં "બધા રેકોર્ડ્સ (સંપૂર્ણ હિસ્ટ્રી)" પસંદ કરીને ક્યારેય પણ જોઈ શકાય છે.</small>
                     <button class="btn btn-outline" onclick="closeOutwardInventoryModal()" style="padding:8px 20px;">બંધ કરો</button>
                 </div>
             </div>
@@ -594,6 +619,15 @@
 
         <!-- 🚚 Dedicated JavaScript Engine for Outward Inventory Tracker -->
         <script>
+            // સુરક્ષિત લોકલ તારીખ હેલ્પર (IST Timezone Safe)
+            function getLocalTodayISO(d) {
+                d = d || new Date();
+                let y = d.getFullYear();
+                let m = String(d.getMonth() + 1).padStart(2, '0');
+                let day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            }
+
             if (typeof firebase !== "undefined" && !firebase.apps.length) {
                 firebase.initializeApp({
                     apiKey: "AIzaSyA6iJtcv5Uegh0PMQmeoMbM3b8S2sTmOko",
@@ -607,18 +641,21 @@
             }
 
             const outwardInvRef = firebase.database().ref("outward_inventory");
-            let cloudOutwardInv = JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
+            var cloudOutwardInv = JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
+            window.cloudOutwardInv = cloudOutwardInv;
 
-            // સુરક્ષિત Firebase સિન્ક: જો ક્લાઉડ ખાલી હોય તો લોકલ ડેટા ભૂંસાશે નહીં
+            // સુરક્ષિત Firebase સિન્ક: ક્લાઉડ ખાલી હોય તો પણ લોકલ ડેટા ભૂંસાશે નહીં
             outwardInvRef.on('value', (snap) => {
                 let val = snap.val();
                 if (val && Object.keys(val).length > 0) {
                     cloudOutwardInv = val;
+                    window.cloudOutwardInv = cloudOutwardInv;
                     localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
                 } else {
                     let localData = JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
                     if (Object.keys(localData).length > 0) {
                         cloudOutwardInv = localData;
+                        window.cloudOutwardInv = cloudOutwardInv;
                         if (navigator.onLine) outwardInvRef.update(cloudOutwardInv);
                     }
                 }
@@ -668,17 +705,13 @@
             }
 
             function openOutwardInventoryModal() {
-                let now = new Date();
-                document.getElementById("outDispatchDate").value = now.toISOString().slice(0, 10);
-                document.getElementById("outExpectedReturnDate").value = "";
-                document.getElementById("outItemName").value = "";
-                document.getElementById("outItemQty").value = "";
-                document.getElementById("outItemRate").value = "";
-                document.getElementById("outItemTotalAmount").value = "";
-                document.getElementById("outPartyName").value = "";
-                document.getElementById("outPartyMobile").value = "";
-                document.getElementById("outLocation").value = "";
-                document.getElementById("outNote").value = "";
+                cancelEditOutward();
+
+                // 🌟 સુધારો: ડિફોલ્ટમાં ફિલ્ટર તારીખ ખાલી રાખવી જેથી ભૂતકાળનો જૂનો બાકી સામાન પણ હંમેશા સામે દેખાય!
+                let startInput = document.getElementById("outwardFilterStartDate");
+                let endInput = document.getElementById("outwardFilterEndDate");
+                if (startInput) startInput.value = "";
+                if (endInput) endInput.value = "";
 
                 populateOutwardFarmDropdowns();
                 renderOutwardInventoryTable();
@@ -686,10 +719,21 @@
             }
 
             function closeOutwardInventoryModal() {
+                cancelEditOutward();
                 document.getElementById("outwardInventoryModal").style.display = "none";
             }
 
-            // 💾 સામાન બહાર આપવાની નવી એન્ટ્રી સેવ કરવી (ઓનલાઇન & ઑફલાઇન ૧૦૦% સેવ)
+            // ફિલ્ટર રીસેટ કરવા
+            function resetOutwardFilters() {
+                if (document.getElementById("outwardSearchInput")) document.getElementById("outwardSearchInput").value = "";
+                if (document.getElementById("outwardFilterStartDate")) document.getElementById("outwardFilterStartDate").value = "";
+                if (document.getElementById("outwardFilterEndDate")) document.getElementById("outwardFilterEndDate").value = "";
+                if (document.getElementById("outwardFilterFarm")) document.getElementById("outwardFilterFarm").value = "ALL";
+                if (document.getElementById("outwardFilterStatus")) document.getElementById("outwardFilterStatus").value = "ALL";
+                renderOutwardInventoryTable();
+            }
+
+            // 💾 સામાન બહાર આપવાની નવી એન્ટ્રી સેવ અથવા એડિટ કરવી
             function saveOutwardDispatchEntry() {
                 let item = document.getElementById("outItemName").value.trim();
                 let qty = parseFloat(document.getElementById("outItemQty").value) || 0;
@@ -713,15 +757,28 @@
                     return;
                 }
 
-                let id = "out_" + Date.now();
+                let editId = document.getElementById("editOutwardId").value.trim();
+                let id = editId ? editId : ("out_" + Date.now());
+
+                let existing = editId ? cloudOutwardInv[editId] : null;
+                let returnedQty = existing ? parseFloat(existing.returnedQty || 0) : 0;
+                
+                if (qty < returnedQty) {
+                    alert(`ભૂલ: આપેલી સંખ્યા (${qty}) પરત જમા થયેલ સંખ્યા (${returnedQty}) કરતાં ઓછી ન હોઈ શકે!`);
+                    return;
+                }
+
+                let pendingQty = qty - returnedQty;
+                let status = pendingQty === 0 ? "RETURNED" : "PENDING";
+
                 let entryData = {
                     id: id,
                     farmId: farmId,
                     farmName: farmName,
                     itemName: item,
                     qty: qty,
-                    returnedQty: 0,
-                    pendingQty: qty,
+                    returnedQty: returnedQty,
+                    pendingQty: pendingQty,
                     unit: unit,
                     rate: rate,
                     totalRent: totalAmt,
@@ -730,14 +787,16 @@
                     location: loc,
                     dispatchDate: dDate,
                     expectedReturnDate: rDate,
-                    actualReturnDate: "",
+                    actualReturnDate: existing ? (existing.actualReturnDate || "") : "",
                     note: note,
-                    status: "PENDING",
-                    timestamp: Date.now()
+                    status: status,
+                    timestamp: existing ? (existing.timestamp || Date.now()) : Date.now(),
+                    updatedAt: Date.now()
                 };
 
-                // તાત્કાલિક LocalStorage માં સેવ (ગમે ત્યારે ઑફલાઇન સુરક્ષિત)
+                // તાત્કાલિક LocalStorage માં સેવ
                 cloudOutwardInv[id] = entryData;
+                window.cloudOutwardInv = cloudOutwardInv;
                 localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
@@ -748,7 +807,44 @@
                     addToSyncQueue({ path: "outward_inventory/" + id, action: "set", data: entryData });
                 }
 
-                // ફોર્મ ક્લિયર
+                alert(editId ? `✅ સામાન "${item}" ની વિગત સફળતાપૂર્વક સુધારી લેવાઈ છે!` : `✅ સામાન "${item} (${qty} ${unit} - કુલ ₹${totalAmt})" સફળતાપૂર્વક સેવ થઈ ગયો!`);
+                cancelEditOutward();
+                renderOutwardInventoryTable();
+            }
+
+            // ✏️ એડિટ મોડમાં ફોર્મમાં ડેટા ભરવો
+            function editOutwardEntry(id) {
+                let item = cloudOutwardInv[id];
+                if (!item) return;
+
+                document.getElementById("editOutwardId").value = id;
+                document.getElementById("outItemName").value = item.itemName || "";
+                document.getElementById("outItemQty").value = item.qty || "";
+                document.getElementById("outItemUnit").value = item.unit || "નંગ";
+                document.getElementById("outItemRate").value = item.rate || "";
+                document.getElementById("outItemTotalAmount").value = item.totalRent || "";
+                document.getElementById("outPartyName").value = item.partyName || "";
+                document.getElementById("outPartyMobile").value = item.partyMobile || "";
+                document.getElementById("outLocation").value = item.location || "";
+                document.getElementById("outDispatchDate").value = item.dispatchDate || "";
+                document.getElementById("outExpectedReturnDate").value = item.expectedReturnDate || "";
+                document.getElementById("outNote").value = item.note || "";
+
+                let farmSel = document.getElementById("outFarmSelect");
+                if (farmSel && item.farmId) farmSel.value = item.farmId;
+
+                document.getElementById("outFormTitle").innerText = `✏️ એડિટ સામાન: ${item.itemName} (${item.partyName})`;
+                document.getElementById("btnSaveOutward").innerText = "💾 સુધારો સેવ કરો";
+                document.getElementById("btnSaveOutward").style.background = "#2563eb";
+                document.getElementById("btnCancelOutwardEdit").style.display = "inline-flex";
+
+                let nameInput = document.getElementById("outItemName");
+                if (nameInput) nameInput.focus();
+            }
+
+            // એડિટ રદ કરી ફોર્મ ક્લિયર કરવું
+            function cancelEditOutward() {
+                document.getElementById("editOutwardId").value = "";
                 document.getElementById("outItemName").value = "";
                 document.getElementById("outItemQty").value = "";
                 document.getElementById("outItemRate").value = "";
@@ -757,12 +853,17 @@
                 document.getElementById("outPartyMobile").value = "";
                 document.getElementById("outLocation").value = "";
                 document.getElementById("outNote").value = "";
+                document.getElementById("outExpectedReturnDate").value = "";
+                
+                document.getElementById("outDispatchDate").value = getLocalTodayISO();
 
-                alert(`✅ સામાન "${item} (${qty} ${unit} - કુલ ₹${totalAmt})" સફળતાપૂર્વક સેવ થઈ ગયો!`);
-                renderOutwardInventoryTable();
+                document.getElementById("outFormTitle").innerText = "➕ બહાર આપેલ / ભાડે આપેલ સામાનની નવી એન્ટ્રી કરો:";
+                document.getElementById("btnSaveOutward").innerText = "💾 એન્ટ્રી સાચવો";
+                document.getElementById("btnSaveOutward").style.background = "#ea580c";
+                document.getElementById("btnCancelOutwardEdit").style.display = "none";
             }
 
-            // 📥 બહાર ગયેલ સામાન પરત જમા લેવો
+            // 📥 બહાર ગયેલ સામાન પરત જમા લેવો (હિસ્ટ્રી સચવાઈ રહેશે)
             function returnOutwardItem(id) {
                 let entry = cloudOutwardInv[id];
                 if (!entry) return;
@@ -781,13 +882,14 @@
                 let newPendingQty = pending - returnedNow;
                 let isFull = newPendingQty === 0;
 
-                let todayStr = new Date().toISOString().slice(0, 10);
+                let todayStr = getLocalTodayISO();
                 entry.returnedQty = newReturnedQty;
                 entry.pendingQty = newPendingQty;
                 entry.status = isFull ? "RETURNED" : "PENDING";
                 entry.actualReturnDate = todayStr;
 
                 cloudOutwardInv[id] = entry;
+                window.cloudOutwardInv = cloudOutwardInv;
                 localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
@@ -797,7 +899,7 @@
                     addToSyncQueue({ path: "outward_inventory/" + id, action: "update", data: entry });
                 }
 
-                alert(`✅ ${returnedNow} ${entry.unit} "${entry.itemName}" સફળતાપૂર્વક સ્ટોકમાં પરત જમા લેવાઈ ગયા!`);
+                alert(`✅ ${returnedNow} ${entry.unit} "${entry.itemName}" સફળતાપૂર્વક સ્ટોકમાં પરત જમા લેવાઈ ગયા! રેકોર્ડ હિસ્ટ્રીમાં સેવ રહેશે.`);
                 renderOutwardInventoryTable();
             }
 
@@ -806,8 +908,13 @@
                 if (!confirm(`શું તમે આ બહાર આપેલ સામાનની એન્ટ્રી (${itemName}) ડિલીટ કરવા માંગો છો?`)) return;
 
                 delete cloudOutwardInv[id];
+                window.cloudOutwardInv = cloudOutwardInv;
                 localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+                if (document.getElementById("editOutwardId").value === id) {
+                    cancelEditOutward();
+                }
 
                 if (navigator.onLine) {
                     outwardInvRef.child(id).remove().catch(e => console.warn(e));
@@ -817,7 +924,7 @@
                 renderOutwardInventoryTable();
             }
 
-            // 📋 ટેબલ રેન્ડરિંગ (ભાવ, કુલ રકમ અને ફાર્મ નામ સાથે)
+            // 📋 ટેબલ રેન્ડરિંગ (તારીખ ફિલ્ટર, સર્ચ બોક્સ & ✏️ એડિટ બટન સાથે)
             function renderOutwardInventoryTable() {
                 let tbody = document.getElementById("outwardInventoryTableBody");
                 if (!tbody) return;
@@ -826,9 +933,11 @@
                 let search = (document.getElementById("outwardSearchInput") ? document.getElementById("outwardSearchInput").value : "").toLowerCase().trim();
                 let statusFilter = document.getElementById("outwardFilterStatus") ? document.getElementById("outwardFilterStatus").value : "ALL";
                 let farmFilter = document.getElementById("outwardFilterFarm") ? document.getElementById("outwardFilterFarm").value : "ALL";
+                let sDate = document.getElementById("outwardFilterStartDate") ? document.getElementById("outwardFilterStartDate").value : "";
+                let eDate = document.getElementById("outwardFilterEndDate") ? document.getElementById("outwardFilterEndDate").value : "";
 
                 let list = Object.values(cloudOutwardInv);
-                list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                list.sort((a, b) => (b.dispatchDate || "").localeCompare(a.dispatchDate || "") || (b.timestamp || 0) - (a.timestamp || 0));
 
                 let totalPending = 0;
                 let totalReturned = 0;
@@ -840,6 +949,10 @@
                     let isPending = item.status === "PENDING" && pendQty > 0;
 
                     if (farmFilter !== "ALL" && item.farmId && item.farmId !== farmFilter) return;
+
+                    // શરૂઆત અને અંતિમ તારીખ ફિલ્ટર
+                    if (sDate && item.dispatchDate && item.dispatchDate < sDate) return;
+                    if (eDate && item.dispatchDate && item.dispatchDate > eDate) return;
 
                     if (isPending) totalPending += pendQty;
                     totalReturned += parseFloat(item.returnedQty || 0);
@@ -866,17 +979,24 @@
 
                     let rateDisp = item.rate > 0 ? `₹${item.rate}` : '-';
                     let totalRentDisp = item.totalRent > 0 ? `₹${parseFloat(item.totalRent).toLocaleString('en-IN')}` : '-';
+                    let safeName = (item.itemName || '').replace(/'/g, "\\'");
 
                     tbody.innerHTML += `
                     <tr style="background:${rowBg}; border-bottom:1px solid #e2e8f0;">
                         <td style="padding:7px 6px; text-align:center;">${count}</td>
-                        <td style="padding:7px 6px; white-space:nowrap;"><b>${item.dispatchDate}</b></td>
+                        <td style="padding:7px 6px; white-space:nowrap;">
+                            <b>${item.dispatchDate}</b>
+                            ${item.actualReturnDate ? `<br><small style="color:#166534;">જમા: ${item.actualReturnDate}</small>` : ''}
+                        </td>
                         <td style="padding:7px 6px;"><span style="background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; font-weight:800; font-size:11px;">🏰 ${item.farmName || '-'}</span></td>
                         <td style="padding:7px 6px;">
                             <b style="color:#0f172a; font-size:13px;">${item.itemName}</b>
                             ${item.note ? `<br><small style="color:#64748b;">📝 ${item.note}</small>` : ''}
                         </td>
-                        <td style="padding:7px 6px; text-align:center; font-weight:800; color:#c2410c; font-size:13.5px;">${item.qty} ${item.unit}</td>
+                        <td style="padding:7px 6px; text-align:center; font-weight:800; color:#c2410c; font-size:13px;">
+                            ${item.qty} ${item.unit}
+                            ${item.returnedQty > 0 ? `<br><small style="color:#16a34a;">(જમા: ${item.returnedQty})</small>` : ''}
+                        </td>
                         <td style="padding:7px 6px; text-align:right; font-weight:700; color:#166534;">${rateDisp}</td>
                         <td style="padding:7px 6px; text-align:right; font-weight:800; color:#b45309; font-size:13.5px;">${totalRentDisp}</td>
                         <td style="padding:7px 6px;">
@@ -889,23 +1009,148 @@
                         <td style="padding:7px 6px; text-align:center;">${statusBadge}</td>
                         <td style="padding:7px 6px; text-align:center; white-space:nowrap;">
                             ${returnBtn}
-                            <button class="btn btn-outline" style="padding:2px 6px; font-size:11px; margin-left:3px;" onclick="printOutwardChallan('${item.id}')" title="પહોંચ પ્રિન્ટ કરો">🖨️</button>
-                            <button onclick="deleteOutwardEntry('${item.id}', '${item.itemName}')" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer; margin-left:4px;" title="ડિલીટ">❌</button>
+                            <button class="btn btn-outline" style="padding:2px 6px; font-size:11px; margin-left:3px;" onclick="editOutwardEntry('${item.id}')" title="સુધારો કરો">✏️</button>
+                            <button class="btn btn-outline" style="padding:2px 6px; font-size:11px; margin-left:2px;" onclick="printOutwardChallan('${item.id}')" title="પહોંચ પ્રિન્ટ કરો">🖨️</button>
+                            <button onclick="deleteOutwardEntry('${item.id}', '${safeName}')" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer; margin-left:3px;" title="ડિલીટ">❌</button>
                         </td>
                     </tr>`;
                 });
 
                 if (count === 0) {
-                    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:18px; color:#94a3b8;">પસંદ કરેલ ફિલ્ટરમાં કોઈ સામાન રેકોર્ડ મળ્યો નથી.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:18px; color:#94a3b8;">પસંદ કરેલ તારીખ અને ફિલ્ટરમાં કોઈ સામાન રેકોર્ડ મળ્યો નથી.</td></tr>`;
                 }
 
                 if (document.getElementById("outwardTotalPendingQty")) document.getElementById("outwardTotalPendingQty").innerText = totalPending;
                 if (document.getElementById("outwardTotalReturnedQty")) document.getElementById("outwardTotalReturnedQty").innerText = totalReturned;
                 if (document.getElementById("outwardTotalRentAmount")) document.getElementById("outwardTotalRentAmount").innerText = "₹" + totalRentSum.toLocaleString('en-IN');
-                if (document.getElementById("outwardTotalTxnCount")) document.getElementById("outwardTotalTxnCount").innerText = list.length;
+                if (document.getElementById("outwardTotalTxnCount")) document.getElementById("outwardTotalTxnCount").innerText = count;
             }
 
-            // 🖨️ પહોંચ/ચલણ A4 પ્રિન્ટ ફંક્શન (ભાવ અને કુલ રકમ સાથે)
+            // 🖨️ તારીખ મુજબ ફિલ્ટર કરેલ સમગ્ર સામાન હિસ્ટ્રી રિપોર્ટ પ્રિન્ટ કરવો
+            function printOutwardHistoryReport() {
+                let sDate = document.getElementById("outwardFilterStartDate") ? document.getElementById("outwardFilterStartDate").value : "";
+                let eDate = document.getElementById("outwardFilterEndDate") ? document.getElementById("outwardFilterEndDate").value : "";
+                let statusFilter = document.getElementById("outwardFilterStatus") ? document.getElementById("outwardFilterStatus").value : "ALL";
+                let farmFilter = document.getElementById("outwardFilterFarm") ? document.getElementById("outwardFilterFarm").value : "ALL";
+                let search = (document.getElementById("outwardSearchInput") ? document.getElementById("outwardSearchInput").value : "").toLowerCase().trim();
+
+                let list = Object.values(cloudOutwardInv);
+                list.sort((a, b) => (a.dispatchDate || "").localeCompare(b.dispatchDate || ""));
+
+                let filtered = list.filter(item => {
+                    let pendQty = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+                    let isPending = item.status === "PENDING" && pendQty > 0;
+
+                    if (farmFilter !== "ALL" && item.farmId && item.farmId !== farmFilter) return false;
+                    if (sDate && item.dispatchDate && item.dispatchDate < sDate) return false;
+                    if (eDate && item.dispatchDate && item.dispatchDate > eDate) return false;
+                    if (statusFilter === "PENDING" && !isPending) return false;
+                    if (statusFilter === "RETURNED" && isPending) return false;
+                    if (search) {
+                        let textBlock = `${item.itemName} ${item.partyName} ${item.location} ${item.partyMobile} ${item.farmName} ${item.note}`.toLowerCase();
+                        if (!textBlock.includes(search)) return false;
+                    }
+                    return true;
+                });
+
+                if (filtered.length === 0) {
+                    alert("પસંદ કરેલ તારીખમાં પ્રિન્ટ કરવા માટે કોઈ સામાન રેકોર્ડ નથી!");
+                    return;
+                }
+
+                let totalQty = 0, totalPending = 0, totalRent = 0;
+                let rowsHTML = "";
+
+                filtered.forEach((item, idx) => {
+                    let pend = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+                    let isPending = item.status === "PENDING" && pend > 0;
+                    totalQty += parseFloat(item.qty || 0);
+                    if (isPending) totalPending += pend;
+                    totalRent += parseFloat(item.totalRent || 0);
+
+                    rowsHTML += `
+                    <tr>
+                        <td style="text-align:center;">${idx + 1}</td>
+                        <td>${item.dispatchDate}</td>
+                        <td><b>${item.farmName || '-'}</b></td>
+                        <td><b>${item.itemName}</b></td>
+                        <td style="text-align:center; font-weight:bold;">${item.qty} ${item.unit}</td>
+                        <td style="text-align:center; color:#15803d;">${item.returnedQty || 0}</td>
+                        <td style="text-align:center; color:#b91c1c; font-weight:bold;">${pend}</td>
+                        <td style="text-align:right;">₹${item.rate || 0}</td>
+                        <td style="text-align:right; font-weight:bold;">₹${parseFloat(item.totalRent || 0).toLocaleString('en-IN')}</td>
+                        <td><b>${item.partyName}</b> ${item.partyMobile ? `(${item.partyMobile})` : ''}</td>
+                        <td>${item.location || '-'}</td>
+                        <td style="text-align:center;">${isPending ? '🔴 બહાર છે' : '🟢 પરત જમા'}</td>
+                    </tr>`;
+                });
+
+                let win = window.open('', '_blank', 'width=950,height=700');
+                if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
+
+                win.document.write(`
+                    <html>
+                    <head>
+                        <title>સામાન બહાર આપેલ / ભાડે ખાતાવહી રિપોર્ટ</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; color: #1e293b; }
+                            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11.5px; }
+                            th, td { border: 1px solid #94a3b8; padding: 6px; text-align: left; }
+                            th { background: #f1f5f9; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h2 style="margin:0; color:#ea580c;">${currentFarmName || 'પાર્ટી પ્લોટ મેનેજમેન્ટ'}</h2>
+                            <h3 style="margin:4px 0; color:#334155;">સામાન બહાર આપેલ / ભાડે આપેલ સંપૂર્ણ ખાતાવહી રિપોર્ટ</h3>
+                            <small>સમયગાળો: ${sDate || 'શરૂઆત'} થી ${eDate || 'આજ સુધી'}</small>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>તારીખ</th>
+                                    <th>ફાર્મ</th>
+                                    <th>સામાનનું નામ</th>
+                                    <th style="text-align:center;">કુલ નંગ</th>
+                                    <th style="text-align:center;">જમા</th>
+                                    <th style="text-align:center;">બાકી</th>
+                                    <th style="text-align:right;">ભાવ</th>
+                                    <th style="text-align:right;">કુલ ભાડું</th>
+                                    <th>પાર્ટી નામ & ફોન</th>
+                                    <th>સ્થળ</th>
+                                    <th style="text-align:center;">સ્થિતિ</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rowsHTML}</tbody>
+                            <tfoot>
+                                <tr style="font-weight:bold; background:#f8fafc;">
+                                    <td colspan="4" style="text-align:right;">કુલ સરવાળો:</td>
+                                    <td style="text-align:center;">${totalQty}</td>
+                                    <td></td>
+                                    <td style="text-align:center; color:#b91c1c;">${totalPending}</td>
+                                    <td></td>
+                                    <td style="text-align:right; color:#b45309;">₹${totalRent.toLocaleString('en-IN')}</td>
+                                    <td colspan="3"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:12px;">
+                            <div>તપાસનાર સ્ટોક મેનેજર સહી: ____________</div>
+                            <div>ઓફિસ / માલિક સહી: ____________</div>
+                        </div>
+                    </body>
+                    </html>
+                `);
+                win.document.close();
+                win.focus();
+                win.print();
+            }
+
+            // 🖨️ વ્યક્તિગત સામાન પહોંચ/ચલણ પ્રિન્ટ ફંક્શન
             function printOutwardChallan(id) {
                 let item = cloudOutwardInv[id];
                 if (!item) return;
@@ -913,7 +1158,8 @@
                 let win = window.open('', '_blank', 'width=750,height=600');
                 if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
 
-                let statusText = item.status === "PENDING" ? "🔴 બહાર છે (પરત આવવાનો બાકી)" : "🟢 સંપૂર્ણ પરત જમા થયેલ";
+                let pend = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+                let statusText = item.status === "PENDING" && pend > 0 ? "🔴 બહાર છે (પરત આવવાનો બાકી)" : "🟢 સંપૂર્ણ પરત જમા થયેલ";
                 let rateText = item.rate > 0 ? `₹${item.rate}` : '-';
                 let totalText = item.totalRent > 0 ? `₹${parseFloat(item.totalRent).toLocaleString('en-IN')}` : '-';
 
@@ -922,11 +1168,11 @@
                     <head>
                         <title>સામાન ચલણ - ${item.partyName}</title>
                         <style>
-                            body { font-family: 'Noto Sans Gujarati', Arial, sans-serif; padding: 25px; color: #1e293b; }
+                            body { font-family: Arial, sans-serif; padding: 25px; color: #1e293b; }
                             .box { border: 2px solid #334155; padding: 20px; border-radius: 10px; max-width: 650px; margin: auto; }
                             .header { text-align: center; border-bottom: 2px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 15px; }
-                            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13.5px; }
-                            th, td { border: 1px solid #cbd5e1; padding: 9px 12px; text-align: left; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+                            th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
                             th { background: #f8fafc; font-weight: 700; }
                         </style>
                     </head>
@@ -935,7 +1181,7 @@
                             <div class="header">
                                 <h2 style="margin:0; color:#ea580c;">🏰 ${item.farmName || currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
                                 <h4 style="margin:4px 0; color:#475569;">સામાન ડિલિવરી / બહાર આપેલ પહોંચ (Challan)</h4>
-                                <small>તારીખ: ${item.dispatchDate}</small>
+                                <small>આપ્યા તારીખ: ${item.dispatchDate}</small>
                             </div>
 
                             <p><b>ગ્રાહક / પાર્ટીનું નામ:</b> ${item.partyName}</p>
@@ -945,7 +1191,7 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>સામાનનું નામ (Item)</th>
+                                        <th>સામાનનું નામ</th>
                                         <th style="text-align:center;">કુલ નંગ</th>
                                         <th style="text-align:right;">૧ નંગ ભાવ</th>
                                         <th style="text-align:right;">કુલ રકમ</th>
@@ -960,13 +1206,14 @@
                                         <td style="text-align:right;">${rateText}</td>
                                         <td style="text-align:right; font-weight:bold; color:#b45309;">${totalText}</td>
                                         <td style="text-align:center; color:#15803d; font-weight:bold;">${item.returnedQty || 0} ${item.unit}</td>
-                                        <td style="text-align:center; color:#b91c1c; font-weight:bold;">${item.pendingQty !== undefined ? item.pendingQty : item.qty} ${item.unit}</td>
+                                        <td style="text-align:center; color:#b91c1c; font-weight:bold;">${pend} ${item.unit}</td>
                                     </tr>
                                 </tbody>
                             </table>
 
                             <div style="margin-top:14px; font-size:12.5px;">
                                 <p><b>અપેક્ષિત પરત તારીખ:</b> ${item.expectedReturnDate || '-'}</p>
+                                <p><b>ખરેખર પરત જમા તારીખ:</b> ${item.actualReturnDate || '-'}</p>
                                 <p><b>નોંધ / વિગત:</b> ${item.note || '-'}</p>
                                 <p><b>સ્થિતિ (Status):</b> <b>${statusText}</b></p>
                             </div>
@@ -984,21 +1231,50 @@
                 win.print();
             }
 
-            // 📑 Excel / CSV એક્સપોર્ટ
+            // 📑 પસંદ કરેલ ફિલ્ટર અને તારીખ મુજબ સામાન હિસ્ટ્રી Excel / CSV એક્સપોર્ટ
             function exportOutwardInventoryExcel() {
-                let list = Object.values(cloudOutwardInv);
-                if (list.length === 0) { alert("એક્સપોર્ટ કરવા માટે કોઈ ડેટા નથી!"); return; }
+                let sDate = document.getElementById("outwardFilterStartDate") ? document.getElementById("outwardFilterStartDate").value : "";
+                let eDate = document.getElementById("outwardFilterEndDate") ? document.getElementById("outwardFilterEndDate").value : "";
+                let statusFilter = document.getElementById("outwardFilterStatus") ? document.getElementById("outwardFilterStatus").value : "ALL";
+                let farmFilter = document.getElementById("outwardFilterFarm") ? document.getElementById("outwardFilterFarm").value : "ALL";
+                let search = (document.getElementById("outwardSearchInput") ? document.getElementById("outwardSearchInput").value : "").toLowerCase().trim();
 
-                let csv = "\uFEFF# ,આપ્યા તારીખ,ફાર્મનું નામ,સામાનનું નામ,કુલ નંગ,૧ નંગ ભાવ (₹),કુલ રકમ (₹),બાકી નંગ,જમા નંગ,પાર્ટીનું નામ,મોબાઈલ,સ્થળ,અપેક્ષિત પરત તારીખ,ખરેખર પરત તારીખ,સ્ટેટસ,નોંધ\n";
-                list.forEach((item, idx) => {
-                    let st = item.status === "PENDING" ? "બહાર છે (બાકી)" : "સંપૂર્ણ પરત જમા";
-                    csv += `"${idx + 1}","${item.dispatchDate}","${item.farmName || ''}","${item.itemName}","${item.qty} ${item.unit}","${item.rate || 0}","${item.totalRent || 0}","${item.pendingQty !== undefined ? item.pendingQty : item.qty}","${item.returnedQty || 0}","${item.partyName}","${item.partyMobile || ''}","${item.location}","${item.expectedReturnDate || '-'}","${item.actualReturnDate || '-'}","${st}","${(item.note || '').replace(/"/g, '""')}"\n`;
+                let list = Object.values(cloudOutwardInv);
+                list.sort((a, b) => (a.dispatchDate || "").localeCompare(b.dispatchDate || ""));
+
+                let filtered = list.filter(item => {
+                    let pendQty = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+                    let isPending = item.status === "PENDING" && pendQty > 0;
+
+                    if (farmFilter !== "ALL" && item.farmId && item.farmId !== farmFilter) return false;
+                    if (sDate && item.dispatchDate && item.dispatchDate < sDate) return false;
+                    if (eDate && item.dispatchDate && item.dispatchDate > eDate) return false;
+                    if (statusFilter === "PENDING" && !isPending) return false;
+                    if (statusFilter === "RETURNED" && isPending) return false;
+                    if (search) {
+                        let textBlock = `${item.itemName} ${item.partyName} ${item.location} ${item.partyMobile} ${item.farmName} ${item.note}`.toLowerCase();
+                        if (!textBlock.includes(search)) return false;
+                    }
+                    return true;
+                });
+
+                if (filtered.length === 0) { 
+                    alert("પસંદ કરેલ તારીખમાં એક્સપોર્ટ કરવા માટે કોઈ સામાન રેકોર્ડ નથી!"); 
+                    return; 
+                }
+
+                let csv = "\uFEFF# ,આપ્યા તારીખ,ખરેખર પરત તારીખ,ફાર્મનું નામ,સામાનનું નામ,કુલ નંગ,૧ નંગ ભાવ (₹),કુલ રકમ (₹),બાકી નંગ,જમા નંગ,પાર્ટીનું નામ,મોબાઈલ,સ્થળ,અપેક્ષિત પરત તારીખ,સ્ટેટસ,નોંધ\n";
+                filtered.forEach((item, idx) => {
+                    let pend = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+                    let isPending = item.status === "PENDING" && pend > 0;
+                    let st = isPending ? "બહાર છે (બાકી)" : "સંપૂર્ણ પરત જમા";
+                    csv += `"${idx + 1}","${item.dispatchDate}","${item.actualReturnDate || '-'}","${item.farmName || ''}","${item.itemName}","${item.qty} ${item.unit}","${item.rate || 0}","${item.totalRent || 0}","${pend}","${item.returnedQty || 0}","${item.partyName}","${item.partyMobile || ''}","${item.location}","${item.expectedReturnDate || '-'}","${st}","${(item.note || '').replace(/"/g, '""')}"\n`;
                 });
 
                 let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 let link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = `સામાન_બહાર_આપેલ_ખાતાવહી_${new Date().toISOString().slice(0, 10)}.csv`;
+                link.download = `સામાન_બહાર_ખાતાવહી_રિપોર્ટ_${sDate || 'શરૂઆત'}_થી_${eDate || 'અંત'}.csv`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -7389,16 +7665,92 @@
         });
     }
 
-    // દર ૧ સેકન્ડે UI રીફ્રેશ પર બટન્સ આપોઆપ જળવાઈ રહેશે
+    // દર ૧.૨ સેકન્ડે UI રીફ્રેશ પર બટન્સ આપોઆપ જળવાઈ રહેશે
     setInterval(injectNewModuleButtons, 1200);
-   // 🔋 મોબાઈલ સ્ક્રીન / વિન્ડો બદલાય ત્યારે સુરક્ષિત બેકઅપ અને નેટવર્ક રી-કનેક્ટ
+
+    // 🌐 ૧. સર્વગ્રાહી તારીખ કન્વર્ટર (હંમેશા ૧૦૦% પાકી DD/MM/YYYY ફોર્મેટ જ આપશે)
+    function formatToDMY(dateVal) {
+        if (!dateVal || dateVal === "-" || dateVal === "undefined" || dateVal === "null") return "-";
+        dateVal = String(dateVal).trim();
+        if (dateVal.includes("/")) {
+            let p = dateVal.split("/");
+            if (p.length === 3) {
+                if (p[0].length <= 2 && p[2].length === 4) return dateVal;
+                if (p[0].length === 4) return `${String(p[2]).padStart(2, '0')}/${String(p[1]).padStart(2, '0')}/${p[0]}`;
+            }
+        }
+        if (dateVal.includes("-")) {
+            let p = dateVal.split("-");
+            if (p.length === 3) {
+                if (p[0].length === 4) {
+                    return `${String(p[2]).padStart(2, '0')}/${String(p[1]).padStart(2, '0')}/${p[0]}`;
+                } else if (p[2].length === 4) {
+                    return `${String(p[0]).padStart(2, '0')}/${String(p[1]).padStart(2, '0')}/${p[2]}`;
+                }
+            }
+        }
+        let d = new Date(dateVal);
+        if (!isNaN(d.getTime())) {
+            let day = String(d.getDate()).padStart(2, '0');
+            let month = String(d.getMonth() + 1).padStart(2, '0');
+            let year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+        return dateVal;
+    }
+    window.formatToDMY = formatToDMY;
+
+    // 📱 ૨. મોબાઈલ કીબોર્ડ બંધ ન થાય અને ઓટો-ઝૂમ ન થાય તે માટે સ્પેશિયલ CSS
+    (function injectMobileKeyboardFix() {
+        let st = document.createElement("style");
+        st.id = "mobile-keyboard-gujarati-fix";
+        st.innerHTML = `
+            @media (max-width: 768px) {
+                .modal {
+                    align-items: flex-start !important;
+                    overflow-y: auto !important;
+                    -webkit-overflow-scrolling: touch !important;
+                    padding-top: 15px !important;
+                }
+                .modal-content {
+                    margin-bottom: 90px !important;
+                }
+                input, select, textarea {
+                    font-size: 16px !important;
+                    touch-action: manipulation !important;
+                }
+            }
+        `;
+        document.head.appendChild(st);
+    })();
+
+    // ⌨️ ૩. કીબોર્ડ કનેક્શન પ્રોટેક્શન (ગુજરાતી સ્વિચ વખતે એક્ઝિટ ૧૦૦% અટકાવશે)
+    var isUserCurrentlyTyping = false;
+    var typingTimer = null;
+
+    document.addEventListener("focusin", function(e) {
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT")) {
+            isUserCurrentlyTyping = true;
+            if (typingTimer) clearTimeout(typingTimer);
+        }
+    });
+
+    document.addEventListener("focusout", function() {
+        typingTimer = setTimeout(function() {
+            let el = document.activeElement;
+            if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA" && el.tagName !== "SELECT")) {
+                isUserCurrentlyTyping = false;
+            }
+        }, 2000);
+    });
+
+    // 🔋 ૪. મોબાઈલ સ્ક્રીન / કીબોર્ડ લેંગ્વેજ સ્વિચ વખતે પેજ રી-રેન્ડર અટકાવતું ફિલ્ટર
     document.addEventListener("visibilitychange", function() {
-        if (typeof firebase !== "undefined" && firebase.apps.length) {
+        if (isUserCurrentlyTyping) return;
+        if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length) {
             if (document.hidden) {
-                // ટેબ બદલાય કે સ્ક્રીન બંધ થાય ત્યારે તાત્કાલિક માસ્ટર બેકઅપ લોકલ સ્ટોરેજમાં સેવ
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
             } else {
-                // પાછા આવો ત્યારે Firebase ને તાજું કરો અને સિન્ક ચાલુ કરો
                 firebase.database().goOnline();
                 if (typeof updateNetworkStatus === "function") updateNetworkStatus();
                 if (typeof processSyncQueue === "function") processSyncQueue();
@@ -7406,11 +7758,312 @@
         }
     });
 
-    // વિન્ડો ફોકસ ગુમાવે કે બંધ થાય ત્યારે તમામ A to Z ડેટાનું કાયમી સેવિંગ
     window.addEventListener("pagehide", function() {
         if (typeof autoBackupAllData === "function") autoBackupAllData();
     });
-</script>  
+
+    // 🗓️ ૫. સેફ ઓવરરાઈડ: મૂળ ડેટાને નુકસાન કર્યા વગર તમામ ટેબલ, પ્રિન્ટ, ચલણ અને Excel માં DD/MM/YYYY લાગુ કરવું
+    
+    // (A) રોજમેળ ટેબલ
+    const _origRenderRojmelData = window.renderRojmelData;
+    if (typeof _origRenderRojmelData === "function") {
+        window.renderRojmelData = function() {
+            _origRenderRojmelData();
+            document.querySelectorAll("#rojmelTableBody tr").forEach(tr => {
+                let td = tr.querySelector("td:first-child");
+                if (td && td.innerText) td.innerText = formatToDMY(td.innerText);
+            });
+        };
+    }
+
+    // (B) દેશી નામા A4 પ્રિન્ટ (ફિલ્ટર બગ વગર પાકી DD/MM/YYYY પ્રિન્ટ)
+    window.printRojmelA4TwoColumn = function() {
+        let sDate = document.getElementById("rojmelFilterStart").value;
+        let eDate = document.getElementById("rojmelFilterEnd").value;
+        let list = Object.values(cloudRojmel);
+        list = list.filter(r => (!sDate || r.date >= sDate) && (!eDate || r.date <= eDate));
+
+        let jamaList = list.filter(r => r.type === "JAMA");
+        let udharList = list.filter(r => r.type === "UDHAR");
+        let totJama = jamaList.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+        let totUdhar = udharList.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+        let closing = totJama - totUdhar;
+
+        let maxRows = Math.max(jamaList.length, udharList.length, 1);
+        let rowsHTML = "";
+        for (let i = 0; i < maxRows; i++) {
+            let j = jamaList[i];
+            let u = udharList[i];
+            let jCol = j ? `<td>${formatToDMY(j.date)}</td><td><b>${j.details || '-'}</b></td><td style="text-align:right; color:#15803d; font-weight:700;">₹${parseFloat(j.amount).toLocaleString('en-IN')}</td>` : `<td></td><td></td><td></td>`;
+            let uCol = u ? `<td>${formatToDMY(u.date)}</td><td><b>${u.details || '-'}</b></td><td style="text-align:right; color:#b91c1c; font-weight:700;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>` : `<td></td><td></td><td></td>`;
+            rowsHTML += `<tr>${jCol}<td class="divider-col"></td>${uCol}</tr>`;
+        }
+
+        let win = window.open('', '_blank', 'width=900,height=700');
+        if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
+        win.document.write(`
+            <html><head><title>દૈનિક રોજમેળ - ${currentFarmName || 'પાર્ટી પ્લોટ'}</title>
+            <style>
+                body { font-family: 'Noto Sans Gujarati', Arial, sans-serif; padding: 20px; font-size: 13px; color: #1e293b; }
+                .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 8px; }
+                .shree-one { font-size: 17px; font-weight: 800; color: #b45309; margin-bottom: 2px; }
+                .shree { font-size: 16px; font-weight: 800; color: #b45309; letter-spacing: 1px; }
+                .title { font-size: 20px; font-weight: bold; margin: 4px 0; color: #4338ca; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+                th, td { border: 1px solid #94a3b8; padding: 6px; }
+                .divider-col { border-left: 2.5px solid #000 !important; border-right: 2.5px solid #000 !important; width: 6px; background: #e2e8f0; padding: 0 !important; }
+            </style></head><body>
+                <div class="header">
+                    <div class="shree-one">॥ ૧! ॥</div>
+                    <div class="shree">॥ શ્રી ગણેશાય નમઃ ॥</div>
+                    <div class="title">${currentFarmName || 'પાર્ટી પ્લોટ મેનેજમેન્ટ'}</div>
+                    <div style="font-weight:700;">દૈનિક રોજમેળ (દેશી નામા પદ્ધતિ ખાતાવહી)</div>
+                    <small>સમયગાળો: ${formatToDMY(sDate)} થી ${formatToDMY(eDate)}</small>
+                </div>
+                <table>
+                    <thead>
+                        <tr style="background:#eef2ff;">
+                            <th colspan="3" style="text-align:center; color:#15803d; font-size:14px;">📥 જમા બાજુ (આવક - INFLOW)</th>
+                            <th class="divider-col"></th>
+                            <th colspan="3" style="text-align:center; color:#b91c1c; font-size:14px;">📤 ઉધાર બાજુ (જાવક - OUTFLOW)</th>
+                        </tr>
+                        <tr>
+                            <th style="width:85px;">તારીખ</th><th>વિગત (Particulars)</th><th style="text-align:right; width:95px;">જમા રકમ</th>
+                            <th class="divider-col"></th>
+                            <th style="width:85px;">તારીખ</th><th>વિગત (Particulars)</th><th style="text-align:right; width:95px;">ઉધાર રકમ</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHTML}</tbody>
+                    <tfoot>
+                        <tr style="font-weight:bold; background:#f8fafc;">
+                            <td colspan="2" style="text-align:right;">કુલ જમા આવક:</td><td style="text-align:right; color:#15803d;">₹${totJama.toLocaleString('en-IN')}</td>
+                            <td class="divider-col"></td>
+                            <td colspan="2" style="text-align:right;">કુલ ઉધાર જાવક:</td><td style="text-align:right; color:#b91c1c;">₹${totUdhar.toLocaleString('en-IN')}</td>
+                        </tr>
+                        <tr style="font-weight:800; font-size:14px; background:#f1f5f9;">
+                            <td colspan="7" style="text-align:center; padding:10px;">
+                                ચોખ્ખી આખર રોકડ સિલક (CLOSING CASH BALANCE): 
+                                <span style="color:${closing >= 0 ? '#15803d' : '#b91c1c'};">₹${closing.toLocaleString('en-IN')}</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:12px;">
+                    <div>તૈયાર કરનાર મુનીમ / મેનેજર સહી: ____________</div>
+                    <div>ઓફિસ / માલિક સહી: ____________</div>
+                </div>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    };
+
+    // (C) સામાન બહાર આપેલ ટેબલ
+    const _origRenderOutwardInventoryTable = window.renderOutwardInventoryTable;
+    if (typeof _origRenderOutwardInventoryTable === "function") {
+        window.renderOutwardInventoryTable = function() {
+            _origRenderOutwardInventoryTable();
+            document.querySelectorAll("#outwardInventoryTableBody tr").forEach(tr => {
+                let bDate = tr.querySelector("td:nth-child(2) b");
+                if (bDate && bDate.innerText) bDate.innerText = formatToDMY(bDate.innerText);
+                let smallDate = tr.querySelector("td:nth-child(2) small");
+                if (smallDate && smallDate.innerText) {
+                    smallDate.innerText = smallDate.innerText.replace(/\d{4}-\d{2}-\d{2}/g, function(d) { return formatToDMY(d); });
+                }
+            });
+        };
+    }
+
+    // (D) સામાન ચલણ પહોંચ પ્રિન્ટ (ચોખ્ખી DD/MM/YYYY તારીખ)
+    window.printOutwardChallan = function(id) {
+        let item = cloudOutwardInv[id];
+        if (!item) return;
+        let win = window.open('', '_blank', 'width=750,height=600');
+        if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
+        let pend = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+        let statusText = item.status === "PENDING" && pend > 0 ? "🔴 બહાર છે (પરત આવવાનો બાકી)" : "🟢 સંપૂર્ણ પરત જમા થયેલ";
+        let rateText = item.rate > 0 ? `₹${item.rate}` : '-';
+        let totalText = item.totalRent > 0 ? `₹${parseFloat(item.totalRent).toLocaleString('en-IN')}` : '-';
+
+        win.document.write(`
+            <html><head><title>સામાન ચલણ - ${item.partyName}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 25px; color: #1e293b; }
+                .box { border: 2px solid #334155; padding: 20px; border-radius: 10px; max-width: 650px; margin: auto; }
+                .header { text-align: center; border-bottom: 2px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 15px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+                th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+                th { background: #f8fafc; font-weight: 700; }
+            </style></head><body>
+                <div class="box">
+                    <div class="header">
+                        <h2 style="margin:0; color:#ea580c;">🏰 ${item.farmName || currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
+                        <h4 style="margin:4px 0; color:#475569;">સામાન ડિલિવરી / બહાર આપેલ પહોંચ (Challan)</h4>
+                        <small>આપ્યા તારીખ: <b>${formatToDMY(item.dispatchDate)}</b></small>
+                    </div>
+                    <p><b>ગ્રાહક / પાર્ટીનું નામ:</b> ${item.partyName}</p>
+                    <p><b>મોબાઈલ નંબર:</b> ${item.partyMobile || '-'}</p>
+                    <p><b>સામાન પહોંચાડવાનું સ્થળ:</b> <span style="background:#e0f2fe; padding:2px 8px; border-radius:4px; font-weight:bold;">${item.location}</span></p>
+                    <table>
+                        <thead>
+                            <tr><th>સામાનનું નામ</th><th style="text-align:center;">કુલ નંગ</th><th style="text-align:right;">૧ નંગ ભાવ</th><th style="text-align:right;">કુલ રકમ</th><th style="text-align:center;">પરત જમા</th><th style="text-align:center;">બાકી નંગ</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><b>${item.itemName}</b></td>
+                                <td style="text-align:center; font-weight:bold;">${item.qty} ${item.unit}</td>
+                                <td style="text-align:right;">${rateText}</td>
+                                <td style="text-align:right; font-weight:bold; color:#b45309;">${totalText}</td>
+                                <td style="text-align:center; color:#15803d; font-weight:bold;">${item.returnedQty || 0} ${item.unit}</td>
+                                <td style="text-align:center; color:#b91c1c; font-weight:bold;">${pend} ${item.unit}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-top:14px; font-size:12.5px;">
+                        <p><b>અપેક્ષિત પરત તારીખ:</b> ${formatToDMY(item.expectedReturnDate)}</p>
+                        <p><b>ખરેખર પરત જમા તારીખ:</b> ${formatToDMY(item.actualReturnDate)}</p>
+                        <p><b>નોંધ / વિગત:</b> ${item.note || '-'}</p>
+                        <p><b>સ્થિતિ (Status):</b> <b>${statusText}</b></p>
+                    </div>
+                    <div style="margin-top:45px; display:flex; justify-content:space-between; font-size:12px;">
+                        <div>લેનાર / પાર્ટી સહી: ____________</div>
+                        <div>આપનાર / સ્ટોક મેનેજર સહી: ____________</div>
+                    </div>
+                </div>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    };
+
+    // (E) સામાન સંપૂર્ણ હિસ્ટ્રી રિપોર્ટ પ્રિન્ટ
+    window.printOutwardHistoryReport = function() {
+        let sDate = document.getElementById("outwardFilterStartDate") ? document.getElementById("outwardFilterStartDate").value : "";
+        let eDate = document.getElementById("outwardFilterEndDate") ? document.getElementById("outwardFilterEndDate").value : "";
+        let statusFilter = document.getElementById("outwardFilterStatus") ? document.getElementById("outwardFilterStatus").value : "ALL";
+        let farmFilter = document.getElementById("outwardFilterFarm") ? document.getElementById("outwardFilterFarm").value : "ALL";
+        let search = (document.getElementById("outwardSearchInput") ? document.getElementById("outwardSearchInput").value : "").toLowerCase().trim();
+
+        let list = Object.values(cloudOutwardInv);
+        list.sort((a, b) => (a.dispatchDate || "").localeCompare(b.dispatchDate || ""));
+
+        let filtered = list.filter(item => {
+            let pendQty = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+            let isPending = item.status === "PENDING" && pendQty > 0;
+            if (farmFilter !== "ALL" && item.farmId && item.farmId !== farmFilter) return false;
+            if (sDate && item.dispatchDate && item.dispatchDate < sDate) return false;
+            if (eDate && item.dispatchDate && item.dispatchDate > eDate) return false;
+            if (statusFilter === "PENDING" && !isPending) return false;
+            if (statusFilter === "RETURNED" && isPending) return false;
+            if (search) {
+                let textBlock = `${item.itemName} ${item.partyName} ${item.location} ${item.partyMobile} ${item.farmName} ${item.note}`.toLowerCase();
+                if (!textBlock.includes(search)) return false;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) { alert("પસંદ કરેલ તારીખમાં પ્રિન્ટ કરવા માટે કોઈ સામાન રેકોર્ડ નથી!"); return; }
+
+        let totalQty = 0, totalPending = 0, totalRent = 0;
+        let rowsHTML = "";
+        filtered.forEach((item, idx) => {
+            let pend = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty);
+            let isPending = item.status === "PENDING" && pend > 0;
+            totalQty += parseFloat(item.qty || 0);
+            if (isPending) totalPending += pend;
+            totalRent += parseFloat(item.totalRent || 0);
+
+            rowsHTML += `
+            <tr>
+                <td style="text-align:center;">${idx + 1}</td>
+                <td><b>${formatToDMY(item.dispatchDate)}</b></td>
+                <td><b>${item.farmName || '-'}</b></td>
+                <td><b>${item.itemName}</b></td>
+                <td style="text-align:center; font-weight:bold;">${item.qty} ${item.unit}</td>
+                <td style="text-align:center; color:#15803d;">${item.returnedQty || 0}</td>
+                <td style="text-align:center; color:#b91c1c; font-weight:bold;">${pend}</td>
+                <td style="text-align:right;">₹${item.rate || 0}</td>
+                <td style="text-align:right; font-weight:bold;">₹${parseFloat(item.totalRent || 0).toLocaleString('en-IN')}</td>
+                <td><b>${item.partyName}</b> ${item.partyMobile ? `(${item.partyMobile})` : ''}</td>
+                <td>${item.location || '-'}</td>
+                <td style="text-align:center;">${isPending ? '🔴 બહાર છે' : '🟢 પરત જમા'}</td>
+            </tr>`;
+        });
+
+        let win = window.open('', '_blank', 'width=950,height=700');
+        if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
+        win.document.write(`
+            <html><head><title>સામાન બહાર આપેલ / ભાડે ખાતાવહી રિપોર્ટ</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; color: #1e293b; }
+                .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11.5px; }
+                th, td { border: 1px solid #94a3b8; padding: 6px; text-align: left; }
+                th { background: #f1f5f9; }
+            </style></head><body>
+                <div class="header">
+                    <h2 style="margin:0; color:#ea580c;">${currentFarmName || 'પાર્ટી પ્લોટ મેનેજમેન્ટ'}</h2>
+                    <h3 style="margin:4px 0; color:#334155;">સામાન બહાર આપેલ / ભાડે આપેલ સંપૂર્ણ ખાતાવહી રિપોર્ટ</h3>
+                    <small>સમયગાળો: ${formatToDMY(sDate)} થી ${formatToDMY(eDate)}</small>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th><th>તારીખ</th><th>ફાર્મ</th><th>સામાનનું નામ</th><th style="text-align:center;">કુલ નંગ</th>
+                            <th style="text-align:center;">જમા</th><th style="text-align:center;">બાકી</th><th style="text-align:right;">ભાવ</th>
+                            <th style="text-align:right;">કુલ ભાડું</th><th>પાર્ટી નામ & ફોન</th><th>સ્થળ</th><th style="text-align:center;">સ્થિતિ</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHTML}</tbody>
+                    <tfoot>
+                        <tr style="font-weight:bold; background:#f8fafc;">
+                            <td colspan="4" style="text-align:right;">કુલ સરવાળો:</td>
+                            <td style="text-align:center;">${totalQty}</td><td></td>
+                            <td style="text-align:center; color:#b91c1c;">${totalPending}</td><td></td>
+                            <td style="text-align:right; color:#b45309;">₹${totalRent.toLocaleString('en-IN')}</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:12px;">
+                    <div>તપાસનાર સ્ટોક મેનેજર સહી: ____________</div>
+                    <div>ઓફિસ / માલિક સહી: ____________</div>
+                </div>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    };
+
+    // (F) મૂડી ખાતું (Capital Table)
+    const _origRenderCapitalTable = window.renderCapitalTable;
+    if (typeof _origRenderCapitalTable === "function") {
+        window.renderCapitalTable = function() {
+            _origRenderCapitalTable();
+            document.querySelectorAll("#capitalHistoryBody tr").forEach(tr => {
+                let td = tr.querySelector("td:first-child");
+                if (td && td.innerText) td.innerText = formatToDMY(td.innerText);
+            });
+        };
+    }
+
+    // 🔒 ૬. તુરંત તમામ ઇનપુટ બોક્સમાંથી ઓટો-કરેક્ટ અને કેપિટલાઇઝેશન બંધ કરવું
+    function applyInputKeyboardGuards() {
+        document.querySelectorAll("input, textarea").forEach(inp => {
+            inp.setAttribute("autocomplete", "off");
+            inp.setAttribute("autocorrect", "off");
+            inp.setAttribute("spellcheck", "false");
+        });
+    }
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", applyInputKeyboardGuards);
+    } else {
+        applyInputKeyboardGuards();
+    }
+</script>
 <!-- ========================================================================= -->
 <!-- 💾 A to Z ALL-IN-ONE STANDALONE MASTER BACKUP & 3-SEC AUTO SYNC ENGINE -->
 <!-- ========================================================================= -->
@@ -7529,7 +8182,7 @@
     // ⏱️ દર ૩ સેકન્ડે આપોઆપ રન થશે
     setInterval(autoBackupEvery3Seconds, 3000);
 
-   // 💾 ૩. (A) હાલના ફાર્મનું અલગ બેકઅપ (જેમ કે સીતારામ વાડી)
+   // 💾 ૩. (A) હાલના ફાર્મનું અલગ બેકઅપ (સામાન ખાતાવહી સહિત ૧૦૦% સેફ)
     function downloadFarmBackupJSON() {
         try {
             let now = new Date();
@@ -7553,6 +8206,15 @@
                 farmWorkers[fId] = cloudWorkers;
             }
 
+            // 🚚 આ ફાર્મનો બહાર આપેલ સામાન ફિલ્ટર કરવો
+            let farmOutward = {};
+            let allOut = (typeof cloudOutwardInv !== "undefined") ? cloudOutwardInv : JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
+            for (let k in allOut) {
+                if (allOut[k] && (fId === "ALL" || allOut[k].farmId === fId)) {
+                    farmOutward[k] = allOut[k];
+                }
+            }
+
             let farmPackage = {
                 backupType: "SINGLE_FARM_BACKUP",
                 farmId: fId,
@@ -7562,7 +8224,8 @@
                 bookings: cloudBookings,
                 allFarmBookings: farmBookings,
                 workers: cloudWorkers,
-                allFarmWorkers: farmWorkers
+                allFarmWorkers: farmWorkers,
+                outwardInventory: farmOutward
             };
 
             let jsonString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(farmPackage, null, 2));
@@ -7576,7 +8239,7 @@
             downloadAnchor.click();
             downloadAnchor.remove();
 
-            alert(`✅ "${fName}" નું અલગ બેકઅપ સફળતાપૂર્વક લેવાઈ ગયું છે!\n📅 તારીખ & સમય: ${dateStr} ${timeStr}`);
+            alert(`✅ "${fName}" નું અલગ બેકઅપ સફળતાપૂર્વક લેવાઈ ગયું છે!\n(બુકિંગ, કારીગર અને સામાન ખાતાવહી સહિત)\n📅 તારીખ & સમય: ${dateStr} ${timeStr}`);
         } catch (err) {
             alert("❌ ફાર્મ બેકઅપ લેવામાં ભૂલ: " + err.message);
         }
@@ -7598,7 +8261,7 @@
             downloadAnchor.click();
             downloadAnchor.remove();
 
-            alert(`✅ સંપૂર્ણ ALL MASTER BACKUP સફળતાપૂર્વક લેવાઈ ગયું છે!\n\n👑 આમાં બધા જ ફાર્મ, બુકિંગ્સ, પાર્ટી હિસાબ, મંડપ, વોચમેન, વાહન, એક્સ્ટ્રા, કારીગર પગાર-ઉપાડ, રોજમેળ, ખર્ચા, સ્ટોક અને સ્ટાફ પરવાનગી બધું જ આવી ગયું છે.\n📅 તારીખ & સમય: ${pkg.exportDateFormatted}`);
+            alert(`✅ સંપૂર્ણ ALL MASTER BACKUP સફળતાપૂર્વક લેવાઈ ગયું છે!\n\n👑 આમાં બધા જ ફાર્મ, બુકિંગ્સ, પાર્ટી હિસાબ, મંડપ, વોચમેન, વાહન, એક્સ્ટ્રા, કારીગર પગાર-ઉપાડ, રોજમેળ, ખર્ચા, સામાન ખાતાવહી, સ્ટોક અને સ્ટાફ પરવાનગી બધું જ આવી ગયું છે.\n📅 તારીખ & સમય: ${pkg.exportDateFormatted}`);
         } catch (err) {
             alert("❌ માસ્ટર બેકઅપ લેવામાં ભૂલ: " + err.message);
         }
@@ -7621,6 +8284,9 @@
         reader.onload = function(e) {
             try {
                 let data = JSON.parse(e.target.result);
+                // 🛡️ Firebase Console બેકઅપ માટે સેફ્ટી અનરૅપ
+                if (data && data.backupData) data = data.backupData;
+
                 if (!data || (!data.allFarmBookings && !data.bookings && !data.farms)) {
                     alert("❌ આ અમાન્ય (Invalid) બેકઅપ ફાઈલ છે! સાચી બેકઅપ JSON ફાઈલ પસંદ કરો.");
                     event.target.value = "";
@@ -7628,7 +8294,7 @@
                 }
 
                 let backupDate = data.exportDateFormatted || data.exportDate || "અગાઉનું બેકઅપ";
-                if (!confirm(`⚠️ ચેતવણી: આ બેકઅપ (${backupDate}) રિસ્ટોર કરવાથી તમામ ફાર્મ, બુકિંગ્સ, પાર્ટી હિસાબ, કારીગર, રોજમેળ, ખર્ચા, સ્ટોક અને સ્ટાફ પાસવર્ડ રિસ્ટોર થઈ જશે.\n\nશું તમે આગળ વધવા માંગો છો?`)) {
+                if (!confirm(`⚠️ ચેતવણી: આ બેકઅપ (${backupDate}) રિસ્ટોર કરવાથી તમામ ફાર્મ, બુકિંગ્સ, પાર્ટી હિસાબ, કારીગર, રોજમેળ, ખર્ચા, સામાન ખાતાવહી, સ્ટોક અને સ્ટાફ પાસવર્ડ રિસ્ટોર થઈ જશે.\n\nશું તમે આગળ વધવા માંગો છો?`)) {
                     event.target.value = "";
                     return;
                 }
@@ -7661,6 +8327,7 @@
         if (confirm(`શું તમે LocalStorage માં સાચવેલ છેલ્લું બેકઅપ (${lastTime}) રિસ્ટોર કરવા માંગો છો?`)) {
             try {
                 let data = JSON.parse(raw);
+                if (data && data.backupData) data = data.backupData;
                 executeMasterRestore(data);
                 alert(`✅ LocalStorage માંથી તમામ A to Z ડેટા સફળતાપૂર્વક રિસ્ટોર થઈ ગયો છે!`);
             } catch (e) {
@@ -7673,7 +8340,7 @@
     function executeMasterRestore(data) {
         let isOnline = navigator.onLine && typeof firebase !== "undefined" && firebase.apps && firebase.apps.length;
 
-     // 🛡️ જો માત્ર સિંગલ ફાર્મ (દા.ત. સીતારામ વાડી) નું બેકઅપ રિસ્ટોર થતું હોય તો બીજા ફાર્મને નુકસાન ન થાય:
+        // 🛡️ જો માત્ર સિંગલ ફાર્મ (દા.ત. સીતારામ વાડી) નું બેકઅપ રિસ્ટોર થતું હોય તો બીજા ફાર્મને નુકસાન ન થાય:
         if (data.backupType === "SINGLE_FARM_BACKUP" && data.farmId) {
             let targetFId = data.farmId;
             if (!cachedAllFarmBookings) cachedAllFarmBookings = {};
@@ -7691,6 +8358,19 @@
                 cloudWorkers = data.workers || {};
                 localStorage.setItem("cached_bookings_" + targetFId, JSON.stringify(cloudBookings));
                 localStorage.setItem("cached_workers_" + targetFId, JSON.stringify(cloudWorkers));
+            }
+
+            // 🚚 સિંગલ ફાર્મ સામાન ખાતાવહી રિસ્ટોર
+            if (data.outwardInventory && Object.keys(data.outwardInventory).length > 0) {
+                let curOut = JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
+                for (let k in data.outwardInventory) {
+                    curOut[k] = data.outwardInventory[k];
+                }
+                cloudOutwardInv = curOut;
+                window.cloudOutwardInv = cloudOutwardInv;
+                localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
+                if (isOnline) firebase.database().ref("outward_inventory").update(data.outwardInventory);
+                if (typeof renderOutwardInventoryTable === "function") renderOutwardInventoryTable();
             }
 
             if (typeof generateCalendar === "function") generateCalendar();
@@ -7795,8 +8475,9 @@
             if (typeof renderInventoryTable === "function") renderInventoryTable();
         }
 
-      if (data.outwardInventory) {
-            if (typeof cloudOutwardInv !== "undefined") cloudOutwardInv = data.outwardInventory;
+        if (data.outwardInventory) {
+            cloudOutwardInv = data.outwardInventory;
+            window.cloudOutwardInv = cloudOutwardInv;
             localStorage.setItem("cached_outward_inventory", JSON.stringify(data.outwardInventory));
             if (isOnline) firebase.database().ref("outward_inventory").set(data.outwardInventory);
             if (typeof renderOutwardInventoryTable === "function") renderOutwardInventoryTable();
