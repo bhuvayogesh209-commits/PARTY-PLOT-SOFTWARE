@@ -734,7 +734,11 @@
             }
 
             // 💾 સામાન બહાર આપવાની નવી એન્ટ્રી સેવ અથવા એડિટ કરવી
-            function saveOutwardDispatchEntry() {
+              function saveOutwardDispatchEntry() {
+                if (currentUserRole !== 'admin' && !hasStep4Perm('Outward', 'edit')) {
+                    alert("❌ બહાર આપેલ સામાનની એન્ટ્રી ઉમેરવા કે સુધારવાનો અધિકાર નથી!");
+                    return;
+                }
                 let item = document.getElementById("outItemName").value.trim();
                 let qty = parseFloat(document.getElementById("outItemQty").value) || 0;
                 let unit = document.getElementById("outItemUnit").value.trim() || "નંગ";
@@ -863,10 +867,14 @@
                 document.getElementById("btnCancelOutwardEdit").style.display = "none";
             }
 
-            // 📥 બહાર ગયેલ સામાન પરત જમા લેવો (હિસ્ટ્રી સચવાઈ રહેશે)
-            function returnOutwardItem(id) {
+            // 📥 બહાર ગયેલ સામાન પરત જમા લેવો (હિસ્ટ્રી સચવાઈ રહેશે)  
+                   function returnOutwardItem(id) {
+                      if (currentUserRole !== 'admin' && !hasStep4Perm('Outward', 'edit')) {
+                     alert("❌ સામાન પરત જમા લેવાની પરવાનગી નથી!");
+                     return;
+              }
                 let entry = cloudOutwardInv[id];
-                if (!entry) return;
+                 if (!entry) return;
 
                 let pending = parseFloat(entry.pendingQty !== undefined ? entry.pendingQty : entry.qty);
                 let promptVal = prompt(`"${entry.partyName}" પાસેથી "${entry.itemName}" ના કેટલા નંગ પરત જમા આવ્યા? (બાકી: ${pending} ${entry.unit}):`, pending);
@@ -903,8 +911,12 @@
                 renderOutwardInventoryTable();
             }
 
-            // 🗑️ એન્ટ્રી ડિલીટ કરવી
+             // 🗑️ એન્ટ્રી ડિલીટ કરવી (માત્ર Admin અધિકાર)
             function deleteOutwardEntry(id, itemName) {
+                if (currentUserRole !== 'admin') { 
+                    alert("❌ માત્ર Admin (માલિક) જ સામાનની એન્ટ્રી ડિલીટ કરી શકે છે!"); 
+                    return; 
+                }
                 if (!confirm(`શું તમે આ બહાર આપેલ સામાનની એન્ટ્રી (${itemName}) ડિલીટ કરવા માંગો છો?`)) return;
 
                 delete cloudOutwardInv[id];
@@ -1668,9 +1680,12 @@
             updateAccountsOverviewSummary();
         });
 
-        // Open/Close Modals
+        // Open/Close Modals (Admin અથવા પરવાનગી ધરાવતો સ્ટાફ બંને એન્ટ્રી કરી શકશે)
         function openExpenseModal() {
-            if (currentUserRole !== 'admin') { alert("❌ માત્ર Admin ને ખર્ચ ઉમેરવાનો અધિકાર છે!"); return; }
+            if (currentUserRole !== 'admin' && !hasStep4Perm('Expense', 'edit')) { 
+                alert("❌ તમારી પાસે ખર્ચ ઉમેરવાનો અધિકાર નથી! માત્ર Admin અથવા માન્ય સ્ટાફ જ ઉમેરી શકે છે."); 
+                return; 
+            }
             document.getElementById("editExpenseId").value = "";
             document.getElementById("expModalTitle").innerText = "➕ નવો ખર્ચ ઉમેરો";
             let now = new Date();
@@ -1740,7 +1755,10 @@
         }
 
         function saveExpense() {
-            if (currentUserRole !== 'admin') { alert("❌ અધિકાર નથી!"); return; }
+            if (currentUserRole !== 'admin' && !hasStep4Perm('Expense', 'edit')) { 
+                alert("❌ ખર્ચ સેવ કરવાનો અધિકાર નથી!"); 
+                return; 
+            }
             let amt = parseFloat(document.getElementById("expAmount").value) || 0;
             let dateVal = document.getElementById("expDate").value;
             let timeVal = document.getElementById("expTime").value;
@@ -1779,7 +1797,11 @@
 
             cloudExpenses[expId] = expData;
             localStorage.setItem("cached_company_expenses", JSON.stringify(cloudExpenses));
-            if (navigator.onLine) { expensesRef.child(expId).set(expData); }
+            if (navigator.onLine) { 
+                expensesRef.child(expId).set(expData); 
+            } else if (typeof addToSyncQueue === "function") {
+                addToSyncQueue({ path: "company_expenses/" + expId, action: "set", data: expData });
+            }
 
             alert("✅ ખર્ચ સફળતાપૂર્વક સેવ થઈ ગયો!");
             closeExpenseModal();
@@ -1866,7 +1888,10 @@
 
         // Capital & Bank Management Functions
         function openCapitalModal() {
-            if (currentUserRole !== 'admin') { alert("❌ માત્ર Admin!"); return; }
+            if (currentUserRole !== 'admin' && !hasStep4Perm('Capital', 'view')) { 
+                alert("❌ મૂડી ખાતું જોવાનો અધિકાર નથી!"); 
+                return; 
+            }
             let now = new Date();
             document.getElementById("capDate").value = now.toISOString().slice(0, 10);
             document.getElementById("capAmount").value = "";
@@ -1878,6 +1903,10 @@
         function closeCapitalModal() { document.getElementById("capitalModal").style.display = "none"; }
 
         function saveCapitalEntry() {
+            if (currentUserRole !== 'admin' && !hasStep4Perm('Capital', 'edit')) { 
+                alert("❌ મૂડી રોકાણ ઉમેરવાનો અધિકાર નથી! માત્ર Admin અથવા માન્ય સ્ટાફ ઉમેરી શકે છે."); 
+                return; 
+            }
             let amt = parseFloat(document.getElementById("capAmount").value) || 0;
             let type = document.getElementById("capType").value;
             let acc = document.getElementById("capAccountName").value.trim() || "કેશ / બેંક";
@@ -1891,7 +1920,11 @@
 
             cloudCapital[cId] = cData;
             localStorage.setItem("cached_company_capital", JSON.stringify(cloudCapital));
-            if (navigator.onLine) { capitalRef.child(cId).set(cData); }
+            if (navigator.onLine) { 
+                capitalRef.child(cId).set(cData); 
+            } else if (typeof addToSyncQueue === "function") {   
+                addToSyncQueue({ path: "company_capital/" + cId, action: "set", data: cData });
+            }
 
             document.getElementById("capAmount").value = "";
             document.getElementById("capNote").value = "";
@@ -1900,6 +1933,10 @@
         }
 
         function deleteCapitalEntry(cId) {
+            if (currentUserRole !== 'admin') { 
+                alert("❌ માત્ર Admin (માલિક) જ મૂડી એન્ટ્રી ડિલીટ કરી શકે છે!"); 
+                return; 
+            }
             if (confirm("શું તમે આ મૂડી એન્ટ્રી કાઢી નાખવા માંગો છો?")) {
                 delete cloudCapital[cId];
                 localStorage.setItem("cached_company_capital", JSON.stringify(cloudCapital));
@@ -1945,10 +1982,10 @@
             }
         }
 
-        // Overview Summary Calculations (All Inflow vs All Outflow)
+        // Overview Summary Calculations (All Inflow vs All Outflow - સ્ટાફ માટે પરવાનગી સાથે લાઈવ)
         function updateAccountsOverviewSummary() {
             let role = currentUserRole || sessionStorage.getItem("loggedUserRole");
-            if (role !== 'admin') return;
+            if (role !== 'admin' && !hasStep4Perm('Expense', 'view') && !hasStep4Perm('Pnl', 'view')) return;
 
             // 1. Total Booking Income
             let totalRevenue = 0;
@@ -1997,11 +2034,14 @@
             }
         }
 
-        // 📊 Profit & Loss (P&L) Statement Generator
+        // 📊 Profit & Loss (P&L) Statement Generator (સુધારેલ સિંગલ ફંક્શન)
         let currentPnlExportData = null;
 
         function openPnlReportModal() {
-            if (currentUserRole !== 'admin') { alert("❌ માત્ર Admin!"); return; }
+            if (currentUserRole !== 'admin' && !hasStep4Perm('Pnl', 'view')) { 
+                alert("❌ નફા-નુકસાન રિપોર્ટ જોવાનો અધિકાર નથી!"); 
+                return; 
+            }
             let now = new Date();
             let firstDay = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
             let today = now.toISOString().slice(0, 10);
@@ -2368,7 +2408,7 @@
             let s = document.getElementById("partySearchInput").value.trim();
             if (!s || currentPartyStatementList.length === 0) {
                 alert("WhatsApp મોકલવા માટે પહેલા ગ્રાહકનું નામ અથવા મોબાઈલ સર્ચ કરો!");
-                return;
+                return; 
             }
             let p = currentPartyStatementList[0];
             let cleanMob = (p.mobile || '').replace(/[^0-9]/g, '');
@@ -2378,23 +2418,68 @@
             window.open(`https://wa.me/${cleanMob}?text=${encodeURIComponent(msg)}`);
         }
 
+        // 🔐 Step 4 ના તમામ ૯ મોડ્યુલ્સની પરવાનગી ચેક કરવાનું માસ્ટર હેલ્પર ફંક્શન
+        function hasStep4Perm(mod, action) {
+            let role = currentUserRole || sessionStorage.getItem("loggedUserRole");
+            if (role === 'admin') return true;
+
+            let staff = currentStaffConfig;
+            if (!staff && staffListObj && role) staff = staffListObj[role];
+            if (!staff) {
+                let cached = JSON.parse(localStorage.getItem("cached_staff_list") || "{}");
+                staff = cached[role];
+            }
+            if (!staff) return false;
+
+            let viewKey = `canView${mod}`;
+            let editKey = `canEdit${mod}`;
+
+            if (action === 'view') {
+                return (staff[viewKey] === true || staff[editKey] === true);
+            }
+            if (action === 'edit') {
+                return (staff[editKey] === true);
+            }
+            return false;
+        }
+
+        // 👁️ સ્ટાફની પરવાનગી મુજબ Step 4 ના બટન્સ લાઈવ બતાવવા / છુપાવવા
+        function applyStep4ButtonsPermissions() {
+            let role = currentUserRole || sessionStorage.getItem("loggedUserRole");
+            let isAdmin = (role === 'admin');
+
+            let map = [
+                { mod: 'Expense', sel: "button[onclick='openExpenseModal()']" },
+                { mod: 'Capital', sel: "button[onclick='openCapitalModal()']" },
+                { mod: 'Party', sel: "button[onclick='openPartyStatementModal()']" },
+                { mod: 'Pnl', sel: "button[onclick='openPnlReportModal()']" },
+                { mod: 'Outward', sel: "button[onclick='openOutwardInventoryModal()']" },
+                { mod: 'Rojmel', sel: "#btnRojmelTop" },
+                { mod: 'Vendor', sel: "button[onclick='openVendorModal()']" },
+                { mod: 'Inventory', sel: "button[onclick='openInventoryModal()']" },
+                { mod: 'Category', sel: "button[onclick='openExpCategoryManagerModal()']" }
+            ];
+
+            let hasAnyAccess = isAdmin;
+            map.forEach(item => {
+                let btn = document.querySelector(item.sel);
+                let canSee = isAdmin || hasStep4Perm(item.mod, 'view');
+                if (canSee) hasAnyAccess = true;
+                if (btn) btn.style.display = canSee ? "inline-flex" : "none";
+            });
+
+            let sec = document.getElementById("companyAccountSection");
+            if (sec) {
+                sec.style.display = hasAnyAccess ? "block" : "none";
+            }
+        }
+
         // ✅ પેજ શરૂ થતાં જ ફાર્મ ડ્રોપડાઉન લોડ કરી લેશે
         setTimeout(populateExpenseFarmDropdowns, 1000);
 
-        // Automatic Admin Visibility Hook (લાઈવ સિન્ક સાથે)
+        // 🔄 Automatic Live Visibility Hook (દર ૮૦૦ મિલિસેકન્ડે લાઈવ પરવાનગી ચેક કરશે)
         setInterval(() => {
-            let role = currentUserRole || sessionStorage.getItem("loggedUserRole");
-            let sec = document.getElementById("companyAccountSection");
-            if (sec) {
-                let shouldShow = (role === 'admin');
-                if (shouldShow && sec.style.display !== 'block') {
-                    sec.style.display = 'block';
-                    updateAccountsOverviewSummary();
-                    populateExpenseFarmDropdowns();
-                } else if (!shouldShow) {
-                    sec.style.display = 'none';
-                }
-            }
+            applyStep4ButtonsPermissions();
         }, 800);
     </script>
 </div>   
@@ -3109,6 +3194,7 @@
     let canUserEditExtraItems = true;
     let canUserDeleteExtraItems = false;
     let cloudWorkers = {};
+    let canUserViewCompanyAccounts = false; // Step 4 કંપની એકાઉન્ટિંગ પરવાનગી  
     let currentWorkerRef = null;
     let selectedWorkerIdForUpad = "";
     currentUserRole = currentUserRole || "";
@@ -3119,7 +3205,13 @@
         if (cachedAdmin) currentAdminPass = cachedAdmin;
 
         let cachedStaff = localStorage.getItem("cached_staff_list");
-        if (cachedStaff) staffListObj = JSON.parse(cachedStaff);
+        if (cachedStaff) {
+            staffListObj = JSON.parse(cachedStaff);
+            let savedUserRole = localStorage.getItem("persistentLoggedUserRole") || sessionStorage.getItem("loggedUserRole");
+            if (savedUserRole && staffListObj[savedUserRole]) {
+                canUserViewCompanyAccounts = (staffListObj[savedUserRole].canViewCompanyAccounts === true);
+            }
+        }
 
         let cFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}");
         if (Object.keys(cFarms).length > 0) {
@@ -3128,7 +3220,7 @@
             cloudBookings = JSON.parse(localStorage.getItem("cached_bookings_" + currentFarmId) || "{}");
             cloudWorkers = JSON.parse(localStorage.getItem("cached_workers_" + currentFarmId) || "{}");
         }
-    } catch(e) { console.log("Cache Read Error", e); }    
+    } catch(e) { console.log("Cache Read Error", e); } 
 
     // 🔄 સર્વગ્રાહી ઓટોમેટિક માસ્ટર બેકઅપ ફંક્શન (હંમેશા LocalStorage માં સુરક્ષિત સાચવશે)
     function autoBackupAllData() {
@@ -3146,7 +3238,6 @@
                 rojmel: (typeof cloudRojmel !== "undefined" ? cloudRojmel : {}),
                 vendors: (typeof cloudVendors !== "undefined" ? cloudVendors : {}),
                 inventory: (typeof cloudInventory !== "undefined" ? cloudInventory : {}),  
-                inventory: (typeof cloudInventory !== "undefined" ? cloudInventory : {}),
                 outwardInventory: (typeof cloudOutwardInv !== "undefined" ? cloudOutwardInv : {}),
                 staffList: staffListObj
             };
@@ -6092,8 +6183,41 @@
     }
     function toggleStaffDeleteExtraItemsPerm(sId, isChecked) {
         staffPermRef.child(sId).child("canDeleteExtraItems").set(isChecked);
-    }
+    } 
 
+   // 🏢 Step 4 ના ૯ ફીચર્સ માટે ઓનલાઇન & ઑફલાઇન પરવાનગી સેવ કરતું ફંક્શન
+    function toggleStep4StaffPerm(sId, mod, type, isChecked) {
+        let key = `can${type.charAt(0).toUpperCase() + type.slice(1)}${mod}`;
+        if (!staffListObj[sId]) staffListObj[sId] = {};
+        staffListObj[sId][key] = isChecked;
+
+        // જો 'એડિટ' ટીક કરે તો 'જોવાની' પરવાનગી આપોઆપ મળી જશે
+        if (type === 'edit' && isChecked) {
+            staffListObj[sId][`canView${mod}`] = true;
+        }
+
+        // ૧. તાત્કાલિક LocalStorage માં કાયમી સેવ (ઑફલાઇન માટે ૧૦૦% સેફ)
+        localStorage.setItem("cached_staff_list", JSON.stringify(staffListObj));
+
+        let currentRole = currentUserRole || sessionStorage.getItem("loggedUserRole");
+        if (currentRole === sId) {
+            currentStaffConfig = staffListObj[sId];
+            if (typeof applyStep4ButtonsPermissions === "function") applyStep4ButtonsPermissions();
+        }
+
+        // ૨. ઓનલાઇન હોય તો Firebase RTDB માં સેવ થશે, ઑફલાઇન હોય તો Sync Queue માં જશે
+        if (navigator.onLine && typeof staffPermRef !== "undefined") {
+            staffPermRef.child(sId).child(key).set(isChecked);
+            if (type === 'edit' && isChecked) {
+                staffPermRef.child(sId).child(`canView${mod}`).set(true);
+            }
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: `staff_permissions/${sId}/${key}`, action: "set", data: isChecked });
+            if (type === 'edit' && isChecked) {
+                addToSyncQueue({ path: `staff_permissions/${sId}/canView${mod}`, action: "set", data: true });
+            }
+        }
+    }
  // ૧. ક્લાઉડ (Firebase) માંથી તમામ બુકિંગ્સ વાંચવા (ફાર્મ ફિલ્ટર સાથે)
     function getAllBookings() {
         let bookings = [];
@@ -6546,6 +6670,43 @@
                         </label>
                     </div>
 
+                    <!-- 🏢 ૮. Step 4 કંપની એકાઉન્ટિંગ ના ૯ ફીચર્સ (દરેક માટે ૨-૨ Checkboxes: માત્ર જુઓ / એડિટ કરો) -->
+                    <div style="margin-bottom:10px; background:#f8fafc; border:1.5px solid #6366f1; padding:10px; border-radius:8px;">
+                        <b style="font-size:12.5px; color:#4338ca; display:block; margin-bottom:8px; border-bottom:1px solid #e0e7ff; padding-bottom:4px;">
+                            🏢 Step 4: કંપની એકાઉન્ટિંગ વિગતવાર પરવાનગી (View & Edit Control):
+                        </b>
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            ${[
+                                { mod: 'Expense', label: '➕ નવો ખર્ચ (Expense)' },
+                                { mod: 'Capital', label: '🏦 મૂડી / બેંક ખાતું' },
+                                { mod: 'Party', label: '📑 પાર્ટી ખાતાવહી સ્ટેટમેન્ટ' },
+                                { mod: 'Pnl', label: '📊 નફા-નુકસાન સરવૈયું (P&L)' },
+                                { mod: 'Outward', label: '🚚 સામાન બહાર / ભાડે ખાતાવહી' },
+                                { mod: 'Rojmel', label: '📖 દૈનિક રોજમેળ (નામા પદ્ધતિ)' },
+                                { mod: 'Vendor', label: '🤝 વેન્ડર ખાતાવહી' },
+                                { mod: 'Inventory', label: '📦 ઇન્વેન્ટરી સ્ટોક' },
+                                { mod: 'Category', label: '🏷️ ખર્ચ કેટેગરી સેટિંગ' }
+                            ].map(item => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">
+                                    <span style="font-weight:700; color:#1e293b;">${item.label}</span>
+                                    <div style="display:flex; gap:12px;">
+                                        <label style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; color:#0369a1; font-weight:600;">
+                                            <input type="checkbox" ${staff['canView' + item.mod] ? 'checked' : ''} onchange="toggleStep4StaffPerm('${sId}', '${item.mod}', 'view', this.checked)">
+                                            👁️ માત્ર જુઓ
+                                        </label>
+                                        <label style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; color:#15803d; font-weight:700;">
+                                            <input type="checkbox" ${staff['canEdit' + item.mod] ? 'checked' : ''} onchange="toggleStep4StaffPerm('${sId}', '${item.mod}', 'edit', this.checked)">
+                                            ✏️ ઉમેરો/એડિટ
+                                        </label>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <small style="color:#b91c1c; font-size:11px; display:block; margin-top:5px; font-weight:600;">
+                            * નોંધ: એડિટની પરવાનગી આપવાથી સ્ટાફ એન્ટ્રી ઉમેરી અને સુધારી શકશે, પરંતુ ડીલીટ કરી શકશે નહીં. ડીલીટ ફક્ત Admin જ કરી શકશે.
+                        </small>
+                    </div>
+
                     <!-- 🏰 ફાર્મ પરવાનગી Checkboxes -->
                     <div>
                         <span style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:4px;">જોવા માટે માન્ય ફાર્મ (ટીક કરો):</span>
@@ -6947,6 +7108,10 @@
     }
 
     function addCustomExpenseCategory() {
+        if (currentUserRole !== 'admin' && !hasStep4Perm('Category', 'edit')) {
+            alert("❌ નવી ખર્ચ કેટેગરી ઉમેરવાનો અધિકાર નથી!");
+            return;
+        }
         let name = document.getElementById("newCustomCatName").value.trim();
         if (!name) { alert("કૃપા કરીને કેટેગરીનું નામ લખો!"); return; }
         let id = "cat_" + Date.now();
@@ -6963,10 +7128,14 @@
     }
 
     function editCustomExpenseCategory(catId, oldName) {
+        if (currentUserRole !== 'admin' && !hasStep4Perm('Category', 'edit')) {
+            alert("❌ ખર્ચ કેટેગરી સુધારવાનો અધિકાર નથી!");
+            return;
+        }
         let newName = prompt("કેટેગરીનું નવું નામ લખો:", oldName);
         if (newName && newName.trim() !== "" && newName !== oldName) {
             cloudCustomCats[catId].name = newName.trim();
-            localStorage.setItem("cached_expense_categories", JSON.stringify(cloudCustomCats));
+            localStorage.setItem("cached_expense_categories", JSON.stringify(cloudCustomCats));  
             renderCustomCategoriesTable();
             updateExpenseCategoryDropdowns();
             if (navigator.onLine) customCatsRef.child(catId).update({ name: newName.trim() });
@@ -6974,6 +7143,10 @@
     }
 
     function deleteCustomExpenseCategory(catId, name) {
+        if (currentUserRole !== 'admin') {
+            alert("❌ માત્ર Admin (માલિક) જ ખર્ચ કેટેગરી ડિલીટ કરી શકે છે!");
+            return;
+        }
         if (confirm(`શું તમે ખર્ચ કેટેગરી "${name}" ડિલીટ કરવા માંગો છો?`)) {
             delete cloudCustomCats[catId];
             localStorage.setItem("cached_expense_categories", JSON.stringify(cloudCustomCats));
@@ -7038,8 +7211,12 @@
     }
 
     // રોજમેળ એન્ટ્રી સેવ અથવા અપડેટ કરવી (Offline LocalStorage + Firebase Online)
-    function saveRojmelEntry() {
-        let dateVal = document.getElementById("rojmelDate").value;
+       function saveRojmelEntry() {
+         if (currentUserRole !== 'admin' && !hasStep4Perm('Rojmel', 'edit')) {
+           alert("❌ રોજમેળમાં એન્ટ્રી ઉમેરવા અથવા સુધારવાનો અધિકાર નથી!");
+            return;
+      }
+         let dateVal = document.getElementById("rojmelDate").value;
         let type = document.getElementById("rojmelType").value;
         let amt = parseFloat(document.getElementById("rojmelAmount").value) || 0;
         let details = document.getElementById("rojmelDetails").value.trim();
@@ -7126,8 +7303,12 @@
         if (cancelBtn) cancelBtn.style.display = "none";
     }
 
-    // રોજમેળ એન્ટ્રી ડિલીટ કરવી
+    // રોજમેળ એન્ટ્રી ડિલીટ કરવી (માત્ર Admin અધિકાર)
     function deleteRojmelEntry(rId) {
+        if (currentUserRole !== 'admin') { 
+            alert("❌ માત્ર Admin (માલિક) જ રોજમેળ એન્ટ્રી ડિલીટ કરી શકે છે!"); 
+            return; 
+        }
         let r = cloudRojmel[rId];
         let detailText = r ? `(${r.details})` : '';
         if (confirm(`શું તમે આ રોજમેળ એન્ટ્રી ${detailText} રદ કરવા માંગો છો?`)) {
@@ -7347,6 +7528,10 @@
     }
 
     function saveNewVendor() {
+        if (currentUserRole !== 'admin' && !hasStep4Perm('Vendor', 'edit')) {
+            alert("❌ વેન્ડર ઉમેરવાનો અધિકાર નથી!");
+            return;
+        }
         let name = document.getElementById("vendName").value.trim();
         let cat = document.getElementById("vendCategory").value;
         let mob = document.getElementById("vendMobile").value.trim();
@@ -7372,6 +7557,8 @@
 
         if (navigator.onLine) {
             vendorRef.child(vId).set(vData);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: "vendors/" + vId, action: "set", data: vData });
         }
 
         document.getElementById("vendName").value = "";
@@ -7381,6 +7568,10 @@
     }
 
     function payVendorAmount(vId) {
+        if (currentUserRole !== 'admin' && !hasStep4Perm('Vendor', 'edit')) {
+            alert("❌ વેન્ડર ચુકવણી નોંધવાનો અધિકાર નથી!");
+            return;
+        }
         let v = cloudVendors[vId];
         if (!v) return;
         let amt = prompt(`"${v.name}" ને કેટલી રકમ ચૂકવો છો? (₹):`);
@@ -7390,11 +7581,19 @@
             cloudVendors[vId].paidAmount = newPaid;
             localStorage.setItem("cached_vendors", JSON.stringify(cloudVendors));
             renderVendorsTable();
-            if (navigator.onLine) vendorRef.child(vId).update({ paidAmount: newPaid });
+            if (navigator.onLine) {
+                vendorRef.child(vId).update({ paidAmount: newPaid });
+            } else if (typeof addToSyncQueue === "function") {
+                addToSyncQueue({ path: "vendors/" + vId, action: "update", data: { paidAmount: newPaid } });
+            }
         }
     }
 
     function deleteVendor(vId, name) {
+        if (currentUserRole !== 'admin') {
+            alert("❌ માત્ર Admin (માલિક) જ વેન્ડર ખાતું ડિલીટ કરી શકે છે!");
+            return;
+        }
         if (confirm(`શું તમે વેન્ડર "${name}" નું ખાતું ડિલીટ કરવા માંગો છો?`)) {
             delete cloudVendors[vId];
             localStorage.setItem("cached_vendors", JSON.stringify(cloudVendors));
@@ -7475,7 +7674,11 @@
         document.getElementById("inventoryModal").style.display = "none";
     }
 
-    function saveInventoryItem() {
+     function saveInventoryItem() {
+       if (currentUserRole !== 'admin' && !hasStep4Perm('Inventory', 'edit')) {
+      alert("❌ નવો સ્ટોક ઉમેરવાનો અધિકાર નથી!");
+      return;
+   }
         let name = document.getElementById("invItemName").value.trim();
         let qty = parseFloat(document.getElementById("invTotalQty").value) || 0;
         let unit = document.getElementById("invUnit").value.trim() || "નંગ";
@@ -7509,7 +7712,11 @@
         alert("✅ સામાન સ્ટોકમાં ઉમેરાઈ ગયો!");
     }
 
-    function changeItemStock(itemId, action) {
+     function changeItemStock(itemId, action) {
+        if (currentUserRole !== 'admin' && !hasStep4Perm('Inventory', 'edit')) {
+            alert("❌ સ્ટોકમાં વધઘટ કરવાનો અધિકાર નથી!");
+            return;
+        }
         let item = cloudInventory[itemId];
         if (!item) return;
 
@@ -7531,6 +7738,10 @@
     }
 
     function deleteInventoryItem(itemId, name) {
+        if (currentUserRole !== 'admin') {
+            alert("❌ માત્ર Admin (માલિક) જ સામાન સ્ટોક ડિલીટ કરી શકે છે!");
+            return;
+        }
         if (confirm(`શું તમે સામાન "${name}" સ્ટોકમાંથી ડિલીટ કરવા માંગો છો?`)) {
             delete cloudInventory[itemId];
             localStorage.setItem("cached_inventory", JSON.stringify(cloudInventory));
