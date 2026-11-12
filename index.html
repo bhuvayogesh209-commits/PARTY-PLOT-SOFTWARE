@@ -819,20 +819,18 @@
                 }
             });
 
-            // 🌐 ૩. ૨૦ યુઝર્સ અને Admin માટે ૨-વે ગ્લોબલ લાઈવ સિંક્રોનાઇઝેશન (કોઈપણ મોબાઇલમાંથી એન્ટ્રી થશે કે તરત અહીં આવશે)
+           // 🌐 ૩. ૨૦ યુઝર્સ અને Admin માટે ૨-વે ગ્લોબલ લાઈવ સિંક્રોનાઇઝેશન (ડિલીટ બગ ફિક્સ સાથે)
             outwardInvRef.on('value', (snap) => {
                 let val = snap.val();
                 if (val && typeof val === "object") {
                     cloudOutwardInv = val;
                     window.cloudOutwardInv = cloudOutwardInv;
                     localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
-                } else if (!val) {
-                    let localData = JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
-                    if (Object.keys(localData).length > 0) {
-                        cloudOutwardInv = localData;
-                        window.cloudOutwardInv = cloudOutwardInv;
-                        outwardInvRef.update(cloudOutwardInv);
-                    }
+                } else {
+                    // જો ફાયરબેઝમાં એન્ટ્રી ડિલીટ થઈ ગઈ હોય તો લોકલ કેશ પણ સાફ કરો (પાછી અપલોડ ન થવી જોઈએ)
+                    cloudOutwardInv = {};
+                    window.cloudOutwardInv = {};
+                    localStorage.setItem("cached_outward_inventory", "{}");
                 }
                 updateOutwardLiveBadge();
                 renderOutwardInventoryTable();
@@ -1318,25 +1316,45 @@
                     alert("❌ માત્ર Admin (માલિક) જ સામાનની એન્ટ્રી ડિલીટ કરી શકે છે!"); 
                     return; 
                 }
-                if (!confirm(`શું તમે આ બહાર આપેલ સામાનની એન્ટ્રી (${itemName}) ડિલીટ કરવા માંગો છો?`)) return;
+                if (!confirm(`શું તમે આ બહાર આપેલ સામાનની એન્ટ્રી (${itemName}) કાયમ માટે ડિલીટ કરવા માંગો છો?`)) return;
 
+                // ૧. મેમરી અને લોકલ સ્ટોરેજમાંથી ડિલીટ
                 delete cloudOutwardInv[id];
                 window.cloudOutwardInv = cloudOutwardInv;
                 localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
+
+                // ૨. સિન્ક કતારમાંથી જૂની એન્ટ્રી હટાવો જેથી પાછી અપલોડ ન થાય
+                try {
+                    let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
+                    queue = queue.filter(item => item.path !== ("outward_inventory/" + id));
+                    localStorage.setItem("offline_sync_queue", JSON.stringify(queue));
+                } catch(e){}
+
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
-                if (document.getElementById("editOutwardId").value === id) {
+                if (document.getElementById("editOutwardId") && document.getElementById("editOutwardId").value === id) {
                     cancelEditOutward();
                 }
 
-                outwardInvRef.child(id).remove(function(err) {
-                    if (err && typeof addToSyncQueue === "function") {
+                // ૩. Firebase માંથી કાયમી રિમૂવ
+                if (navigator.onLine) {
+                    outwardInvRef.child(id).remove().then(() => {
+                        console.log("Deleted from Firebase:", id);
+                    }).catch(err => {
+                        console.error("Firebase Outward Delete Error:", err);
+                        if (typeof addToSyncQueue === "function") {
+                            addToSyncQueue({ path: "outward_inventory/" + id, action: "remove" });
+                        }
+                    });
+                } else {
+                    if (typeof addToSyncQueue === "function") {
                         addToSyncQueue({ path: "outward_inventory/" + id, action: "remove" });
                     }
-                });
+                }
 
                 updateOutwardLiveBadge();
                 renderOutwardInventoryTable();
+                alert(`✅ સામાન એન્ટ્રી (${itemName}) સફળતાપૂર્વક ડિલીટ થઈ ગઈ છે!`);
             }
 
             // 📋 ૫. ગ્લોબલ ટેબલ રેન્ડરિંગ (કોઈપણ યુઝર કે એડમિનની એન્ટ્રી ક્યારેય છુપાશે નહીં)
@@ -2825,7 +2843,7 @@
         }, 600);
     </script>
    </div>
-  </div>
+ 
       <!-- ➕ Add / Edit Worker Modal -->
 <div class="modal" id="workerModal">
     <div class="modal-content" style="max-width: 420px;">
@@ -3176,15 +3194,15 @@
             <div style="display:flex; flex-direction:column; gap:8px;">
                 <div style="display:grid; grid-template-columns: 100px 1fr; gap:8px; align-items:center;">
                     <span style="font-weight:700; color:#854d0e; font-size:12.5px;">🌅 સવાર :</span>
-                    <input type="text" id="mandapSavar" class="form-control" placeholder="સવારનું મંડપ મુહૂર્ત / સમય દાખલ કરો...">
+                    <input type="text" id="mandapSavar" class="form-control" placeholder="સવારનું મંડપ મુહૂર્ત / સમય દાખલ કરો..." style="background:#ffffff !important; color:#0f172a !important; font-weight:700 !important; font-size:13.5px !important; border:1.5px solid #cbd5e1 !important;">
                 </div>
                 <div style="display:grid; grid-template-columns: 100px 1fr; gap:8px; align-items:center;">
                     <span style="font-weight:700; color:#854d0e; font-size:12.5px;">☀️ બપોર :</span>
-                    <input type="text" id="mandapBapor" class="form-control" placeholder="બપોરનું મંડપ મુહૂર્ત / સમય દાખલ કરો...">
+                    <input type="text" id="mandapBapor" class="form-control" placeholder="બપોરનું મંડપ મુહૂર્ત / સમય દાખલ કરો..." style="background:#ffffff !important; color:#0f172a !important; font-weight:700 !important; font-size:13.5px !important; border:1.5px solid #cbd5e1 !important;">
                 </div>
                 <div style="display:grid; grid-template-columns: 100px 1fr; gap:8px; align-items:center;">
                     <span style="font-weight:700; color:#854d0e; font-size:12.5px;">🌙 સાંજ :</span>
-                    <input type="text" id="mandapSanj" class="form-control" placeholder="સાંજનું મંડપ મુહૂર્ત / સમય દાખલ કરો...">
+                    <input type="text" id="mandapSanj" class="form-control" placeholder="સાંજનું મંડપ મુહૂર્ત / સમય દાખલ કરો..." style="background:#ffffff !important; color:#0f172a !important; font-weight:700 !important; font-size:13.5px !important; border:1.5px solid #cbd5e1 !important;">
                 </div>
             </div>
         </div>
@@ -3776,13 +3794,13 @@
         listenToFarmBookings();
     }
 
-    // ૨. પસંદ કરેલા ફાર્મ મુજબ ડેટા ફિલ્ટર અને ઓલ-યુઝર લાઈવ ક્લાઉડ લિસનર (૧૦૦% ફિક્સ)
+    // ૨. પસંદ કરેલા ફાર્મ મુજબ ડેટા ફિલ્ટર અને ઓલ-યુઝર લાઈવ ક્લાઉડ લિસનર (૧૦૦% ફિક્સ)   
     function listenToFarmBookings() {
         if (!currentFarmId) return;
 
         cloudBookings = {};
 
-        // 🏰 ૧. તાત્કાલિક લોકલ ડેટા લોડ કરો જેથી સ્ક્રીન ખાલી ન રહે
+        // 🏰 ૧. તાત્કાલિક લોકલ ડેટા ફિલ્ટર કરીને લોડ કરો (મિક્સ ન થવો જોઈએ)
         if (currentFarmId === "ALL") {
             let combinedBookings = {};
             for (let fId in cachedAllFarmBookings) {
@@ -3795,18 +3813,23 @@
             }
             cloudBookings = combinedBookings;
         } else {
+            // માત્ર પસંદ કરેલા ફાર્મનો જ ડેટા ફિલ્ટર કરવો
             let farmB = (cachedAllFarmBookings && cachedAllFarmBookings[currentFarmId]) ? cachedAllFarmBookings[currentFarmId] : {};
-            let localCache = {};
-            try {
-                localCache = JSON.parse(localStorage.getItem("cached_bookings_" + currentFarmId) || "{}");
-            } catch(e) {}
-            cloudBookings = Object.assign({}, localCache, farmB);
+            let clean = {};
+            for (let bKey in farmB) {
+                let b = farmB[bKey];
+                if (b && b.customerName && (!b.farmId || b.farmId === currentFarmId)) {
+                    clean[bKey] = b;
+                }
+            }
+            cloudBookings = clean;
+            localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(clean));
         }
 
         generateCalendar();
         filterData();
 
-        // 🌐 ૨. લાઈવ ક્લાઉડ સિંક: એડમિન કે ૨૦ માંથી કોઈપણ યુઝર બુકિંગ સેવ કરશે તો બધાને તુરંત લાઈવ દેખાશે
+        // 🌐 ૨. લાઈવ ક્લાઉડ સિંક: ફાર્મ વાઈઝ ચુસ્ત ફિલ્ટરિંગ
         if (currentBookingRef) currentBookingRef.off();
         currentBookingRef = firebase.database().ref("farm_bookings");
         
@@ -3831,7 +3854,7 @@
                 let cleanBookings = {};
                 for (let bKey in currentSpecificBookings) {
                     let b = currentSpecificBookings[bKey];
-                    if (b && b.customerName) {
+                    if (b && b.customerName && (!b.farmId || b.farmId === currentFarmId)) {
                         cleanBookings[bKey] = b;
                     }
                 }
@@ -3839,7 +3862,6 @@
                 localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
             }
 
-            // કૅલેન્ડરમાં તારીખ બુક થયેલી લાલ/પીળી/વાદળી અને પાર્ટી વિગત તુરંત લાઈવ બતાવો
             generateCalendar();
             filterData();
             if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
@@ -5572,38 +5594,73 @@
             let mData = cloudBookings[baseKey + "_morning"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'morning' ? cloudBookings[baseKey] : null);
             let eData = cloudBookings[baseKey + "_evening"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'evening' ? cloudBookings[baseKey] : null);
 
+            // 🛡️ ચોક્કસ ફાર્મ પસંદ હોય તો બીજા કોઈ ફાર્મનું બુકિંગ આ કેલેન્ડરમાં ન આવે (તારીખ ખાલી જ દેખાય)
+            if (currentFarmId !== "ALL") {
+                if (fData && fData.farmId && fData.farmId !== currentFarmId) fData = null;
+                if (mData && mData.farmId && mData.farmId !== currentFarmId) mData = null;
+                if (eData && eData.farmId && eData.farmId !== currentFarmId) eData = null;
+            }
+
             function getSlotStyle(data) {
-                if (!data || !data.customerName) return { bg: '#dcfce7', label: 'ખાલી', textColor: '#166534', border: '#86efac' };
+                if (!data || !data.customerName || data.status === 'available') return { bg: '#dcfce7', label: 'ખાલી', textColor: '#166534', border: '#86efac' };
                 if (data.status === 'ok') return { bg: '#b91c1c', label: 'ઓકે', textColor: '#ffffff', border: '#991b1b' };
                 if (data.status === 'paid') return { bg: '#1d4ed8', label: 'ચૂકવેલ', textColor: '#ffffff', border: '#1e40af' };
-                // 🟡 સુધારો: અડધું પેમેન્ટ હોય ત્યારે એકદમ ઘાટો પીળો કલર (#eab308) અને કાળા બોલ્ડ અક્ષરો
                 if (data.status === 'partial') return { bg: '#eab308', label: 'અડધું', textColor: '#000000', border: '#a16207' };
                 return { bg: '#ef4444', label: 'બાકી', textColor: '#ffffff', border: '#dc2626' };
             }
 
-            if (fData && fData.customerName) {
+            let hasF = !!(fData && fData.customerName && fData.status !== 'available');
+            let hasM = !!(mData && mData.customerName && mData.status !== 'available');
+            let hasE = !!(eData && eData.customerName && eData.status !== 'available');
+
+            if (hasF) {
                 let fInfo = getSlotStyle(fData);
+                let cust = fData.customerName ? fData.customerName.slice(0, 9) : '';
                 dayBox.style.background = fInfo.bg;
                 dayBox.style.border = `2.5px solid ${fInfo.border}`;
                 dayBox.innerHTML = `
-                    <span style="font-weight:900; font-size:15px; color:${fInfo.textColor};">${day}</span>
-                    <span class="day-subtext" style="font-weight:900; color:${fInfo.textColor}; font-size:10px; text-transform:uppercase;">☀️ આખો દિવસ: ${fInfo.label}</span>
+                    <span style="font-weight:900; font-size:14px; color:${fInfo.textColor};">${day}</span>
+                    <span class="day-subtext" style="font-weight:800; color:${fInfo.textColor}; font-size:9.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:96%;">☀️ ${cust}</span>
+                    <span style="font-size:8.5px; font-weight:800; opacity:0.9; color:${fInfo.textColor};">(${fInfo.label})</span>
                 `;
                 dayBox.onclick = () => openModal(year, month + 1, day, "fullday");
-            } else if ((mData && mData.customerName) || (eData && eData.customerName)) {
+            } else if (hasM && !hasE) {
+                let mInfo = getSlotStyle(mData);
+                let mCust = mData.customerName ? mData.customerName.slice(0, 9) : '';
+                dayBox.style.background = mInfo.bg;
+                dayBox.style.border = `2px solid ${mInfo.border}`;
+                dayBox.innerHTML = `
+                    <span style="font-weight:900; font-size:14px; color:${mInfo.textColor};">${day}</span>
+                    <span class="day-subtext" style="font-weight:800; color:${mInfo.textColor}; font-size:9.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:96%;">🌅 ${mCust}</span>
+                    <span style="font-size:8.5px; font-weight:800; opacity:0.9; color:${mInfo.textColor};">(${mInfo.label})</span>
+                `;
+                dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+            } else if (hasE && !hasM) {
+                let eInfo = getSlotStyle(eData);
+                let eCust = eData.customerName ? eData.customerName.slice(0, 9) : '';
+                dayBox.style.background = eInfo.bg;
+                dayBox.style.border = `2px solid ${eInfo.border}`;
+                dayBox.innerHTML = `
+                    <span style="font-weight:900; font-size:14px; color:${eInfo.textColor};">${day}</span>
+                    <span class="day-subtext" style="font-weight:800; color:${eInfo.textColor}; font-size:9.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:96%;">🌙 ${eCust}</span>
+                    <span style="font-size:8.5px; font-weight:800; opacity:0.9; color:${eInfo.textColor};">(${eInfo.label})</span>
+                `;
+                dayBox.onclick = () => openModal(year, month + 1, day, "evening");
+            } else if (hasM && hasE) {
                 let mInfo = getSlotStyle(mData);
                 let eInfo = getSlotStyle(eData);
-
+                let mCust = mData.customerName ? mData.customerName.slice(0, 5) : 'સવાર';
+                let eCust = eData.customerName ? eData.customerName.slice(0, 5) : 'સાંજ';
                 dayBox.style.background = `linear-gradient(to right, ${mInfo.bg} 50%, ${eInfo.bg} 50%)`;
                 dayBox.style.border = "2px solid #334155";
                 dayBox.innerHTML = `
-                    <span style="font-weight:900; font-size:14px; color:#0f172a; background:rgba(255,255,255,0.9); padding:1px 6px; border-radius:10px;">${day}</span>
-                    <div style="display:flex; justify-content:space-between; width:100%; padding:0 3px; font-size:9.5px; font-weight:900; margin-top:2px;">
-                        <span style="color:${mInfo.textColor};">${mInfo.label}</span>
-                        <span style="color:${eInfo.textColor};">${eInfo.label}</span>
+                    <span style="font-weight:900; font-size:13px; color:#0f172a; background:rgba(255,255,255,0.9); padding:0 5px; border-radius:10px;">${day}</span>
+                    <div style="display:flex; justify-content:space-between; width:100%; padding:0 2px; font-size:8.5px; font-weight:800; margin-top:2px;">
+                        <span style="color:${mInfo.textColor};">🌅${mCust}</span>
+                        <span style="color:${eInfo.textColor};">🌙${eCust}</span>
                     </div>
                 `;
-                dayBox.onclick = () => openModal(year, month + 1, day, mData ? "morning" : "evening");
+                dayBox.onclick = () => openModal(year, month + 1, day, "morning");
             } else {
                 dayBox.className = "day-box available";
                 dayBox.style.background = "#ecfdf5";
@@ -5780,21 +5837,87 @@
 
     function switchSlot() {
         selectedSlot = document.getElementById("bookingSlot").value;
-        let currentCustName = document.getElementById("customerName").value.trim();
         let targetKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let targetData = cloudBookings[targetKey];
 
-        if (!targetData && currentCustName !== "") {
-            calculateTotalWithExtraItems();
-            return;
+        if (targetData && targetData.customerName) {
+            loadSlotData();
+        } else {
+            let curName = document.getElementById("customerName").value.trim();
+            if (curName === "") {
+                clearBookingFormFields();
+            } else {
+                calculateTotalWithExtraItems();
+            }
         }
-        loadSlotData();
     } 
 
-    // ✏️ મંડપના ૩ ખાના, વોચમેન ખાતું, રસીદ નંબર & ૩ નોંધ (Note 1, 2, 3) મોડલમાં લોડ કરવું
+    function clearBookingFormFields() {
+        if (document.getElementById("receiptNo")) document.getElementById("receiptNo").value = "";
+        document.getElementById("customerName").value = "";
+        document.getElementById("mobile").value = "";
+        document.getElementById("hastakName").value = "";
+        document.getElementById("hastakMobile").value = "";
+        document.getElementById("event").value = "";
+        document.getElementById("guests").value = "";
+
+        if (document.getElementById("mandapSavar")) document.getElementById("mandapSavar").value = "";
+        if (document.getElementById("mandapBapor")) document.getElementById("mandapBapor").value = "";
+        if (document.getElementById("mandapSanj")) document.getElementById("mandapSanj").value = "";
+
+        if (document.getElementById("watchmanCount")) document.getElementById("watchmanCount").value = "";
+        if (document.getElementById("watchmanRate")) document.getElementById("watchmanRate").value = "";
+        if (document.getElementById("watchmanTotal")) document.getElementById("watchmanTotal").value = 0;
+
+        if (document.getElementById("vahanDetails")) document.getElementById("vahanDetails").value = "";
+        if (document.getElementById("vahanCount")) document.getElementById("vahanCount").value = "";
+        if (document.getElementById("vahanDays")) document.getElementById("vahanDays").value = 1;
+        if (document.getElementById("vahanRatePerDay")) document.getElementById("vahanRatePerDay").value = "";
+
+        if (document.getElementById("bookingNote1")) document.getElementById("bookingNote1").value = "";
+        if (document.getElementById("bookingNote2")) document.getElementById("bookingNote2").value = "";
+        if (document.getElementById("bookingNote3")) document.getElementById("bookingNote3").value = "";
+
+        document.getElementById("basePackageAmount").value = "";
+        document.getElementById("cleaningCharge").value = "";
+        if (document.getElementById("otherExtraCharge")) document.getElementById("otherExtraCharge").value = "";
+        document.getElementById("totalAmount").value = "";
+        document.getElementById("bookingStatus").value = "pending";
+        currentPaymentsList = [];
+        currentExtraItemsList = [];
+
+        renderExtraItemsTable();
+        renderPaymentHistory();
+        calculateTotalWithExtraItems();
+    }
+
+    // ✏️ મંડપના ૩ ખાના, વોચમેન ખાતું, રસીદ નંબર & તમામ ડેટા લોડ કરવો
     function loadSlotData() {
         let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
-        let data = cloudBookings[fullKey] || (selectedSlot === 'fullday' && cloudBookings[selectedDateBaseKey] && cloudBookings[selectedDateBaseKey].slot === 'fullday' ? cloudBookings[selectedDateBaseKey] : null) || (selectedSlot === 'morning' ? cloudBookings[selectedDateBaseKey] : null);
+        let data = cloudBookings[fullKey];
+
+        // જો પસંદ કરેલા સ્લોટમાં ડેટા ન મળે તો આ તારીખના ફુલડે, સવાર કે સાંજમાંથી ડેટા ઓટો-શોધો
+        if (!data || !data.customerName) {
+            if (cloudBookings[`${selectedDateBaseKey}_fullday`] && cloudBookings[`${selectedDateBaseKey}_fullday`].customerName) {
+                data = cloudBookings[`${selectedDateBaseKey}_fullday`];
+                selectedSlot = 'fullday';
+                document.getElementById("bookingSlot").value = 'fullday';
+            } else if (cloudBookings[`${selectedDateBaseKey}_morning`] && cloudBookings[`${selectedDateBaseKey}_morning`].customerName) {
+                data = cloudBookings[`${selectedDateBaseKey}_morning`];
+                selectedSlot = 'morning';
+                document.getElementById("bookingSlot").value = 'morning';
+            } else if (cloudBookings[`${selectedDateBaseKey}_evening`] && cloudBookings[`${selectedDateBaseKey}_evening`].customerName) {
+                data = cloudBookings[`${selectedDateBaseKey}_evening`];
+                selectedSlot = 'evening';
+                document.getElementById("bookingSlot").value = 'evening';
+            } else if (cloudBookings[selectedDateBaseKey] && cloudBookings[selectedDateBaseKey].customerName) {
+                data = cloudBookings[selectedDateBaseKey];
+                if (data.slot) {
+                    selectedSlot = data.slot;
+                    document.getElementById("bookingSlot").value = data.slot;
+                }
+            }
+        }
 
         let now = new Date();
         document.getElementById("newPaymentDate").value = now.toISOString().slice(0, 10);
@@ -5818,8 +5941,8 @@
             document.getElementById("event").value = data.event || "";
             document.getElementById("guests").value = data.guests || "";
 
-            // 🎪 મંડપ મુહૂર્તના ૩ ખાના
-            if (document.getElementById("mandapSavar")) document.getElementById("mandapSavar").value = data.mandapSavar || "";
+            // 🎪 મંડપ મુહૂર્તના ૩ ખાના (સંપૂર્ણ વિગત લોડ કરવી)
+            if (document.getElementById("mandapSavar")) document.getElementById("mandapSavar").value = data.mandapSavar || data.mandapMuhurat || "";
             if (document.getElementById("mandapBapor")) document.getElementById("mandapBapor").value = data.mandapBapor || "";
             if (document.getElementById("mandapSanj")) document.getElementById("mandapSanj").value = data.mandapSanj || "";
 
@@ -5854,45 +5977,13 @@
             } else {
                 currentPaymentsList = [];
             }
+
+            renderExtraItemsTable();
+            renderPaymentHistory();
+            calculateTotalWithExtraItems();
         } else {
-            if (document.getElementById("receiptNo")) document.getElementById("receiptNo").value = "";
-            document.getElementById("customerName").value = "";
-            document.getElementById("mobile").value = "";
-            document.getElementById("hastakName").value = "";
-            document.getElementById("hastakMobile").value = "";
-            document.getElementById("event").value = "";
-            document.getElementById("guests").value = "";
-
-            if (document.getElementById("mandapSavar")) document.getElementById("mandapSavar").value = "";
-            if (document.getElementById("mandapBapor")) document.getElementById("mandapBapor").value = "";
-            if (document.getElementById("mandapSanj")) document.getElementById("mandapSanj").value = "";
-
-            if (document.getElementById("watchmanCount")) document.getElementById("watchmanCount").value = "";
-            if (document.getElementById("watchmanRate")) document.getElementById("watchmanRate").value = "";
-            if (document.getElementById("watchmanTotal")) document.getElementById("watchmanTotal").value = 0;
-
-            if (document.getElementById("vahanDetails")) document.getElementById("vahanDetails").value = "";
-            if (document.getElementById("vahanCount")) document.getElementById("vahanCount").value = "";
-            if (document.getElementById("vahanDays")) document.getElementById("vahanDays").value = 1;
-            if (document.getElementById("vahanRatePerDay")) document.getElementById("vahanRatePerDay").value = "";
-
-            // 📌 વિશેષ નોંધ ખાલી કરવી
-            if (document.getElementById("bookingNote1")) document.getElementById("bookingNote1").value = "";
-            if (document.getElementById("bookingNote2")) document.getElementById("bookingNote2").value = "";
-            if (document.getElementById("bookingNote3")) document.getElementById("bookingNote3").value = "";
-
-            document.getElementById("basePackageAmount").value = "";
-            document.getElementById("cleaningCharge").value = "";
-            if (document.getElementById("otherExtraCharge")) document.getElementById("otherExtraCharge").value = "";
-            document.getElementById("totalAmount").value = "";
-            document.getElementById("bookingStatus").value = "pending";
-            currentPaymentsList = [];
-            currentExtraItemsList = [];
+            clearBookingFormFields();
         }
-
-        renderExtraItemsTable();
-        renderPaymentHistory();
-        calculateTotalWithExtraItems();
     }
 
     function openModal(year, month, day, slot = "morning") {
@@ -5978,12 +6069,12 @@
         localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
         generateCalendar(); 
 
-        if (navigator.onLine) {
+        if (navigator.onLine) {  
             let ref = firebase.database().ref("farm_bookings").child(targetFarmId);
             ref.child(fullKey).remove();
             ref.child(selectedDateBaseKey).remove();
             if (selectedSlot === 'fullday') {
-                ref.child(`${selectedDateBaseKey}_morning`).remove();
+                ref.child(`${selectedDateBaseKey}_morning`).remove();  
                 ref.child(`${selectedDateBaseKey}_evening`).remove();
             }
         } else {
@@ -5993,181 +6084,196 @@
         closeModal();
     }
 
-    // 💾 ૨. સુધારેલ saveBooking: બુકિંગ સીધું સાચા ફાર્મ પાથ (Farm ID) માં સેવ થશે જેથી બધા ૨૦ યુઝર્સને લાઈવ દેખાય
-    function saveBooking() { 
-        let name = document.getElementById("customerName").value.trim();
-        let status = document.getElementById("bookingStatus").value;   
+    // 💾 ૨. સુધારેલ saveBooking: ગ્રાહક નામ હોય તો ક્યારેય ખાલી નહિ થાય
+    function saveBooking() {
+    let name = document.getElementById("customerName").value.trim();
+    let status = document.getElementById("bookingStatus").value;   
 
-        if (status === "available" || name === "") {
-            if (!canUserDelete) {
-                alert("❌ તમારી પાસે બુકિંગ રદ / ડિલીટ કરવાનો અધિકાર નથી!");
-                return;
-            }
-            deleteCurrentModalBooking();
+    // સુરક્ષા: જો નામ ભરેલું હોય અને સ્ટેટસ ભૂલથી 'available' રહી ગયું હોય તો તે ડિલીટ ન થાય
+    if (name !== "" && status === "available") {
+        status = "pending";
+        document.getElementById("bookingStatus").value = "pending";
+    }
+
+    if (name === "" && status === "available") {
+        if (!canUserDelete) {
+            alert("❌ તમારી પાસે બુકિંગ રદ / ડિલીટ કરવાનો અધિકાર નથી!");
+            return;
+        }
+        deleteCurrentModalBooking();
+        return;
+    }
+
+    if (name === "") {
+        alert("કૃપા કરીને કસ્ટમરનું નામ દાખલ કરો!");
+        return;
+    }
+
+    let targetFarmId = currentFarmId;
+    if (!targetFarmId || targetFarmId === "ALL") {
+        let farmSelect = document.getElementById("farmSelect");
+        if (farmSelect && farmSelect.value && farmSelect.value !== "ALL") {
+            targetFarmId = farmSelect.value;
+        } else {
+            alert("⚠️ કૃપા કરીને બુકિંગ સેવ કરવા માટે ઉપરથી ચોક્કસ ફાર્મ (જેમ કે તુલસીવન) પસંદ કરો!");
+            return;
+        }
+    }
+
+    let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
+    let mobile = document.getElementById("mobile").value.trim();
+    let hastakName = document.getElementById("hastakName").value.trim();
+    let hastakMobile = document.getElementById("hastakMobile").value.trim();
+    let event = document.getElementById("event").value.trim();
+    let guests = document.getElementById("guests").value.trim();
+
+    let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
+    let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
+    let mSanj = document.getElementById("mandapSanj") ? document.getElementById("mandapSanj").value.trim() : "";
+
+    let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
+    let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
+    let wTotal = wCount * wRate;
+
+    let vDetails = document.getElementById("vahanDetails") ? document.getElementById("vahanDetails").value.trim() : "";
+    let vCount = parseFloat(document.getElementById("vahanCount") ? document.getElementById("vahanCount").value : 0) || 0;
+    let vDays = parseFloat(document.getElementById("vahanDays") ? document.getElementById("vahanDays").value : 1) || 1;
+    let vRate = parseFloat(document.getElementById("vahanRatePerDay") ? document.getElementById("vahanRatePerDay").value : 0) || 0;
+    let vTotal = vCount * vDays * vRate;
+
+    let note1 = document.getElementById("bookingNote1") ? document.getElementById("bookingNote1").value.trim() : "";
+    let note2 = document.getElementById("bookingNote2") ? document.getElementById("bookingNote2").value.trim() : "";
+    let note3 = document.getElementById("bookingNote3") ? document.getElementById("bookingNote3").value.trim() : "";
+
+    let basePackage = parseFloat(document.getElementById("basePackageAmount").value) || 0;
+    let extraTotal = currentExtraItemsList.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+    let kachara = parseFloat(document.getElementById("cleaningCharge").value) || 0;
+    let otherCharge = parseFloat(document.getElementById("otherExtraCharge") ? document.getElementById("otherExtraCharge").value : 0) || 0;
+
+    let totalAmount = basePackage + extraTotal + kachara + otherCharge + vTotal + wTotal;
+    let advanceAmount = currentPaymentsList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+    let balanceAmount = Math.max(0, totalAmount - advanceAmount);
+
+    if (balanceAmount === 0 && totalAmount > 0) {
+        status = "paid";
+    } else if (advanceAmount > 0 && balanceAmount > 0 && status !== "ok") {
+        status = "partial";
+    } else if (status === "available" || !status) {
+        status = "pending";
+    }
+
+    let isMultiDate = document.getElementById("multiDateToggle").checked;
+    let endRawDate = document.getElementById("bookingEndDate").value;
+    let targetBaseKeys = [selectedDateBaseKey];
+
+    if (isMultiDate && endRawDate) {
+        let startParts = selectedDateBaseKey.replace(STORAGE_PREFIX, "").split("_");
+        let startDate = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]));
+        startDate.setHours(0, 0, 0, 0);
+
+        let endParts = endRawDate.split("-");
+        let endDate = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]));
+        endDate.setHours(0, 0, 0, 0);
+
+        if (endDate < startDate) {
+            alert("❌ અંતિમ તારીખ શરૂઆતની તારીખ કરતા આગળની હોવી જોઈએ!");
             return;
         }
 
-        let targetFarmId = currentFarmId;
-        if (!targetFarmId || targetFarmId === "ALL") {
-            let farmSelect = document.getElementById("farmSelect");
-            if (farmSelect && farmSelect.value && farmSelect.value !== "ALL") {
-                targetFarmId = farmSelect.value;
-            } else {
-                alert("⚠️ કૃપા કરીને બુકિંગ સેવ કરવા માટે ઉપરથી ચોક્કસ ફાર્મ (જેમ કે તુલસીવન) પસંદ કરો!");
-                return;
-            }
+        targetBaseKeys = [];
+        let curr = new Date(startDate);
+        while (curr <= endDate) {
+            let y = curr.getFullYear();
+            let m = String(curr.getMonth() + 1).padStart(2, '0');
+            let d = String(curr.getDate()).padStart(2, '0');
+            targetBaseKeys.push(`${STORAGE_PREFIX}${y}_${m}_${d}`);
+            curr.setDate(curr.getDate() + 1);
         }
-
-        let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
-        let mobile = document.getElementById("mobile").value.trim();
-        let hastakName = document.getElementById("hastakName").value.trim();
-        let hastakMobile = document.getElementById("hastakMobile").value.trim();
-        let event = document.getElementById("event").value.trim();
-        let guests = document.getElementById("guests").value.trim();
-
-        let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
-        let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
-        let mSanj = document.getElementById("mandapSanj") ? document.getElementById("mandapSanj").value.trim() : "";
-
-        let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
-        let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
-        let wTotal = wCount * wRate;
-
-        let vDetails = document.getElementById("vahanDetails") ? document.getElementById("vahanDetails").value.trim() : "";
-        let vCount = parseFloat(document.getElementById("vahanCount") ? document.getElementById("vahanCount").value : 0) || 0;
-        let vDays = parseFloat(document.getElementById("vahanDays") ? document.getElementById("vahanDays").value : 1) || 1;
-        let vRate = parseFloat(document.getElementById("vahanRatePerDay") ? document.getElementById("vahanRatePerDay").value : 0) || 0;
-        let vTotal = vCount * vDays * vRate;
-
-        let note1 = document.getElementById("bookingNote1") ? document.getElementById("bookingNote1").value.trim() : "";
-        let note2 = document.getElementById("bookingNote2") ? document.getElementById("bookingNote2").value.trim() : "";
-        let note3 = document.getElementById("bookingNote3") ? document.getElementById("bookingNote3").value.trim() : "";
-
-        let basePackage = parseFloat(document.getElementById("basePackageAmount").value) || 0;
-        let extraTotal = currentExtraItemsList.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
-        let kachara = parseFloat(document.getElementById("cleaningCharge").value) || 0;
-        let otherCharge = parseFloat(document.getElementById("otherExtraCharge") ? document.getElementById("otherExtraCharge").value : 0) || 0;
-
-        let totalAmount = basePackage + extraTotal + kachara + otherCharge + vTotal + wTotal;
-        let advanceAmount = currentPaymentsList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-        let balanceAmount = Math.max(0, totalAmount - advanceAmount);
-
-        if (balanceAmount === 0 && totalAmount > 0) {
-            status = "paid";
-        } else if (advanceAmount > 0 && balanceAmount > 0 && status !== "ok") {
-            status = "partial";
-        }
-
-        let isMultiDate = document.getElementById("multiDateToggle").checked;
-        let endRawDate = document.getElementById("bookingEndDate").value;
-        let targetBaseKeys = [selectedDateBaseKey];
-
-        if (isMultiDate && endRawDate) {
-            let startParts = selectedDateBaseKey.replace(STORAGE_PREFIX, "").split("_");
-            let startDate = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]));
-            startDate.setHours(0, 0, 0, 0);
-
-            let endParts = endRawDate.split("-");
-            let endDate = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]));
-            endDate.setHours(0, 0, 0, 0);
-
-            if (endDate < startDate) {
-                alert("❌ અંતિમ તારીખ શરૂઆતની તારીખ કરતા આગળની હોવી જોઈએ!");
-                return;
-            }
-
-            targetBaseKeys = [];
-            let curr = new Date(startDate);
-            while (curr <= endDate) {
-                let y = curr.getFullYear();
-                let m = String(curr.getMonth() + 1).padStart(2, '0');
-                let d = String(curr.getDate()).padStart(2, '0');
-                targetBaseKeys.push(`${STORAGE_PREFIX}${y}_${m}_${d}`);
-                curr.setDate(curr.getDate() + 1);
-            }
-        }
-
-        targetBaseKeys.forEach(baseKey => {
-            let fullKey = `${baseKey}_${selectedSlot}`;
-            let bookingData = { 
-                farmId: targetFarmId,
-                farmName: currentFarmName,
-                receiptNo: receiptNo,
-                dateKey: fullKey,
-                baseDateKey: baseKey,
-                slot: selectedSlot,
-                customerName: name,
-                mobile: mobile,
-                hastakName: hastakName,
-                hastakMobile: hastakMobile,
-                event: event,
-                guests: guests, 
-                mandapSavar: mSavar,
-                mandapBapor: mBapor,
-                mandapSanj: mSanj,
-                watchmanCount: wCount,
-                watchmanRate: wRate,
-                watchmanTotal: wTotal,
-                vahanDetails: vDetails,
-                vahanCount: vCount,
-                vahanDays: vDays,
-                vahanRatePerDay: vRate,
-                vahanTotalAmount: vTotal,
-                bookingNote1: note1,
-                bookingNote2: note2,
-                bookingNote3: note3,
-                basePackageAmount: basePackage,
-                extraItems: currentExtraItemsList,
-                totalExtraAmount: extraTotal,
-                cleaningCharge: kachara,
-                otherExtraCharge: otherCharge,
-                totalAmount: totalAmount,
-                advanceAmount: advanceAmount,
-                balanceAmount: balanceAmount,
-                payments: currentPaymentsList,
-                status: status
-            };
-
-            if (selectedSlot === 'fullday') {
-                delete cloudBookings[`${baseKey}_morning`];
-                delete cloudBookings[`${baseKey}_evening`];
-                delete cloudBookings[baseKey];
-            } else if (selectedSlot === 'morning' || selectedSlot === 'evening') {
-                delete cloudBookings[`${baseKey}_fullday`];
-                delete cloudBookings[baseKey];
-            }
-
-            cloudBookings[fullKey] = bookingData;
-
-            if (!cachedAllFarmBookings[targetFarmId]) cachedAllFarmBookings[targetFarmId] = {};
-            cachedAllFarmBookings[targetFarmId][fullKey] = bookingData;
-
-            // ક્લાઉડ ફાયરબેઝમાં ચોક્કસ ફાર્મ આઈડી હેઠળ ડાયરેક્ટ સેવ
-            if (navigator.onLine) {   
-                let targetRef = firebase.database().ref("farm_bookings").child(targetFarmId);
-                if (selectedSlot === 'fullday') {
-                    targetRef.child(`${baseKey}_morning`).remove();
-                    targetRef.child(`${baseKey}_evening`).remove();
-                    targetRef.child(baseKey).remove();
-                } else {
-                    targetRef.child(`${baseKey}_fullday`).remove();
-                    targetRef.child(baseKey).remove();
-                }
-                targetRef.child(fullKey).set(bookingData);
-            } else {
-                addToSyncQueue({ action: "set", farmId: targetFarmId, dateKey: fullKey, data: bookingData });
-            }
-        });
-
-        localStorage.setItem("cached_bookings_" + targetFarmId, JSON.stringify(cloudBookings));
-        localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
-        generateCalendar();
-        filterData();
-
-        let dateCountMsg = targetBaseKeys.length > 1 ? ` (કુલ ${targetBaseKeys.length} તારીખો બુક થઈ)` : '';
-        alert(`✅ ${name} નું બુકિંગ સફળતાપૂર્વક અપડેટ / સેવ થઈ ગયું છે!${dateCountMsg}`);
-        closeModal();
     }
+
+    targetBaseKeys.forEach(baseKey => {
+        let fullKey = `${baseKey}_${selectedSlot}`;
+        let bookingData = { 
+            farmId: targetFarmId,
+            farmName: currentFarmName,
+            receiptNo: receiptNo,
+            dateKey: fullKey,
+            baseDateKey: baseKey,
+            slot: selectedSlot,
+            customerName: name,
+            mobile: mobile,
+            hastakName: hastakName,
+            hastakMobile: hastakMobile,
+            event: event,
+            guests: guests, 
+            mandapSavar: mSavar,
+            mandapBapor: mBapor,
+            mandapSanj: mSanj,
+            watchmanCount: wCount,
+            watchmanRate: wRate,
+            watchmanTotal: wTotal,
+            vahanDetails: vDetails,
+            vahanCount: vCount,
+            vahanDays: vDays,
+            vahanRatePerDay: vRate,
+            vahanTotalAmount: vTotal,
+            bookingNote1: note1,
+            bookingNote2: note2,
+            bookingNote3: note3,
+            basePackageAmount: basePackage,
+            extraItems: currentExtraItemsList,
+            totalExtraAmount: extraTotal,
+            cleaningCharge: kachara,
+            otherExtraCharge: otherCharge,
+            totalAmount: totalAmount,
+            advanceAmount: advanceAmount,
+            balanceAmount: balanceAmount,
+            payments: currentPaymentsList,
+            status: status
+        };
+
+        if (selectedSlot === 'fullday') {
+            delete cloudBookings[`${baseKey}_morning`];
+            delete cloudBookings[`${baseKey}_evening`];
+            delete cloudBookings[baseKey];
+        } else if (selectedSlot === 'morning' || selectedSlot === 'evening') {
+            delete cloudBookings[`${baseKey}_fullday`];
+            delete cloudBookings[baseKey];
+        }
+
+        if (currentFarmId === targetFarmId || currentFarmId === "ALL") {
+            cloudBookings[fullKey] = bookingData;
+        }
+
+        if (!cachedAllFarmBookings[targetFarmId]) cachedAllFarmBookings[targetFarmId] = {};
+        cachedAllFarmBookings[targetFarmId][fullKey] = bookingData;
+
+        if (navigator.onLine) {   
+            let targetRef = firebase.database().ref("farm_bookings").child(targetFarmId);
+            if (selectedSlot === 'fullday') {
+                targetRef.child(`${baseKey}_morning`).remove();
+                targetRef.child(`${baseKey}_evening`).remove();
+                targetRef.child(baseKey).remove();
+            } else {
+                targetRef.child(`${baseKey}_fullday`).remove();
+                targetRef.child(baseKey).remove();
+            }
+            targetRef.child(fullKey).set(bookingData);
+        } else {
+            addToSyncQueue({ action: "set", farmId: targetFarmId, dateKey: fullKey, data: bookingData });
+        }
+    });
+
+    // માત્ર તે ચોક્કસ ફાર્મનો ડેટા જ તેની કૅશમાં સેવ થશે (મિક્સ નહિ થાય)
+    localStorage.setItem("cached_bookings_" + targetFarmId, JSON.stringify(cachedAllFarmBookings[targetFarmId] || {}));
+    localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
+    generateCalendar();
+    filterData();
+
+    let dateCountMsg = targetBaseKeys.length > 1 ? ` (કુલ ${targetBaseKeys.length} તારીખો બુક થઈ)` : '';
+    alert(`✅ ${name} નું બુકિંગ સફળતાપૂર્વક અપડેટ / સેવ થઈ ગયું છે!${dateCountMsg}`);
+    closeModal();
+}
 
     // 📲 WhatsApp મેસેજ સ્લિપ
     function sendWhatsAppReceipt() {
@@ -6547,7 +6653,7 @@
     }
 
     // 📋 ૩. સુધારેલ getAllBookings: કોઈપણ ફાર્મ (જેમ કે તુલસીવન) નું બુકિંગ ફિલ્ટરમાં ૧૦૦% સાચું દેખાશે
-    function getAllBookings() {
+       function getAllBookings() {
         let bookings = [];
         if (currentFarmId === "ALL") {
             for (let fId in cachedAllFarmBookings) {
@@ -6560,9 +6666,10 @@
                 }
             }
         } else {
-            for (let key in cloudBookings) {
-                let item = cloudBookings[key];
-                if (item && item.customerName) { 
+            let farmB = (cachedAllFarmBookings && cachedAllFarmBookings[currentFarmId]) ? cachedAllFarmBookings[currentFarmId] : cloudBookings;
+            for (let key in farmB) {
+                let item = farmB[key];
+                if (item && item.customerName && (!item.farmId || item.farmId === currentFarmId)) { 
                     bookings.push(item);
                 }
             }
@@ -6706,7 +6813,7 @@
             generateCalendar();
             filterData();
 
-            if (navigator.onLine) {
+            if (navigator.onLine) {   
                 firebase.database().ref("farm_bookings").child(targetFarmId).child(key).remove();
             } else {
                 addToSyncQueue({ action: "remove", farmId: targetFarmId, dateKey: key });
