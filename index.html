@@ -734,7 +734,7 @@
                 return staff;
             }
 
-            // 🔐 સ્ટાફ માટે પરવાનગી ચકાસવાનું અચૂક ફંક્શન (કોઈ ReferenceError નહીં થાય)
+            // 🔐 સ્ટાફ માટે પરવાનગી ચકાસવાનું અચૂક ફંક્શન
             function checkOutwardPermission(action) {
                 let role = getSafeUserRole();
                 if (role === 'admin') return true;
@@ -751,7 +751,7 @@
                 return false;
             }
 
-            // 🛡️ ગ્લોબલ hasStep4Perm ઓવરરાઈડ (જેથી કોઈ અન્ય સ્ક્રિપ્ટમાં ક્રેશ ન થાય)
+            // 🛡️ ગ્લોબલ hasStep4Perm ઓવરરાઈડ
             window.hasStep4Perm = function(mod, action) {
                 let role = getSafeUserRole();
                 if (role === 'admin') return true;
@@ -776,23 +776,50 @@
                 return `${y}-${m}-${day}`;
             }
 
-            if (typeof firebase !== "undefined" && !firebase.apps.length) {
-                firebase.initializeApp({
-                    apiKey: "AIzaSyA6iJtcv5Uegh0PMQmeoMbM3b8S2sTmOko",
-                    authDomain: "party-plot-software.firebaseapp.com",
-                    databaseURL: "https://party-plot-software-default-rtdb.asia-southeast1.firebasedatabase.app",
-                    projectId: "party-plot-software",
-                    storageBucket: "party-plot-software.firebasestorage.app",
-                    messagingSenderId: "136125878805",
-                    appId: "1:136125878805:web:390d7d3427e2ce9750f41c"
-                });
+            // 🌐 ૧. Firebase પ્રારંભ અને કનેક્શન પુનઃસ્થાપિત કરવું
+            if (typeof firebase !== "undefined") {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp({
+                        apiKey: "AIzaSyA6iJtcv5Uegh0PMQmeoMbM3b8S2sTmOko",
+                        authDomain: "party-plot-software.firebaseapp.com",
+                        databaseURL: "https://party-plot-software-default-rtdb.asia-southeast1.firebasedatabase.app",
+                        projectId: "party-plot-software",
+                        storageBucket: "party-plot-software.firebasestorage.app",
+                        messagingSenderId: "136125878805",
+                        appId: "1:136125878805:web:390d7d3427e2ce9750f41c"
+                    });
+                }
+                // મોબાઇલ બેકગ્રાઉન્ડમાંથી બહાર આવે ત્યારે ફરજિયાત કનેક્ટ કરવું
+                try { firebase.database().goOnline(); } catch(e){}
             }
 
             const outwardInvRef = firebase.database().ref("outward_inventory");
             var cloudOutwardInv = JSON.parse(localStorage.getItem("cached_outward_inventory") || "{}");
             window.cloudOutwardInv = cloudOutwardInv;
 
-            // 🌐 ૨૦ યુઝર્સ અને Admin માટે ૨-વે ગ્લોબલ લાઈવ સિંક્રોનાઇઝેશન
+            // 🟢 ૨. સાચું ઓનલાઇન / ઑફલાઇન ડિટેક્શન (તમામ મોબાઈલ અને પીસી માટે)
+            firebase.database().ref(".info/connected").on("value", function(snap) {
+                let isOnline = (snap.val() === true);
+                let badge = document.getElementById("networkStatusBadge");
+                let outwardBadge = document.getElementById("outwardRealtimeStatus");
+
+                if (badge) {
+                    badge.innerText = isOnline ? "🟢 ઓનલાઇન" : "🔴 ઑફલાઇન (ડેટા લોકલ સેવ)";
+                    badge.style.background = isOnline ? "#dcfce7" : "#fee2e2";
+                    badge.style.color = isOnline ? "#15803d" : "#b91c1c";
+                    badge.style.borderColor = isOnline ? "#86efac" : "#fca5a5";
+                }
+                if (outwardBadge) {
+                    outwardBadge.innerText = isOnline ? "🟢 લાઈવ સિંક ચાલુ (Admin & ૨૦ યુઝર્સ)" : "🔴 ઑફલાઇન મોડ";
+                    outwardBadge.style.background = isOnline ? "#dcfce7" : "#fee2e2";
+                    outwardBadge.style.color = isOnline ? "#15803d" : "#b91c1c";
+                }
+                if (isOnline && typeof processSyncQueue === "function") {
+                    processSyncQueue();
+                }
+            });
+
+            // 🌐 ૩. ૨૦ યુઝર્સ અને Admin માટે ૨-વે ગ્લોબલ લાઈવ સિંક્રોનાઇઝેશન (કોઈપણ મોબાઇલમાંથી એન્ટ્રી થશે કે તરત અહીં આવશે)
             outwardInvRef.on('value', (snap) => {
                 let val = snap.val();
                 if (val && typeof val === "object") {
@@ -804,11 +831,13 @@
                     if (Object.keys(localData).length > 0) {
                         cloudOutwardInv = localData;
                         window.cloudOutwardInv = cloudOutwardInv;
-                        if (navigator.onLine) outwardInvRef.update(cloudOutwardInv);
+                        outwardInvRef.update(cloudOutwardInv);
                     }
                 }
                 updateOutwardLiveBadge();
                 renderOutwardInventoryTable();
+            }, (error) => {
+                console.error("Firebase Outward Read Error:", error);
             });
 
             // ટોપ બટન પર લાઈવ કાઉન્ટ બેજ અપડેટ કરવું
@@ -881,7 +910,6 @@
             }
 
             function openOutwardInventoryModal() {
-                // 🔐 ૧. માત્ર પરવાનગી ધરાવતો સ્ટાફ અથવા એડમિન જ ખોલી શકશે
                 if (!checkOutwardPermission('view')) {
                     alert("❌ તમારી પાસે સામાન બહાર આપેલ ખાતાવહી જોવાનો અધિકાર નથી!\nકૃપા કરીને Admin (માલિક) પાસેથી પરવાનગી મેળવો.");
                     return;
@@ -889,7 +917,6 @@
 
                 cancelEditOutward();
 
-                // 🔐 ૨. જો સ્ટાફ પાસે એડિટ અધિકાર ન હોય તો એન્ટ્રી ફોર્મ છુપાવી સૂચના બતાવવી
                 let canEdit = checkOutwardPermission('edit');
                 let formWrapper = document.getElementById("outwardEntryFormWrapper");
                 let noticeBanner = document.getElementById("outwardViewOnlyNotice");
@@ -897,7 +924,6 @@
                 if (formWrapper) formWrapper.style.display = canEdit ? "block" : "none";
                 if (noticeBanner) noticeBanner.style.display = canEdit ? "none" : "block";
 
-                // ફિલ્ટર્સ હંમેશા ડિફોલ્ટ ઓપન રાખવા જેથી કોઈ એન્ટ્રી છુપાય નહીં
                 if (document.getElementById("outwardFilterStartDate")) document.getElementById("outwardFilterStartDate").value = "";
                 if (document.getElementById("outwardFilterEndDate")) document.getElementById("outwardFilterEndDate").value = "";
                 if (document.getElementById("outwardFilterFarm")) document.getElementById("outwardFilterFarm").value = "ALL";
@@ -923,25 +949,25 @@
                 renderOutwardInventoryTable();
             }
 
-            // 💾 નવી એન્ટ્રી સેવ કરવી (કોઈપણ સ્ટાફ કે એડમિન એન્ટ્રી કરશે કે તરત ક્લાઉડમાં લાઈવ જશે)
+            // 💾 ૪. નવી એન્ટ્રી સેવ કરવી (ખાતરીપૂર્વક Firebase માં જશે અને અન્ય તમામ ડિવાઇસમાં લાઈવ દેખાશે)
             function saveOutwardDispatchEntry() {
                 if (!checkOutwardPermission('edit')) {
                     alert("❌ તમારી પાસે બહાર આપેલ સામાનની એન્ટ્રી ઉમેરવા કે સુધારવાનો અધિકાર નથી!");
                     return;
                 }
-                let item = document.getElementById("outItemName").value.trim();
+                let item = (document.getElementById("outItemName").value || "").trim();
                 let qty = parseFloat(document.getElementById("outItemQty").value) || 0;
-                let unit = document.getElementById("outItemUnit").value.trim() || "નંગ";
+                let unit = (document.getElementById("outItemUnit").value || "").trim() || "નંગ";
                 let rate = parseFloat(document.getElementById("outItemRate").value) || 0;
                 let totalAmt = parseFloat(document.getElementById("outItemTotalAmount").value) || (qty * rate);
                 let advancePaid = parseFloat(document.getElementById("outItemAdvancePaid").value) || 0;
 
-                let party = document.getElementById("outPartyName").value.trim();
-                let mobile = document.getElementById("outPartyMobile").value.trim();
-                let loc = document.getElementById("outLocation").value.trim() || "-";
+                let party = (document.getElementById("outPartyName").value || "").trim();
+                let mobile = (document.getElementById("outPartyMobile").value || "").trim();
+                let loc = (document.getElementById("outLocation").value || "").trim() || "-";
                 let dDate = document.getElementById("outDispatchDate").value;
-                let rDate = document.getElementById("outExpectedReturnDate").value;
-                let note = document.getElementById("outNote").value.trim();
+                let rDate = document.getElementById("outExpectedReturnDate").value || "";
+                let note = (document.getElementById("outNote").value || "").trim();
 
                 let farmSel = document.getElementById("outFarmSelect");
                 let farmId = farmSel ? farmSel.value : (window.currentFarmId || "farm_1");
@@ -956,7 +982,7 @@
                 let id = editId ? editId : ("out_" + Date.now());
 
                 let existing = editId ? cloudOutwardInv[editId] : null;
-                let returnedQty = existing ? parseFloat(existing.returnedQty || 0) : 0;
+                let returnedQty = existing ? (parseFloat(existing.returnedQty) || 0) : 0;
                 
                 if (qty < returnedQty) {
                     alert(`ભૂલ: આપેલી સંખ્યા (${qty}) પરત જમા થયેલ સંખ્યા (${returnedQty}) કરતાં ઓછી ન હોઈ શકે!`);
@@ -966,11 +992,11 @@
                 let pendingQty = qty - returnedQty;
                 let itemStatus = pendingQty === 0 ? "RETURNED" : (returnedQty > 0 ? "PARTIAL" : "PENDING");
 
-                let paidRent = existing ? parseFloat(existing.paidRent || 0) : advancePaid;
+                let paidRent = existing ? (parseFloat(existing.paidRent) || 0) : advancePaid;
                 let pendingRent = Math.max(0, totalAmt - paidRent);
                 let paymentStatus = pendingRent === 0 ? "PAID" : (paidRent > 0 ? "PARTIAL" : "PENDING");
 
-                let rentPayments = existing && existing.rentPayments ? existing.rentPayments : [];
+                let rentPayments = (existing && Array.isArray(existing.rentPayments)) ? existing.rentPayments : [];
                 if (!existing && advancePaid > 0) {
                     rentPayments.push({
                         amount: advancePaid,
@@ -995,54 +1021,57 @@
                 let staffConfig = getSafeStaffConfig(creatorRole);
                 let creatorName = (creatorRole === "admin") ? "Admin" : ((staffConfig && staffConfig.name) ? staffConfig.name : creatorRole);
 
+                // Firebase માં કોઈ પણ કિંમત undefined ન જવી જોઈએ
                 let entryData = {
-                    id: id,
-                    farmId: farmId,
-                    farmName: farmName,
-                    itemName: item,
-                    qty: qty,
-                    returnedQty: returnedQty,
-                    pendingQty: pendingQty,
-                    unit: unit,
-                    rate: rate,
-                    totalRent: totalAmt,
-                    paidRent: paidRent,
-                    pendingRent: pendingRent,
+                    id: String(id),
+                    farmId: String(farmId || "farm_1"),
+                    farmName: String(farmName || ""),
+                    itemName: String(item),
+                    qty: Number(qty),
+                    returnedQty: Number(returnedQty),
+                    pendingQty: Number(pendingQty),
+                    unit: String(unit),
+                    rate: Number(rate),
+                    totalRent: Number(totalAmt),
+                    paidRent: Number(paidRent),
+                    pendingRent: Number(pendingRent),
                     rentPayments: rentPayments,
-                    itemStatus: itemStatus,
-                    paymentStatus: paymentStatus,
-                    partyName: party,
-                    partyMobile: mobile,
-                    location: loc,
-                    dispatchDate: dDate,
-                    expectedReturnDate: rDate,
-                    actualReturnDate: existing ? (existing.actualReturnDate || "") : "",
-                    note: note,
-                    status: overallStatus,
-                    createdBy: existing ? (existing.createdBy || creatorRole) : creatorRole,
-                    createdByName: existing ? (existing.createdByName || creatorName) : creatorName,
-                    timestamp: existing ? (existing.timestamp || Date.now()) : Date.now(),
-                    updatedAt: Date.now()
+                    itemStatus: String(itemStatus),
+                    paymentStatus: String(paymentStatus),
+                    partyName: String(party),
+                    partyMobile: String(mobile),
+                    location: String(loc),
+                    dispatchDate: String(dDate),
+                    expectedReturnDate: String(rDate),
+                    actualReturnDate: String(existing ? (existing.actualReturnDate || "") : ""),
+                    note: String(note),
+                    status: String(overallStatus),
+                    createdBy: String(existing ? (existing.createdBy || creatorRole) : creatorRole),
+                    createdByName: String(existing ? (existing.createdByName || creatorName) : creatorName),
+                    timestamp: Number(existing ? (existing.timestamp || Date.now()) : Date.now()),
+                    updatedAt: Number(Date.now())
                 };
 
-                // તાત્કાલિક લોકલ & ક્લાઉડ સેવ
+                // લોકલ મેમરી અપડેટ
                 cloudOutwardInv[id] = entryData;
                 window.cloudOutwardInv = cloudOutwardInv;
                 localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
-                if (navigator.onLine) {
-                    outwardInvRef.child(id).set(entryData, (error) => {
-                        if (error && typeof addToSyncQueue === "function") {
+                // 🌐 Firebase Realtime માં લાઈવ સેવ
+                outwardInvRef.child(id).set(entryData, function(error) {
+                    if (error) {
+                        console.error("Firebase Save Error:", error);
+                        if (typeof addToSyncQueue === "function") {
                             addToSyncQueue({ path: "outward_inventory/" + id, action: "set", data: entryData });
                         }
-                    });
-                } else if (typeof addToSyncQueue === "function") {
-                    addToSyncQueue({ path: "outward_inventory/" + id, action: "set", data: entryData });
-                }
+                        alert("⚠️ એન્ટ્રી લોકલ સેવ થઈ ગઈ છે, ઇન્ટરનેટ કનેક્ટ થતાં આપોઆપ Firebase પર અપલોડ થઈ જશે!");
+                    } else {
+                        alert(editId ? `✅ સામાન "${item}" સુધારી લેવાયો અને તમામ મોબાઈલમાં લાઈવ સિંક થઈ ગયો!` : `✅ સામાન "${item}" સફળતાપૂર્વક Firebase માં સેવ થયો અને તમામ ૨૦ યુઝર્સને લાઈવ સિંક થઈ ગયો!`);
+                    }
+                });
 
                 updateOutwardLiveBadge();
-                alert(editId ? `✅ સામાન "${item}" ની વિગત સુધારી લેવાઈ છે!` : `✅ સામાન "${item}" નોંધાઈ ગયો અને એડમિન/૨૦ યુઝર્સને લાઈવ સિંક થઈ ગયો!`);
                 cancelEditOutward();
                 renderOutwardInventoryTable();
             }
@@ -1146,13 +1175,11 @@
                 localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
-                if (navigator.onLine) {
-                    outwardInvRef.child(id).update(entry, (err) => {
-                        if (err && typeof addToSyncQueue === "function") addToSyncQueue({ path: "outward_inventory/" + id, action: "update", data: entry });
-                    });
-                } else if (typeof addToSyncQueue === "function") {
-                    addToSyncQueue({ path: "outward_inventory/" + id, action: "update", data: entry });
-                }
+                outwardInvRef.child(id).set(entry, function(err) {
+                    if (err) {
+                        if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "outward_inventory/" + id, action: "set", data: entry });
+                    }
+                });
 
                 updateOutwardLiveBadge();
                 if (pendingRent > 0) {
@@ -1273,13 +1300,11 @@
                 localStorage.setItem("cached_outward_inventory", JSON.stringify(cloudOutwardInv));
                 if (typeof autoBackupAllData === "function") autoBackupAllData();
 
-                if (navigator.onLine) {
-                    outwardInvRef.child(id).update(entry, (err) => {
-                        if (err && typeof addToSyncQueue === "function") addToSyncQueue({ path: "outward_inventory/" + id, action: "update", data: entry });
-                    });
-                } else if (typeof addToSyncQueue === "function") {
-                    addToSyncQueue({ path: "outward_inventory/" + id, action: "update", data: entry });
-                }
+                outwardInvRef.child(id).set(entry, function(err) {
+                    if (err) {
+                        if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "outward_inventory/" + id, action: "set", data: entry });
+                    }
+                });
 
                 updateOutwardLiveBadge();
                 alert(`✅ ₹${payAmt.toLocaleString('en-IN')} ભાડું જમા થઈ ગયું!\nબાકી ભાડું: ₹${newPendingRent.toLocaleString('en-IN')}`);
@@ -1304,18 +1329,17 @@
                     cancelEditOutward();
                 }
 
-                if (navigator.onLine) {
-                    outwardInvRef.child(id).remove((err) => {
-                        if (err && typeof addToSyncQueue === "function") addToSyncQueue({ path: "outward_inventory/" + id, action: "remove" });
-                    });
-                } else if (typeof addToSyncQueue === "function") {
-                    addToSyncQueue({ path: "outward_inventory/" + id, action: "remove" });
-                }
+                outwardInvRef.child(id).remove(function(err) {
+                    if (err && typeof addToSyncQueue === "function") {
+                        addToSyncQueue({ path: "outward_inventory/" + id, action: "remove" });
+                    }
+                });
+
                 updateOutwardLiveBadge();
                 renderOutwardInventoryTable();
             }
 
-            // 📋 ગ્લોબલ ટેબલ રેન્ડરિંગ (કોઈપણ યુઝર કે એડમિનની એન્ટ્રી ક્યારેય છુપાશે નહીં)
+            // 📋 ૫. ગ્લોબલ ટેબલ રેન્ડરિંગ (કોઈપણ યુઝર કે એડમિનની એન્ટ્રી ક્યારેય છુપાશે નહીં)
             function renderOutwardInventoryTable() {
                 let tbody = document.getElementById("outwardInventoryTableBody");
                 if (!tbody) return;
