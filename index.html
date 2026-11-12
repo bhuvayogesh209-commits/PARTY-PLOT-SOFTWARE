@@ -451,7 +451,7 @@
                 <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #ea580c; padding-bottom:10px; margin-bottom:14px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="color:#c2410c; font-size:18px; font-weight:800;">🚚 સામાન બહાર આપેલ / ભાડે ખાતાવહી (લાઈવ સ્ટોક & ભાડું કલેક્શન)</span>
-                        <span id="outwardRealtimeStatus" style="font-size:11px; font-weight:700; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px;">🟢 લાઈવ સિંક ચાલુ</span>
+                        <span id="outwardRealtimeStatus" style="font-size:11px; font-weight:700; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px;">🟢 લાઈવ સિંક ચાલુ (Admin & ૨૦ યુઝર્સ)</span>
                     </div>
                     <button class="btn btn-outline" onclick="closeOutwardInventoryModal()" style="padding:3px 9px; font-size:12px;">✕ બંધ કરો</button>
                 </div>
@@ -481,7 +481,7 @@
                 </div>
 
                 <!-- સામાન બહાર આપવાનું & એડિટ કરવાનું ફોર્મ -->
-                <div style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:10px; padding:12px; margin-bottom:14px;">
+                <div id="outwardEntryFormWrapper" style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:10px; padding:12px; margin-bottom:14px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                         <b id="outFormTitle" style="font-size:13px; color:#9a3412;">➕ બહાર આપેલ / ભાડે આપેલ સામાનની નવી એન્ટ્રી કરો:</b>
                         <button id="btnCancelOutwardEdit" class="btn btn-outline" onclick="cancelEditOutward()" style="display:none; padding:2px 8px; font-size:11px; color:#b91c1c; border-color:#fca5a5;">✕ રદ</button>
@@ -558,7 +558,12 @@
                     </div>
                 </div>
 
-                <!-- 🔍 તારીખ અને સ્ટેટસ મુજબ ફિલ્ટર બાર (ડિફોલ્ટમાં બધા રેકોર્ડ્સ ઓપન રહેશે) -->
+                <!-- 🔒 માત્ર જોવાની પરવાનગી ધરાવતા યુઝર્સ માટે સૂચના બેનર -->
+                <div id="outwardViewOnlyNotice" style="display:none; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px; padding:10px; margin-bottom:12px; text-align:center; color:#1d4ed8; font-weight:700; font-size:12.5px;">
+                    ℹ️ તમારી પાસે માત્ર સામાન ખાતાવહી જોવાની પરવાનગી (View Only) છે. નવી એન્ટ્રી ઉમેરવા માટે Admin નો સંપર્ક કરો.
+                </div>
+
+                <!-- 🔍 તારીખ અને સ્ટેટસ મુજબ ફિલ્ટર બાર -->
                 <div style="background:#f1f5f9; border:1.5px solid #cbd5e1; border-radius:10px; padding:10px; margin-bottom:12px;">
                     <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.1fr 1.2fr auto; gap:6px; align-items:end;">
                         <div>
@@ -622,7 +627,7 @@
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <small style="color:#64748b;">* કોઈપણ સ્ટાફ કે એડમિન એન્ટ્રી કરશે કે તરત જ બંનેના સ્ક્રીન પર સેકન્ડમાં લાઈવ દેખાશે.</small>
+                    <small style="color:#64748b;">* કોઈપણ સ્ટાફ કે એડમિન એન્ટ્રી કરશે કે તરત જ બંનેના સ્ક્રીન પર ૧ સેકન્ડમાં લાઈવ દેખાશે.</small>
                     <button class="btn btn-outline" onclick="closeOutwardInventoryModal()" style="padding:6px 18px;">બંધ કરો</button>
                 </div>
             </div>
@@ -694,6 +699,75 @@
 
         <!-- 🚚 100% Realtime 2-Way Synchronized Engine for Outward Inventory -->
         <script>
+            // 🛡️ ગ્લોબલ સુરક્ષા: વેરિએબલ્સને વિન્ડો લેવલ પર સેફ સેટ કરવા
+            window.currentUserRole = window.currentUserRole || sessionStorage.getItem("loggedUserRole") || localStorage.getItem("persistentLoggedUserRole") || "";
+            window.currentFarmId = window.currentFarmId || "farm_1";
+            window.currentFarmName = window.currentFarmName || "સીતારામ વાડી ફાર્મ ૧";
+
+            function getSafeUserRole() {
+                return window.currentUserRole || sessionStorage.getItem("loggedUserRole") || localStorage.getItem("persistentLoggedUserRole") || "";
+            }
+
+            // 🔍 સ્ટાફ પરવાનગી ઓબ્જેક્ટ સુરક્ષિત રીતે મેળવવું
+            function getSafeStaffConfig(role) {
+                role = role || getSafeUserRole();
+                if (role === 'admin') return null;
+                let staff = null;
+                try {
+                    if (typeof window.currentStaffConfig !== "undefined" && window.currentStaffConfig) {
+                        staff = window.currentStaffConfig;
+                    }
+                } catch(e) {}
+                if (!staff) {
+                    try {
+                        if (typeof window.staffListObj !== "undefined" && window.staffListObj && window.staffListObj[role]) {
+                            staff = window.staffListObj[role];
+                        }
+                    } catch(e) {}
+                }
+                if (!staff) {
+                    try {
+                        let cached = JSON.parse(localStorage.getItem("cached_staff_list") || "{}");
+                        staff = cached[role];
+                    } catch(e) {}
+                }
+                return staff;
+            }
+
+            // 🔐 સ્ટાફ માટે પરવાનગી ચકાસવાનું અચૂક ફંક્શન (કોઈ ReferenceError નહીં થાય)
+            function checkOutwardPermission(action) {
+                let role = getSafeUserRole();
+                if (role === 'admin') return true;
+
+                let staff = getSafeStaffConfig(role);
+                if (!staff) return false;
+
+                if (action === 'view') {
+                    return (staff.canViewOutward === true || staff.canEditOutward === true);
+                }
+                if (action === 'edit') {
+                    return (staff.canEditOutward === true);
+                }
+                return false;
+            }
+
+            // 🛡️ ગ્લોબલ hasStep4Perm ઓવરરાઈડ (જેથી કોઈ અન્ય સ્ક્રિપ્ટમાં ક્રેશ ન થાય)
+            window.hasStep4Perm = function(mod, action) {
+                let role = getSafeUserRole();
+                if (role === 'admin') return true;
+                let staff = getSafeStaffConfig(role);
+                if (!staff) return false;
+                let viewKey = `canView${mod}`;
+                let editKey = `canEdit${mod}`;
+                if (action === 'view') {
+                    return (staff[viewKey] === true || staff[editKey] === true);
+                }
+                if (action === 'edit') {
+                    return (staff[editKey] === true);
+                }
+                return false;
+            };
+
             function getLocalTodayISO(d) {
                 d = d || new Date();
                 let y = d.getFullYear();
@@ -789,13 +863,13 @@
                 }
 
                 if (!hasFarms) {
-                    farmOpts = `<option value="farm_general">🏰 ${currentFarmName || 'મુખ્ય ફાર્મ'}</option>`;
+                    farmOpts = `<option value="farm_general">🏰 ${window.currentFarmName || 'મુખ્ય ફાર્મ'}</option>`;
                 }
 
                 if (formSel) {
                     formSel.innerHTML = farmOpts;
-                    if (typeof currentFarmId !== "undefined" && currentFarmId && currentFarmId !== "ALL") {
-                        formSel.value = currentFarmId;
+                    if (typeof window.currentFarmId !== "undefined" && window.currentFarmId && window.currentFarmId !== "ALL") {
+                        formSel.value = window.currentFarmId;
                     }
                 }
 
@@ -807,7 +881,22 @@
             }
 
             function openOutwardInventoryModal() {
+                // 🔐 ૧. માત્ર પરવાનગી ધરાવતો સ્ટાફ અથવા એડમિન જ ખોલી શકશે
+                if (!checkOutwardPermission('view')) {
+                    alert("❌ તમારી પાસે સામાન બહાર આપેલ ખાતાવહી જોવાનો અધિકાર નથી!\nકૃપા કરીને Admin (માલિક) પાસેથી પરવાનગી મેળવો.");
+                    return;
+                }
+
                 cancelEditOutward();
+
+                // 🔐 ૨. જો સ્ટાફ પાસે એડિટ અધિકાર ન હોય તો એન્ટ્રી ફોર્મ છુપાવી સૂચના બતાવવી
+                let canEdit = checkOutwardPermission('edit');
+                let formWrapper = document.getElementById("outwardEntryFormWrapper");
+                let noticeBanner = document.getElementById("outwardViewOnlyNotice");
+
+                if (formWrapper) formWrapper.style.display = canEdit ? "block" : "none";
+                if (noticeBanner) noticeBanner.style.display = canEdit ? "none" : "block";
+
                 // ફિલ્ટર્સ હંમેશા ડિફોલ્ટ ઓપન રાખવા જેથી કોઈ એન્ટ્રી છુપાય નહીં
                 if (document.getElementById("outwardFilterStartDate")) document.getElementById("outwardFilterStartDate").value = "";
                 if (document.getElementById("outwardFilterEndDate")) document.getElementById("outwardFilterEndDate").value = "";
@@ -836,8 +925,8 @@
 
             // 💾 નવી એન્ટ્રી સેવ કરવી (કોઈપણ સ્ટાફ કે એડમિન એન્ટ્રી કરશે કે તરત ક્લાઉડમાં લાઈવ જશે)
             function saveOutwardDispatchEntry() {
-                if (currentUserRole !== 'admin' && typeof hasStep4Perm === "function" && !hasStep4Perm('Outward', 'edit')) {
-                    alert("❌ બહાર આપેલ સામાનની એન્ટ્રી ઉમેરવા કે સુધારવાનો અધિકાર નથી!");
+                if (!checkOutwardPermission('edit')) {
+                    alert("❌ તમારી પાસે બહાર આપેલ સામાનની એન્ટ્રી ઉમેરવા કે સુધારવાનો અધિકાર નથી!");
                     return;
                 }
                 let item = document.getElementById("outItemName").value.trim();
@@ -855,8 +944,8 @@
                 let note = document.getElementById("outNote").value.trim();
 
                 let farmSel = document.getElementById("outFarmSelect");
-                let farmId = farmSel ? farmSel.value : (currentFarmId || "farm_1");
-                let farmName = (farmSel && farmSel.selectedIndex >= 0) ? farmSel.options[farmSel.selectedIndex].text.replace('🏰 ', '') : (currentFarmName || "જનરલ ફાર્મ");
+                let farmId = farmSel ? farmSel.value : (window.currentFarmId || "farm_1");
+                let farmName = (farmSel && farmSel.selectedIndex >= 0) ? farmSel.options[farmSel.selectedIndex].text.replace('🏰 ', '') : (window.currentFarmName || "જનરલ ફાર્મ");
 
                 if (!item || qty <= 0 || !party || !dDate) {
                     alert("કૃપા કરીને સામાનનું નામ, નંગ, પાર્ટીનું નામ અને આપ્યા તારીખ અવશ્ય દાખલ કરો!");
@@ -902,7 +991,9 @@
                     overallStatus = "PENDING";
                 }
 
-                let creatorRole = currentUserRole || sessionStorage.getItem("loggedUserRole") || "admin";
+                let creatorRole = getSafeUserRole() || "admin";
+                let staffConfig = getSafeStaffConfig(creatorRole);
+                let creatorName = (creatorRole === "admin") ? "Admin" : ((staffConfig && staffConfig.name) ? staffConfig.name : creatorRole);
 
                 let entryData = {
                     id: id,
@@ -929,6 +1020,7 @@
                     note: note,
                     status: overallStatus,
                     createdBy: existing ? (existing.createdBy || creatorRole) : creatorRole,
+                    createdByName: existing ? (existing.createdByName || creatorName) : creatorName,
                     timestamp: existing ? (existing.timestamp || Date.now()) : Date.now(),
                     updatedAt: Date.now()
                 };
@@ -950,14 +1042,21 @@
                 }
 
                 updateOutwardLiveBadge();
-                alert(editId ? `✅ સામાન "${item}" ની વિગત સુધારી લેવાઈ છે!` : `✅ સામાન "${item}" નોંધાઈ ગયો અને એડમિન/સ્ટાફને લાઈવ સિંક થઈ ગયો!`);
+                alert(editId ? `✅ સામાન "${item}" ની વિગત સુધારી લેવાઈ છે!` : `✅ સામાન "${item}" નોંધાઈ ગયો અને એડમિન/૨૦ યુઝર્સને લાઈવ સિંક થઈ ગયો!`);
                 cancelEditOutward();
                 renderOutwardInventoryTable();
             }
 
             function editOutwardEntry(id) {
+                if (!checkOutwardPermission('edit')) {
+                    alert("❌ સામાન એડિટ કરવાની પરવાનગી નથી!");
+                    return;
+                }
                 let item = cloudOutwardInv[id];
                 if (!item) return;
+
+                let formWrapper = document.getElementById("outwardEntryFormWrapper");
+                if (formWrapper) formWrapper.style.display = "block";
 
                 document.getElementById("editOutwardId").value = id;
                 document.getElementById("outItemName").value = item.itemName || "";
@@ -1006,7 +1105,7 @@
             }
 
             function returnOutwardItem(id) {
-                if (currentUserRole !== 'admin' && typeof hasStep4Perm === "function" && !hasStep4Perm('Outward', 'edit')) {
+                if (!checkOutwardPermission('edit')) {
                     alert("❌ સામાન પરત જમા લેવાની પરવાનગી નથી!");
                     return;
                 }
@@ -1065,6 +1164,10 @@
             }
 
             function openCollectRentModal(id) {
+                if (!checkOutwardPermission('edit')) {
+                    alert("❌ ભાડું જમા લેવાનો અધિકાર નથી!");
+                    return;
+                }
                 let entry = cloudOutwardInv[id];
                 if (!entry) return;
 
@@ -1113,6 +1216,10 @@
             }
 
             function confirmRentPayment() {
+                if (!checkOutwardPermission('edit')) {
+                    alert("❌ પેમેન્ટ જમા કરવાનો અધિકાર નથી!");
+                    return;
+                }
                 let id = document.getElementById("rentPayEntryId").value;
                 let entry = cloudOutwardInv[id];
                 if (!entry) return;
@@ -1181,7 +1288,8 @@
             }
 
             function deleteOutwardEntry(id, itemName) {
-                if (currentUserRole !== 'admin') { 
+                let role = getSafeUserRole();
+                if (role !== 'admin') { 
                     alert("❌ માત્ર Admin (માલિક) જ સામાનની એન્ટ્રી ડિલીટ કરી શકે છે!"); 
                     return; 
                 }
@@ -1229,8 +1337,12 @@
                 let totalPendingRentSum = 0;
                 let count = 0;
 
+                let canEdit = checkOutwardPermission('edit');
+                let role = getSafeUserRole();
+                let isAdmin = (role === 'admin');
+
                 list.forEach(item => {
-                    if (!item || typeof item !== 'object') return; // સુરક્ષા કવચ
+                    if (!item || typeof item !== 'object') return;
 
                     let pendQty = parseFloat(item.pendingQty !== undefined ? item.pendingQty : item.qty) || 0;
                     let retQty = parseFloat(item.returnedQty || 0) || 0;
@@ -1276,16 +1388,36 @@
                         ? `<span style="background:#ecfdf5; color:#047857; border:1.5px solid #86efac; padding:3px 8px; border-radius:12px; font-weight:900; font-size:11px;">🟢 પૂર્ણ (OK)</span>`
                         : `<div style="display:flex; flex-direction:column; gap:2px; align-items:center;">${itemBadge}${rentBadge}</div>`;
 
-                    let itemActionBtn = isItemPending
-                        ? `<button class="btn btn-success" style="padding:2px 7px; font-size:11px;" onclick="returnOutwardItem('${item.id}')">📥 સામાન જમા</button>`
-                        : `<span style="color:#16a34a; font-weight:700; font-size:11px;">✓ સામાન જમા</span>`;
+                    let itemActionBtn = "";
+                    if (isItemPending) {
+                        itemActionBtn = canEdit 
+                            ? `<button class="btn btn-success" style="padding:2px 7px; font-size:11px;" onclick="returnOutwardItem('${item.id}')">📥 સામાન જમા</button>`
+                            : `<span style="color:#b91c1c; font-weight:700; font-size:10.5px;">બહાર છે</span>`;
+                    } else {
+                        itemActionBtn = `<span style="color:#16a34a; font-weight:700; font-size:11px;">✓ સામાન જમા</span>`;
+                    }
 
-                    let rentActionBtn = isRentPending
-                        ? `<button class="btn" style="padding:2px 7px; font-size:11px; background:#d97706; color:white; font-weight:700;" onclick="openCollectRentModal('${item.id}')">💰 ભાડું જમા</button>`
-                        : `<span style="color:#16a34a; font-weight:700; font-size:11px;">✓ પેમેન્ટ પૂર્ણ</span>`;
+                    let rentActionBtn = "";
+                    if (isRentPending) {
+                        rentActionBtn = canEdit
+                            ? `<button class="btn" style="padding:2px 7px; font-size:11px; background:#d97706; color:white; font-weight:700;" onclick="openCollectRentModal('${item.id}')">💰 ભાડું જમા</button>`
+                            : `<span style="color:#b45309; font-weight:700; font-size:10.5px;">બાકી</span>`;
+                    } else {
+                        rentActionBtn = `<span style="color:#16a34a; font-weight:700; font-size:11px;">✓ પેમેન્ટ પૂર્ણ</span>`;
+                    }
+
+                    let editBtn = canEdit 
+                        ? `<button class="btn btn-outline" style="padding:2px 5px; font-size:11px;" onclick="editOutwardEntry('${item.id}')" title="સુધારો">✏️</button>` 
+                        : '';
+                    let delBtn = isAdmin 
+                        ? `<button onclick="deleteOutwardEntry('${item.id}', '${(item.itemName || '').replace(/'/g, "\\'")}')" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ડિલીટ">❌</button>` 
+                        : '';
+
+                    let creatorTag = item.createdByName 
+                        ? `<br><small style="color:#6366f1; font-size:10px; font-weight:600;">👤 એન્ટ્રી: ${item.createdByName}</small>`
+                        : '';
 
                     let rowBg = isCompleted ? "#f0fdf4" : (isRentPending && !isItemPending ? "#fffbeb" : "#fff1f2");
-                    let safeName = (item.itemName || '').replace(/'/g, "\\'");
 
                     tbody.innerHTML += `
                     <tr style="background:${rowBg}; border-bottom:1px solid #e2e8f0;">
@@ -1298,10 +1430,11 @@
                         <td style="padding:6px;">
                             <b style="color:#0f172a; font-size:12.5px;">${item.itemName}</b>
                             ${item.note ? `<br><small style="color:#64748b;">📝 ${item.note}</small>` : ''}
+                            ${creatorTag}
                         </td>
                         <td style="padding:6px; text-align:center; font-weight:800; color:#c2410c;">
                             ${item.qty} ${item.unit}
-                            ${retQty > 0 ? `<br><small style="color:#16a34a;">(જમા: ${retQty})</small>` : ''}
+                            ${retQty > 0 ? `<br><small style="color:#166534;">(જમા: ${retQty})</small>` : ''}
                         </td>
                         <td style="padding:6px; text-align:right; font-weight:800; color:#1e40af;">₹${totRent.toLocaleString('en-IN')}</td>
                         <td style="padding:6px; text-align:right; font-weight:700; color:#15803d;">₹${paidRent.toLocaleString('en-IN')}</td>
@@ -1316,9 +1449,9 @@
                             <div style="display:flex; gap:3px; justify-content:center; align-items:center; flex-wrap:wrap;">
                                 ${itemActionBtn}
                                 ${rentActionBtn}
-                                <button class="btn btn-outline" style="padding:2px 5px; font-size:11px;" onclick="editOutwardEntry('${item.id}')" title="સુધારો">✏️</button>
+                                ${editBtn}
                                 <button class="btn btn-outline" style="padding:2px 5px; font-size:11px;" onclick="printOutwardChallan('${item.id}')" title="પહોંચ પ્રિન્ટ">🖨️</button>
-                                <button onclick="deleteOutwardEntry('${item.id}', '${safeName}')" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ડિલીટ">❌</button>
+                                ${delBtn}
                             </div>
                         </td>
                     </tr>`;
@@ -1366,7 +1499,7 @@
                     <body>
                         <div class="box">
                             <div class="header">
-                                <h2 style="margin:0; color:#ea580c;">🏰 ${item.farmName || currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
+                                <h2 style="margin:0; color:#ea580c;">🏰 ${item.farmName || window.currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
                                 <h4 style="margin:4px 0; color:#475569;">સામાન ડિલિવરી / ભાડે આપેલ પહોંચ (Challan & Receipt)</h4>
                                 <small>આપ્યા તારીખ: <b>${formatToDMY(item.dispatchDate)}</b></small>
                             </div>
@@ -2575,17 +2708,33 @@
             window.open(`https://wa.me/${cleanMob}?text=${encodeURIComponent(msg)}`);
         }
 
-        // 🔐 Step 4 ના તમામ ૯ મોડ્યુલ્સની પરવાનગી ચેક કરવાનું માસ્ટર હેલ્પર ફંક્શન
+        // 🔐 Step 4 ના તમામ ૯ મોડ્યુલ્સની પરવાનગી ચેક કરવાનું માસ્ટર હેલ્પર ફંક્શન (સંપૂર્ણ એરર-ફ્રી & ૨૦ યુઝર્સ લાઈવ સિંક)
         function hasStep4Perm(mod, action) {
-            let role = currentUserRole || sessionStorage.getItem("loggedUserRole");
+            let role = window.currentUserRole || sessionStorage.getItem("loggedUserRole") || localStorage.getItem("persistentLoggedUserRole") || "";
             if (role === 'admin') return true;
 
-            let staff = currentStaffConfig;
-            if (!staff && staffListObj && role) staff = staffListObj[role];
+            let staff = null;
+            try {
+                if (typeof window.currentStaffConfig !== "undefined" && window.currentStaffConfig) {
+                    staff = window.currentStaffConfig;
+                }
+            } catch(e) {}
+
             if (!staff) {
-                let cached = JSON.parse(localStorage.getItem("cached_staff_list") || "{}");
-                staff = cached[role];
+                try {
+                    if (typeof window.staffListObj !== "undefined" && window.staffListObj && window.staffListObj[role]) {
+                        staff = window.staffListObj[role];
+                    }
+                } catch(e) {}
             }
+
+            if (!staff) {
+                try {
+                    let cached = JSON.parse(localStorage.getItem("cached_staff_list") || "{}");
+                    staff = cached[role];
+                } catch(e) {}
+            }
+
             if (!staff) return false;
 
             let viewKey = `canView${mod}`;
@@ -2599,11 +2748,22 @@
             }
             return false;
         }
+        window.hasStep4Perm = hasStep4Perm;
 
         // 👁️ સ્ટાફની પરવાનગી મુજબ Step 4 ના બટન્સ લાઈવ બતાવવા / છુપાવવા
         function applyStep4ButtonsPermissions() {
-            let role = currentUserRole || sessionStorage.getItem("loggedUserRole");
+            let role = window.currentUserRole || sessionStorage.getItem("loggedUserRole") || localStorage.getItem("persistentLoggedUserRole") || "";
             let isAdmin = (role === 'admin');
+
+            // ગ્લોબલ સિંક સુરક્ષા
+            if (!isAdmin && role) {
+                try {
+                    let cached = JSON.parse(localStorage.getItem("cached_staff_list") || "{}");
+                    if (cached[role]) {
+                        window.currentStaffConfig = cached[role];
+                    }
+                } catch(e) {}
+            }
 
             let map = [
                 { mod: 'Expense', sel: "button[onclick='openExpenseModal()']" },
@@ -2630,17 +2790,18 @@
                 sec.style.display = hasAnyAccess ? "block" : "none";
             }
         }
+        window.applyStep4ButtonsPermissions = applyStep4ButtonsPermissions;
 
         // ✅ પેજ શરૂ થતાં જ ફાર્મ ડ્રોપડાઉન લોડ કરી લેશે
-        setTimeout(populateExpenseFarmDropdowns, 1000);
+        setTimeout(populateExpenseFarmDropdowns, 500);
 
-        // 🔄 Automatic Live Visibility Hook (દર ૮૦૦ મિલિસેકન્ડે લાઈવ પરવાનગી ચેક કરશે)
+        // 🔄 Automatic Live Visibility Hook (દર ૬૦૦ મિલિસેકન્ડે લાઈવ પરવાનગી ચેક કરશે)
         setInterval(() => {
             applyStep4ButtonsPermissions();
-        }, 800);
+        }, 600);
     </script>
-</div>   
-
+   </div>
+  </div>
       <!-- ➕ Add / Edit Worker Modal -->
 <div class="modal" id="workerModal">
     <div class="modal-content" style="max-width: 420px;">
