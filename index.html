@@ -3754,11 +3754,40 @@
 
         localStorage.setItem("cached_farms", JSON.stringify(farmsData));
         populateFarmDropdownUI(farmsData);
-    });
+    });   
+     let currentBookingCallback = null;
+
+    function cleanFarmTitle(name) {
+        return String(name || "").replace("🏰 ", "").split(" (")[0].trim();
+    }
+
+    // 🛡️ ચોક્કસ ફાર્મનું જ બુકિંગ ચકાસવાનું સુરક્ષિત ફંક્શન (સીતારામ વાડી અને વિશ્વામિત્ર ક્યારેય મિક્સ નહિ થાય)
+    function isBookingForFarm(b, targetFId, targetFName) {
+        if (!b || !b.customerName || b.status === 'available') return false;
+        if (!targetFId || targetFId === "ALL") return true;
+        if (b.farmId && b.farmId !== targetFId) return false;
+
+        let cachedFarms = {};
+        try { cachedFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
+        let bCleanName = cleanFarmTitle(b.farmName);
+        let targetCleanName = cleanFarmTitle(targetFName || (cachedFarms[targetFId] ? cachedFarms[targetFId].name : ""));
+
+        if (bCleanName) {
+            if (!b.farmId && targetCleanName && bCleanName !== targetCleanName) return false;
+            for (let fKey in cachedFarms) {
+                if (fKey !== targetFId && cleanFarmTitle(cachedFarms[fKey].name) === bCleanName) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     // ૧. ફાર્મ ડ્રોપડાઉન UI (બધા ફાર્મ + અલગ અલગ ફાર્મ લોડ કરવા)
     function populateFarmDropdownUI(farmsData) {
         let select = document.getElementById("farmSelect");
         if (!select) return;
+        let prevSelected = select.value || currentFarmId;
         select.innerHTML = "";
 
         // 🏰 ૧. બધા ફાર્મ (All Farms) વિકલ્પ ઉમેરો
@@ -3786,153 +3815,130 @@
         }
 
         // જો ફાર્મ પસંદ ન હોય તો બાય-ડિફોલ્ટ પહેલું ફાર્મ (દા.ત. સીતારામ વાડી) સિલેક્ટ કરો
-        if (!currentFarmId || !select.querySelector(`option[value="${currentFarmId}"]`)) {
+        if (!prevSelected || !select.querySelector(`option[value="${prevSelected}"]`)) {
             currentFarmId = firstSpecificFarmId || "ALL";
+        } else {
+            currentFarmId = prevSelected;
         }
         select.value = currentFarmId;
-        currentFarmName = select.options[select.selectedIndex].text;
+        window.currentFarmId = currentFarmId;
+        currentFarmName = cleanFarmTitle(select.options[select.selectedIndex].text);
+        window.currentFarmName = currentFarmName;
         listenToFarmBookings();
     }
 
-    // ૨. પસંદ કરેલા ફાર્મ મુજબ ડેટા ફિલ્ટર અને ઓલ-યુઝર લાઈવ ક્લાઉડ લિસનર (૧૦૦% ફિક્સ)   
+    // ૨. પસંદ કરેલા ફાર્મ મુજબ ડેટા ફિલ્ટર અને લાઈવ ક્લાઉડ લિસનર (૧૦૦% અલગ-અલગ ફાર્મ લોડિંગ)
     function listenToFarmBookings() {
         if (!currentFarmId) return;
 
-        cloudBookings = {};
+        const activeFarmId = currentFarmId;
+        const activeFarmName = currentFarmName;
+        cloudBookings = {}; // જૂના ફાર્મનો ડેટા તરત ખાલી કરો
 
-        // 🏰 ૧. તાત્કાલિક લોકલ ડેટા ફિલ્ટર કરીને લોડ કરો (મિક્સ ન થવો જોઈએ)
-        if (currentFarmId === "ALL") {
+        if (currentBookingRef && currentBookingCallback) {
+            currentBookingRef.off('value', currentBookingCallback);
+        }
+
+        if (activeFarmId === "ALL") {
             let combinedBookings = {};
             for (let fId in cachedAllFarmBookings) {
                 let farmB = cachedAllFarmBookings[fId] || {};
                 for (let bKey in farmB) {
-                    if (farmB[bKey] && farmB[bKey].customerName) {
+                    if (farmB[bKey] && farmB[bKey].customerName && farmB[bKey].status !== 'available') {
                         combinedBookings[bKey] = farmB[bKey];
                     }
                 }
             }
             cloudBookings = combinedBookings;
-        } else {
-            // માત્ર પસંદ કરેલા ફાર્મનો જ ડેટા ફિલ્ટર કરવો
-            let farmB = (cachedAllFarmBookings && cachedAllFarmBookings[currentFarmId]) ? cachedAllFarmBookings[currentFarmId] : {};
-            let clean = {};
-            for (let bKey in farmB) {
-                let b = farmB[bKey];
-                if (b && b.customerName && (!b.farmId || b.farmId === currentFarmId)) {
-                    clean[bKey] = b;
-                }
-            }
-            cloudBookings = clean;
-            localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(clean));
-        }
+            generateCalendar();
+            filterData();
 
-        generateCalendar();
-        filterData();
+            currentBookingRef = firebase.database().ref("farm_bookings");
+            currentBookingCallback = (snapshot) => {
+                if (currentFarmId !== "ALL") return;
+                let allFarmsData = snapshot.val() || {};
+                cachedAllFarmBookings = allFarmsData;
+                localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
 
-        // 🌐 ૨. લાઈવ ક્લાઉડ સિંક: ફાર્મ વાઈઝ ચુસ્ત ફિલ્ટરિંગ
-        if (currentBookingRef) currentBookingRef.off();
-        currentBookingRef = firebase.database().ref("farm_bookings");
-        
-        currentBookingRef.on('value', (snapshot) => {
-            let allFarmsData = snapshot.val() || {};
-            cachedAllFarmBookings = allFarmsData;
-            localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
-
-            if (currentFarmId === "ALL") {
                 let allMerged = {};
                 for (let fId in allFarmsData) {
                     let farmB = allFarmsData[fId] || {};
                     for (let bKey in farmB) {
-                        if (farmB[bKey] && farmB[bKey].customerName) {
+                        if (farmB[bKey] && farmB[bKey].customerName && farmB[bKey].status !== 'available') {
                             allMerged[bKey] = farmB[bKey];
                         }
                     }
                 }
                 cloudBookings = allMerged;
+                generateCalendar();
+                filterData();
+                if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
+                autoBackupAllData();
+            };
+            currentBookingRef.on('value', currentBookingCallback);
+        } else {
+            // માત્ર પસંદ કરેલા ફાર્મનો જ લોકલ ડેટા લોડ કરો
+            let cachedSpecific = {};
+            if (cachedAllFarmBookings && cachedAllFarmBookings[activeFarmId]) {
+                cachedSpecific = cachedAllFarmBookings[activeFarmId];
             } else {
-                let currentSpecificBookings = allFarmsData[currentFarmId] || {};
+                try { cachedSpecific = JSON.parse(localStorage.getItem("cached_bookings_" + activeFarmId) || "{}"); } catch(e){}
+            }
+
+            let clean = {};
+            for (let bKey in cachedSpecific) {
+                let b = cachedSpecific[bKey];
+                if (isBookingForFarm(b, activeFarmId, activeFarmName)) {
+                    clean[bKey] = b;
+                }
+            }
+            cloudBookings = clean;
+            localStorage.setItem("cached_bookings_" + activeFarmId, JSON.stringify(clean));
+            generateCalendar();
+            filterData();
+
+            // 🌐 માત્ર પસંદ કરેલા ફાર્મના નોડ (farm_bookings/farm_id) પર જ લાઈવ સિંક
+            currentBookingRef = firebase.database().ref("farm_bookings").child(activeFarmId);
+            currentBookingCallback = (snapshot) => {
+                if (currentFarmId !== activeFarmId) return;
+                let specificData = snapshot.val() || {};
                 let cleanBookings = {};
-                for (let bKey in currentSpecificBookings) {
-                    let b = currentSpecificBookings[bKey];
-                    if (b && b.customerName && (!b.farmId || b.farmId === currentFarmId)) {
+                for (let bKey in specificData) {
+                    let b = specificData[bKey];
+                    if (isBookingForFarm(b, activeFarmId, activeFarmName)) {
                         cleanBookings[bKey] = b;
                     }
                 }
                 cloudBookings = cleanBookings;
-                localStorage.setItem("cached_bookings_" + currentFarmId, JSON.stringify(cloudBookings));
-            }
+                if (!cachedAllFarmBookings) cachedAllFarmBookings = {};
+                cachedAllFarmBookings[activeFarmId] = cleanBookings;
+                localStorage.setItem("cached_bookings_" + activeFarmId, JSON.stringify(cleanBookings));
+                localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
 
-            generateCalendar();
-            filterData();
-            if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
-            autoBackupAllData();
-        });
+                generateCalendar();
+                filterData();
+                if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
+                autoBackupAllData();
+            };
+            currentBookingRef.on('value', currentBookingCallback);
+        }
 
         listenToFarmWorkers();
     }
-    // 👷‍♂️ વર્કર લાઈવ ક્લાઉડ સિંક (એડમિન & ૨૦ સ્ટાફ માટે ૧૦૦% રીયલ-ટાઇમ અપડેટ)
-    function listenToFarmWorkers() {
-        if (!currentFarmId) return;
-        if (currentWorkerRef) currentWorkerRef.off();
 
-        cloudWorkers = {};
-
-        // 🏰 કિસ્સો ૧: જો 'બધા ફાર્મ (ALL)' સિલેક્ટ કરેલ હોય
-        if (currentFarmId === "ALL") {
-            currentWorkerRef = firebase.database().ref("farm_workers");
-            currentWorkerRef.on('value', (snapshot) => {
-                let allData = snapshot.val() || {};
-                let combined = {};
-                for (let fId in allData) {
-                    // જો સ્ટાફ હોય તો ફક્ત પરવાનગી વાળા ફાર્મના જ વર્કર બતાવશે
-                    if (currentUserRole !== 'admin' && currentStaffConfig) {
-                        let allowed = currentStaffConfig.allowedFarms || {};
-                        if (!allowed[fId]) continue;
-                    }
-                    let fWorkers = allData[fId] || {};
-                    for (let wId in fWorkers) {
-                        if (fWorkers[wId] && fWorkers[wId].name) {
-                            combined[wId] = fWorkers[wId];
-                        }
-                    }
-                }
-                cloudWorkers = combined;
-                renderWorkersTable();
-            });
-            return;
-        }
-
-        // 🏰 કિસ્સો ૨: જો કોઈ ચોક્કસ ફાર્મ (જેમ કે તુલસીવન) સિલેક્ટ કરેલ હોય
-        let cached = localStorage.getItem("cached_workers_" + currentFarmId);
-        if (cached) {
-            try {
-                cloudWorkers = JSON.parse(cached) || {};
-            } catch(e) {
-                cloudWorkers = {};
-            }
-        }
-        renderWorkersTable();
-
-        currentWorkerRef = firebase.database().ref("farm_workers").child(currentFarmId);
-        currentWorkerRef.on('value', (snapshot) => {
-            cloudWorkers = snapshot.val() || {};
-            localStorage.setItem("cached_workers_" + currentFarmId, JSON.stringify(cloudWorkers));
-            renderWorkersTable();
-        });
-    }
-
-    
     function scrollToWorkerSection() {
         let el = document.getElementById("workerSectionCard");
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
 
-    // ૩. ડ્રોપડાઉનમાંથી ફાર્મ બદલાય ત્યારે તે મુજબ કૅલેન્ડર અને ટેબલ અપડેટ કરવું
+    // ૩. ડ્રોપડાઉનમાંથી ફાર્મ બદલાય ત્યારે તે મુજબ કૅલેન્ડર અને ટેબલ અપડેટ કરવું (તારીખ/મહિનો/વર્ષ જાળવીને)
     function changeFarm() {
         let select = document.getElementById("farmSelect");
         if (!select) return;
         currentFarmId = select.value;
-        currentFarmName = select.options[select.selectedIndex].text.replace("🏰 ", "").split(" (")[0].trim();
+        window.currentFarmId = currentFarmId;
+        currentFarmName = cleanFarmTitle(select.options[select.selectedIndex].text);
+        window.currentFarmName = currentFarmName;
         cloudBookings = {}; // જૂનો ડેટા તરત ખાલી કરવો જેથી મિક્સ ન થાય
         listenToFarmBookings();
     }
@@ -5567,8 +5573,14 @@
         document.head.appendChild(yStyle);
     }
 
-    // 📅 કેલેન્ડરમાં અડધા પેમેન્ટનો ઘાટો પીળો કલર સેટ કરવા માટેનું ફંક્શન
+     // 📅 કેલેન્ડરમાં અડધા પેમેન્ટનો ઘાટો પીળો કલર અને પસંદ કરેલા ફાર્મનું જ બુકિંગ બતાવવાનું ફંક્શન
     function generateCalendar() {
+        let farmSel = document.getElementById("farmSelect");
+        if (farmSel && farmSel.value && farmSel.value !== currentFarmId) {
+            changeFarm();
+            return;
+        }
+
         const year = parseInt(document.getElementById("yearSelect").value);
         const month = parseInt(document.getElementById("monthSelect").value);
         const grid = document.getElementById("daysGrid");
@@ -5594,11 +5606,11 @@
             let mData = cloudBookings[baseKey + "_morning"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'morning' ? cloudBookings[baseKey] : null);
             let eData = cloudBookings[baseKey + "_evening"] || (cloudBookings[baseKey] && cloudBookings[baseKey].slot === 'evening' ? cloudBookings[baseKey] : null);
 
-            // 🛡️ ચોક્કસ ફાર્મ પસંદ હોય તો બીજા કોઈ ફાર્મનું બુકિંગ આ કેલેન્ડરમાં ન આવે (તારીખ ખાલી જ દેખાય)
+            // 🛡️ ચોક્કસ ફાર્મ પસંદ હોય તો બીજા કોઈ ફાર્મનું બુકિંગ આ કેલેન્ડરમાં ન આવે
             if (currentFarmId !== "ALL") {
-                if (fData && fData.farmId && fData.farmId !== currentFarmId) fData = null;
-                if (mData && mData.farmId && mData.farmId !== currentFarmId) mData = null;
-                if (eData && eData.farmId && eData.farmId !== currentFarmId) eData = null;
+                if (fData && !isBookingForFarm(fData, currentFarmId, currentFarmName)) fData = null;
+                if (mData && !isBookingForFarm(mData, currentFarmId, currentFarmName)) mData = null;
+                if (eData && !isBookingForFarm(eData, currentFarmId, currentFarmName)) eData = null;
             }
 
             function getSlotStyle(data) {
@@ -6652,24 +6664,27 @@
         }
     }
 
-    // 📋 ૩. સુધારેલ getAllBookings: કોઈપણ ફાર્મ (જેમ કે તુલસીવન) નું બુકિંગ ફિલ્ટરમાં ૧૦૦% સાચું દેખાશે
-       function getAllBookings() {
+     // 📋 ૩. સુધારેલ getAllBookings: જે ફાર્મ પસંદ હોય માત્ર તેનું જ બુકિંગ બતાવશે (મિક્સ થશે નહીં)
+    function getAllBookings() {
         let bookings = [];
         if (currentFarmId === "ALL") {
             for (let fId in cachedAllFarmBookings) {
+                if (currentUserRole !== 'admin' && currentStaffConfig) {
+                    let allowed = currentStaffConfig.allowedFarms || {};
+                    if (!allowed[fId]) continue;
+                }
                 let farmB = cachedAllFarmBookings[fId] || {};
                 for (let key in farmB) {
                     let item = farmB[key];
-                    if (item && item.customerName) {
+                    if (item && item.customerName && item.status !== 'available') {
                         bookings.push(item);
                     }
                 }
             }
         } else {
-            let farmB = (cachedAllFarmBookings && cachedAllFarmBookings[currentFarmId]) ? cachedAllFarmBookings[currentFarmId] : cloudBookings;
-            for (let key in farmB) {
-                let item = farmB[key];
-                if (item && item.customerName && (!item.farmId || item.farmId === currentFarmId)) { 
+            for (let key in cloudBookings) {
+                let item = cloudBookings[key];
+                if (isBookingForFarm(item, currentFarmId, currentFarmName)) {
                     bookings.push(item);
                 }
             }
