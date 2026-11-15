@@ -3783,8 +3783,9 @@
         return true;
     }
 
-    // ૧. ફાર્મ ડ્રોપડાઉન UI (બધા ફાર્મ + અલગ અલગ ફાર્મ લોડ કરવા)
+   // ૧. ફાર્મ ડ્રોપડાઉન UI (બધા ફાર્મ + અલગ અલગ ફાર્મ લોડ કરવા)
     function populateFarmDropdownUI(farmsData) {
+        if (!farmsData || typeof farmsData !== "object") return;
         let select = document.getElementById("farmSelect");
         if (!select) return;
         let prevSelected = select.value || currentFarmId;
@@ -3814,16 +3815,23 @@
             return;
         }
 
-        // જો ફાર્મ પસંદ ન હોય તો બાય-ડિફોલ્ટ પહેલું ફાર્મ (દા.ત. સીતારામ વાડી) સિલેક્ટ કરો
-        if (!prevSelected || !select.querySelector(`option[value="${prevSelected}"]`)) {
+        let hasPrev = prevSelected && Array.from(select.options).some(o => o.value === prevSelected);
+        if (!hasPrev) {
             currentFarmId = firstSpecificFarmId || "ALL";
         } else {
             currentFarmId = prevSelected;
         }
         select.value = currentFarmId;
         window.currentFarmId = currentFarmId;
-        currentFarmName = cleanFarmTitle(select.options[select.selectedIndex].text);
+        let selOpt = select.options[select.selectedIndex];
+        currentFarmName = selOpt ? cleanFarmTitle(selOpt.text) : "";
         window.currentFarmName = currentFarmName;
+
+        let ySel = document.getElementById("yearSelect");
+        if (ySel && ySel.options.length === 0) {
+            populateYears();
+            goToToday();
+        }
         listenToFarmBookings();
     }
 
@@ -3841,11 +3849,13 @@
 
         if (activeFarmId === "ALL") {
             let combinedBookings = {};
-            for (let fId in cachedAllFarmBookings) {
-                let farmB = cachedAllFarmBookings[fId] || {};
-                for (let bKey in farmB) {
-                    if (farmB[bKey] && farmB[bKey].customerName && farmB[bKey].status !== 'available') {
-                        combinedBookings[bKey] = farmB[bKey];
+            if (cachedAllFarmBookings && typeof cachedAllFarmBookings === "object") {
+                for (let fId in cachedAllFarmBookings) {
+                    let farmB = cachedAllFarmBookings[fId] || {};
+                    for (let bKey in farmB) {
+                        if (farmB[bKey] && farmB[bKey].customerName && farmB[bKey].status !== 'available') {
+                            combinedBookings[bKey] = farmB[bKey];
+                        }
                     }
                 }
             }
@@ -3877,12 +3887,11 @@
             };
             currentBookingRef.on('value', currentBookingCallback);
         } else {
-            // માત્ર પસંદ કરેલા ફાર્મનો જ લોકલ ડેટા લોડ કરો
             let cachedSpecific = {};
             if (cachedAllFarmBookings && cachedAllFarmBookings[activeFarmId]) {
                 cachedSpecific = cachedAllFarmBookings[activeFarmId];
             } else {
-                try { cachedSpecific = JSON.parse(localStorage.getItem("cached_bookings_" + activeFarmId) || "{}"); } catch(e){}
+                try { cachedSpecific = JSON.parse(localStorage.getItem("cached_bookings_" + activeFarmId) || "{}") || {}; } catch(e){}
             }
 
             let clean = {};
@@ -3897,7 +3906,6 @@
             generateCalendar();
             filterData();
 
-            // 🌐 માત્ર પસંદ કરેલા ફાર્મના નોડ (farm_bookings/farm_id) પર જ લાઈવ સિંક
             currentBookingRef = firebase.database().ref("farm_bookings").child(activeFarmId);
             currentBookingCallback = (snapshot) => {
                 if (currentFarmId !== activeFarmId) return;
@@ -3923,7 +3931,7 @@
             currentBookingRef.on('value', currentBookingCallback);
         }
 
-        listenToFarmWorkers();
+        try { listenToFarmWorkers(); } catch(e) { console.log(e); }
     }
 
     function scrollToWorkerSection() {
@@ -3931,15 +3939,15 @@
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
 
-    // ૩. ડ્રોપડાઉનમાંથી ફાર્મ બદલાય ત્યારે તે મુજબ કૅલેન્ડર અને ટેબલ અપડેટ કરવું (તારીખ/મહિનો/વર્ષ જાળવીને)
+    // ૩. ડ્રોપડાઉનમાંથી ફાર્મ બદલાય ત્યારે તે મુજબ કૅલેન્ડર અને ટેબલ અપડેટ કરવું
     function changeFarm() {
         let select = document.getElementById("farmSelect");
-        if (!select) return;
+        if (!select || select.selectedIndex < 0) return;
         currentFarmId = select.value;
         window.currentFarmId = currentFarmId;
         currentFarmName = cleanFarmTitle(select.options[select.selectedIndex].text);
         window.currentFarmName = currentFarmName;
-        cloudBookings = {}; // જૂનો ડેટા તરત ખાલી કરવો જેથી મિક્સ ન થાય
+        cloudBookings = {};
         listenToFarmBookings();
     }
     
@@ -5307,7 +5315,7 @@
         renderWorkersTable();
     }
 
-    function setupUserView() {
+     function setupUserView() {
         document.getElementById("loginOverlay").style.display = "none";
         document.getElementById("mainContainer").style.display = "block";
         
@@ -5318,7 +5326,7 @@
             document.getElementById("clearAllBtn").style.display = "inline-flex";
             document.getElementById("adminFarmBtnArea").style.display = "block";
             document.getElementById("adminPermBtn").style.display = "inline-flex";
-           } else {
+        } else {
             let staffName = (currentStaffConfig && currentStaffConfig.name) 
                             ? currentStaffConfig.name 
                             : (staffListObj[currentUserRole]?.name || "Staff");
@@ -5331,69 +5339,75 @@
             document.getElementById("adminPermBtn").style.display = "none";
         }
 
-        // 👷‍♂️ વર્કર સેક્શન વિઝિબિલિટી (જો પરવાનગી હોય તો જ દેખાશે)
+        // 👷‍♂️ વર્કર સેક્શન વિઝિબિલિટી
         let workerSection = document.getElementById("workerSectionCard");
         let workerNavBtn = document.getElementById("workerNavBtn");
         if (workerSection) workerSection.style.display = canUserViewWorkers ? "block" : "none";
         if (workerNavBtn) workerNavBtn.style.display = canUserViewWorkers ? "inline-flex" : "none";
        
-       // ➕ નવો વર્કર ઉમેરવાનું બટન (માત્ર Edit Worker Profile પરવાનગી હોય તો જ દેખાશે)
         let addWorkerBtn = document.getElementById("addWorkerTopBtn");
         if (addWorkerBtn) addWorkerBtn.style.display = canUserEditWorkerProfile ? "inline-flex" : "none";
 
+        // ✅ સૌથી પહેલાં વર્ષ અને કૅલેન્ડર તરત બતાવી દેવા
+        populateYears();
+        goToToday();
+
         // 💾 ઑફલાઇન હોય ત્યારે LocalStorage માંથી તુરંત ફાર્મ લોડ કરવા
         let localFarms = {};
-        try { localFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}"); } catch(e){}
-        if (Object.keys(localFarms).length > 0) {
+        try { localFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}") || {}; } catch(e){ localFarms = {}; }
+        if (localFarms && typeof localFarms === "object" && Object.keys(localFarms).length > 0) {
             populateFarmDropdownUI(localFarms);
         }
 
         // 🌐 ઓનલાઇન હોય ત્યારે Firebase માંથી તાજું લિસ્ટ લેવું
         if (navigator.onLine) {
             farmsRef.once('value', (snap) => {
-                let farmsData = snap.val() || {};
-                populateFarmDropdownUI(farmsData);
+                let farmsData = snap.val();
+                if (farmsData && typeof farmsData === "object") {
+                    populateFarmDropdownUI(farmsData);
+                }
             });
         }
-   
-        populateYears();
-        goToToday();
     }
 
-        function logout() {
-        // જ્યારે જાતે લોગઆઉટ બટન દબાવે ત્યારે જ કાયમી લોગિન ભૂંસાશે
+    function logout() {
         localStorage.removeItem("persistentLoggedUserRole");
         localStorage.removeItem("persistentUserPass");
         sessionStorage.removeItem("loggedUserRole");
         location.reload();
     }
 
-
     function populateYears() {
         const yearSelect = document.getElementById("yearSelect");
         const filterYear = document.getElementById("filterYear");
+        if (!yearSelect) return;
         const currentYear = new Date().getFullYear();
         yearSelect.innerHTML = "";
-        filterYear.innerHTML = `<option value="">બધા વર્ષ</option>`;
+        if (filterYear) filterYear.innerHTML = `<option value="">બધા વર્ષ</option>`;
 
-        for (let y = currentYear - 1; y <= currentYear + 8; y++) {
+        for (let y = currentYear - 2; y <= currentYear + 8; y++) {
             let opt1 = document.createElement("option");
             opt1.value = y;
             opt1.innerText = y;
             if (y === currentYear) opt1.selected = true;
             yearSelect.appendChild(opt1);
 
-            let opt2 = document.createElement("option");
-            opt2.value = y;
-            opt2.innerText = y;
-            filterYear.appendChild(opt2);
+            if (filterYear) {
+                let opt2 = document.createElement("option");
+                opt2.value = y;
+                opt2.innerText = y;
+                filterYear.appendChild(opt2);
+            }
         }
     }
 
     function goToToday() {  
+        const yearSelect = document.getElementById("yearSelect");
+        const monthSelect = document.getElementById("monthSelect");
+        if (yearSelect && yearSelect.options.length === 0) populateYears();
         const now = new Date();
-        document.getElementById("yearSelect").value = now.getFullYear();
-        document.getElementById("monthSelect").value = now.getMonth();
+        if (yearSelect) yearSelect.value = now.getFullYear();
+        if (monthSelect) monthSelect.value = now.getMonth();
         generateCalendar();
     }
 
@@ -5402,12 +5416,21 @@
     function prevMonth() {
         let m = document.getElementById("monthSelect");
         let y = document.getElementById("yearSelect");
-        let currentM = parseInt(m.value);
+        if (y && y.options.length === 0) populateYears();
+        let currentM = parseInt(m.value) || 0;
+        let currentY = parseInt(y.value) || new Date().getFullYear();
         if (currentM > 0) {
             m.value = currentM - 1;
         } else {
             m.value = 11;
-            y.value = parseInt(y.value) - 1;
+            let newY = currentY - 1;
+            if (!Array.from(y.options).some(o => String(o.value) === String(newY))) {
+                let opt = document.createElement("option");
+                opt.value = newY;
+                opt.innerText = newY;
+                y.insertBefore(opt, y.firstChild);
+            }
+            y.value = newY;
         }
         generateCalendar();
     }
@@ -5415,15 +5438,24 @@
     function nextMonth() {
         let m = document.getElementById("monthSelect");
         let y = document.getElementById("yearSelect");
-        let currentM = parseInt(m.value);
+        if (y && y.options.length === 0) populateYears();
+        let currentM = parseInt(m.value) || 0;
+        let currentY = parseInt(y.value) || new Date().getFullYear();
         if (currentM < 11) {  
-          m.value = currentM + 1;
+            m.value = currentM + 1;
         } else {
             m.value = 0;
-            y.value = parseInt(y.value) + 1;
+            let newY = currentY + 1;
+            if (!Array.from(y.options).some(o => String(o.value) === String(newY))) {
+                let opt = document.createElement("option");
+                opt.value = newY;
+                opt.innerText = newY;
+                y.appendChild(opt);
+            }
+            y.value = newY;
         }
         generateCalendar();
-    }   
+    }  
       let currentPaymentsList = [];
     let currentExtraItemsList = []; // 🪑 એક્સ્ટ્રા વસ્તુઓનું લિસ્ટ (ખુરશી, ગાદલા, સ્ટેજ વગેરે)
 
@@ -5575,14 +5607,28 @@
 
      // 📅 કેલેન્ડરમાં અડધા પેમેન્ટનો ઘાટો પીળો કલર અને પસંદ કરેલા ફાર્મનું જ બુકિંગ બતાવવાનું ફંક્શન
     function generateCalendar() {
+        const yearEl = document.getElementById("yearSelect");
+        const monthEl = document.getElementById("monthSelect");
+        if (yearEl && yearEl.options.length === 0) {
+            populateYears();
+        }
+        if (yearEl && !yearEl.value) {
+            const now = new Date();
+            yearEl.value = now.getFullYear();
+            if (monthEl) monthEl.value = now.getMonth();
+        }
+
         let farmSel = document.getElementById("farmSelect");
         if (farmSel && farmSel.value && farmSel.value !== currentFarmId) {
             changeFarm();
             return;
         }
 
-        const year = parseInt(document.getElementById("yearSelect").value);
-        const month = parseInt(document.getElementById("monthSelect").value);
+        let year = parseInt(yearEl ? yearEl.value : "");
+        let month = parseInt(monthEl ? monthEl.value : "");
+        if (isNaN(year)) year = new Date().getFullYear();
+        if (isNaN(month)) month = new Date().getMonth();
+
         const grid = document.getElementById("daysGrid");
         if (!grid) return;
         grid.innerHTML = "";
