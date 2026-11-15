@@ -195,6 +195,9 @@
         .att-day-cell.att-half { background: #fef3c7; color: #92400e; border-color: #f59e0b; }
         .att-day-cell.att-time { background: #dbeafe; color: #1e40af; border-color: #3b82f6; }
         .att-day-cell.att-selected { box-shadow: 0 0 0 3px #4f46e5 !important; transform: scale(1.03); }
+        .att-day-cell.att-night { background: #f3e8ff; color: #581c87; border-color: #9333ea; }
+        .att-day-cell.att-has-night { box-shadow: inset 0 -3px 0 #7e22ce; border-bottom-color: #7e22ce; }
+        .att-night-pill { background: #6b21a8; color: #ffffff; font-size: 8.5px; font-weight: 800; padding: 1px 4px; border-radius: 4px; margin-top: 2px; line-height: 1.15; display: inline-block; }
         .att-day-num { font-size: 13px; font-weight: 800; }
         .att-day-time { font-size: 9.5px; font-weight: 700; margin-top: 2px; line-height: 1.15; }
         .att-day-badge { font-size: 9px; font-weight: 800; margin-top: 2px; }
@@ -412,6 +415,7 @@
             <div class="section-title">👷‍♂️ Step 3: વર્કર (કારીગર) પગાર અને ઉપાડ ખાતાવહી</div>
             <div style="display:flex; gap:8px;"> 
              <button class="btn" id="workerAttendanceTopBtn" onclick="openWorkerAttendanceModal()" style="background:#7c3aed; color:white; font-weight:700;">📅 વર્કર હાજરી & પગાર</button>
+                <button class="btn" id="workerNightTopBtn" onclick="openWorkerNightTabDirect()" style="background:#312e81; color:white; font-weight:700;">🌙 નાઇટ / ઓવરટાઇમ</button>
                 <button class="btn btn-outline" onclick="openWorkerReportModal()" style="background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; font-weight:700;">📑 તારીખ મુજબ સ્ટેટમેન્ટ (Report)</button>
                 <button class="btn btn-primary" id="addWorkerTopBtn" onclick="openAddWorkerModal()">➕ નવો વર્કર ઉમેરો</button>
             </div>
@@ -2951,10 +2955,14 @@
                 <b id="stripBalance" style="color:#10b981; font-size:15px;">₹0</b>
             </div>
         </div>
-
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <b id="upadFormTitle" style="font-size:13px; color:#b45309;">➕ નવો ઉપાડ (Advance) આપો:</b>
+                <button type="button" id="btnCancelUpadEdit" class="btn btn-outline" onclick="cancelEditWorkerUpad()" style="display:none; padding:2px 8px; font-size:11px; color:#b91c1c; border-color:#fca5a5;">✕ સુધારો રદ</button>
+            </div>
+            <input type="hidden" id="editUpadIndex" value="-1">
         <!-- Add Upad Form (લેપટોપ/PC માં રકમનું ખાનું મોટું અને પહોળું) -->
         <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:12px;">
-            <b style="font-size:13px; color:#b45309; display:block; margin-bottom:10px;">➕ નવો ઉપાડ (Advance) આપો:</b>
+            
             
             <!-- ૧. રકમનું ખાનું આખી લાઈનમાં મોટું અને બોલ્ડ -->
             <div style="margin-bottom:10px;">
@@ -3044,6 +3052,10 @@
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                 <span>ફિક્સ પગાર:</span>
                 <b id="payBaseSalary">₹0</b>
+            </div>  
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#6b21a8; font-weight:700;">
+                <span>🌙 નાઇટ ઓવરટાઇમ (<span id="payNightCount">0</span> નાઇટ):</span>
+                <b id="payNightBonus">(+) ₹0</b>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#ef4444;">
                 <span>કુલ લીધેલ ઉપાડ બાદ:</span>
@@ -3179,6 +3191,7 @@
         <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
             <button type="button" id="attTabSingleBtn" class="btn btn-primary" onclick="switchAttendanceTab('single')" style="flex:1; justify-content:center;">📅 કારીગર હાજરી કૅલેન્ડર & પગાર</button>
             <button type="button" id="attTabAllBtn" class="btn btn-outline" onclick="switchAttendanceTab('all')" style="flex:1; justify-content:center; font-weight:700;">📋 બધા કારીગરનો ટાઈમ & હાજરી રિપોર્ટ (Admin)</button>
+            <button type="button" id="attTabNightBtn" class="btn btn-outline" onclick="switchAttendanceTab('night')" style="flex:1; justify-content:center; font-weight:700; border-color:#9333ea; color:#6b21a8;">🌙 નાઇટ / ઓવરટાઇમ</button>
         </div>
 
         <!-- ⏰ શિફ્ટ ટાઈમ અને લંચ ટાઈમ સેટિંગ્સ (કસ્ટમાઇઝ કરી શકાય) -->
@@ -3243,6 +3256,7 @@
                 <span style="color:#b45309;">🟡 હાફ ડે (અડધો દિવસ)</span>
                 <span style="color:#1d4ed8;">🔵 ટાઈમ / મિનિટ મુજબ</span>
                 <span style="color:#64748b;">⚪ ખાલી (બાકી)</span>
+                <span style="color:#6b21a8;">🌙 નાઇટ / ઓવરટાઇમ</span>
                 <span style="margin-left:auto; color:#4f46e5;">* તારીખ પર ક્લિક કરી ટાઈમ સુધારો/ઉમેરો</span>
             </div>
 
@@ -3290,6 +3304,7 @@
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button type="button" class="btn btn-success" onclick="saveWorkerAttendanceEntry()" style="flex:1; justify-content:center; font-weight:800;">💾 હાજરી સેવ / અપડેટ કરો</button>
                     <button type="button" class="btn btn-danger" onclick="deleteWorkerAttendanceEntry()" style="padding:8px 14px;">🗑️ આ તારીખ રદ કરો</button>
+                    <button type="button" class="btn" onclick="openNightEntryFromCalendarDate()" style="background:#6b21a8; color:white; padding:8px 14px; font-weight:700;">🌙 આ તારીખની નાઇટ ઉમેરો</button>
                 </div>
             </div>
 
@@ -3315,6 +3330,10 @@
                         <span style="font-size:11px; color:#065f46; font-weight:700; display:block;">હાજરી મુજબ પગાર</span>
                         <b id="attSumEarnedSal" style="font-size:16px; color:#047857;">₹0</b>
                     </div>
+                    <div style="background:#f3e8ff; border:1.5px solid #c084fc; padding:8px; border-radius:8px;">
+                        <span style="font-size:11px; color:#6b21a8; font-weight:700; display:block;">🌙 નાઇટ / ઓવરટાઇમ (<span id="attSumNightCount">0</span>)</span>
+                        <b id="attSumNightBonus" style="font-size:16px; color:#7e22ce;">+ ₹0</b>
+                    </div>
                     <div style="background:#fff7ed; border:1px solid #fed7aa; padding:8px; border-radius:8px;">
                         <span style="font-size:11px; color:#9a3412; font-weight:700; display:block;">ગેરહાજરી કપાત</span>
                         <b id="attSumDeducted" style="font-size:16px; color:#c2410c;">₹0</b>
@@ -3333,6 +3352,138 @@
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button type="button" class="btn btn-primary" onclick="printMonthlyAttendanceSalarySlip()" style="flex:1; justify-content:center; padding:10px;">🖨️ હાજરી & પગાર રિપોર્ટ પ્રિન્ટ કરો</button>
                 <button type="button" class="btn" onclick="sendAttendanceSalaryWhatsApp()" style="flex:1; justify-content:center; background:#25D366; color:white; padding:10px; font-weight:800;">📲 WhatsApp પર પગાર-હાજરી મેસેજ મોકલો</button>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 3: નાઇટ / ઓવરટાઇમ મેનેજમેન્ટ ==================== -->
+        <div id="attNightView" style="display:none;">
+            <!-- નાઇટ એન્ટ્રી ઉમેરવાનું અને સુધારવાનું ફોર્મ -->
+            <div style="background:#faf5ff; border:1.5px solid #c084fc; border-radius:10px; padding:12px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                    <b id="nightFormTitle" style="font-size:13.5px; color:#581c87;">🌙 નાઇટ / ઓવરટાઇમ એન્ટ્રી ઉમેરો (પગાર મુજબ અથવા રૂપિયા મુજબ):</b>
+                    <span id="nightLivePreview" style="font-size:12px; font-weight:800; color:#6b21a8; background:#f3e8ff; border:1px solid #d8b4fe; padding:3px 10px; border-radius:12px;">-</span>
+                </div>
+                <input type="hidden" id="editNightEntryId" value="">
+                <input type="hidden" id="editNightOrigWorkerId" value="">
+                <input type="hidden" id="editNightOrigYmKey" value="">
+                <input type="hidden" id="editNightOrigFarmId" value="">
+
+                <div style="display:grid; grid-template-columns: 1.5fr 1fr 1.2fr; gap:8px; margin-bottom:8px;">
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#3b0764;">👷‍♂️ કારીગરનું નામ પસંદ કરો *</label>
+                        <select id="nightEntryWorkerSelect" class="form-control" onchange="onNightWorkerOrFilterChange()" style="font-weight:700; background:#fff;"></select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#3b0764;">📅 નાઇટ તારીખ *</label>
+                        <input type="date" id="nightEntryDate" class="form-control" onchange="updateNightLivePreview()" style="font-size:12px; font-weight:700;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#3b0764;">🌙 નાઇટ પ્રકાર *</label>
+                        <select id="nightTypeSelect" class="form-control" onchange="onNightTypeChange()" style="font-size:12px; font-weight:700;">
+                            <option value="full">🌙 ફુલ નાઇટ (આખી રાત)</option>
+                            <option value="half">🌗 હાફ નાઇટ (અડધી રાત)</option>
+                            <option value="time">⏱️ ટાઈમ / કલાક મુજબ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 0.9fr 0.9fr 1.3fr 1.3fr; gap:8px; margin-bottom:10px; align-items:end;">
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#3b0764;">શરૂ ટાઈમ (In)</label>
+                        <input type="time" id="nightInTime" class="form-control" value="20:00" oninput="updateNightLivePreview()" style="font-size:12px; font-weight:700;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#3b0764;">પૂર્ણ ટાઈમ (Out)</label>
+                        <input type="time" id="nightOutTime" class="form-control" value="06:00" oninput="updateNightLivePreview()" style="font-size:12px; font-weight:700;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:800; color:#15803d;">💰 નાઇટ ના રૂપિયા (₹) - વૈકલ્પિક</label>
+                        <input type="number" id="nightCustomAmount" class="form-control" oninput="updateNightLivePreview()" placeholder="ખાલી = પગાર મુજબ ગણાશે" style="font-size:13px; font-weight:800; color:#15803d; background:#f0fdf4; border:1.5px solid #86efac;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#3b0764;">નોંધ / વિગત</label>
+                        <input type="text" id="nightNote" class="form-control" placeholder="દા.ત. લગ્ન રાત્રિ ડ્યુટી / જનરેટર" style="font-size:12px;">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" id="btnSaveNightEntry" class="btn" onclick="saveWorkerNightEntry()" style="flex:1; justify-content:center; background:#6b21a8; color:white; font-weight:800;">💾 નાઇટ એન્ટ્રી સેવ કરો (પગારમાં ઉમેરો)</button>
+                    <button type="button" id="btnCancelNightEdit" class="btn btn-outline" onclick="cancelEditNightEntry()" style="display:none; padding:8px 14px; color:#b91c1c; border-color:#fca5a5;">✕ રદ</button>
+                </div>
+            </div>
+
+            <!-- મહિનો / વર્ષ અને બધા કારીગર ફિલ્ટર બાર -->
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <label style="font-size:12px; font-weight:700;">મહિનો:</label>
+                <select id="nightMonthSelect" class="form-control" onchange="renderNightTabView()" style="width:auto; font-weight:700;">
+                    <option value="0">જાન્યુઆરી</option><option value="1">ફેબ્રુઆરી</option>
+                    <option value="2">માર્ચ</option><option value="3">એપ્રિલ</option>
+                    <option value="4">મે</option><option value="5">જૂન</option>
+                    <option value="6">જુલાઈ</option><option value="7">ઓગસ્ટ</option>
+                    <option value="8">સપ્ટેમ્બર</option><option value="9">ઓક્ટોબર</option>
+                    <option value="10">નવેમ્બર</option><option value="11">ડિસેમ્બર</option>
+                </select>
+                <label style="font-size:12px; font-weight:700;">વર્ષ:</label>
+                <select id="nightYearSelect" class="form-control" onchange="renderNightTabView()" style="width:auto; font-weight:700;"></select>
+                <label style="font-size:12px; font-weight:700; color:#4f46e5; cursor:pointer; display:flex; align-items:center; gap:5px; margin-left:auto;">
+                    <input type="checkbox" id="nightShowAllWorkers" checked onchange="renderNightTabView()"> 👥 બધા કારીગરોની નાઇટ બતાવો
+                </label>
+                <button type="button" class="btn btn-primary" onclick="printNightMonthlyReport()" style="padding:6px 12px; font-size:12px;">🖨️ નાઇટ રિપોર્ટ પ્રિન્ટ</button>
+            </div>
+
+            <!-- નાઇટ સમરી કાર્ડ્સ -->
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:10px; text-align:center;">
+                <div style="background:#f3e8ff; border:1px solid #d8b4fe; padding:8px; border-radius:8px;">
+                    <span style="font-size:11px; color:#581c87; font-weight:700; display:block;">કુલ નાઇટ એન્ટ્રી / યુનિટ</span>
+                    <b id="nightSumTotalCount" style="font-size:16px; color:#6b21a8;">0</b>
+                </div>
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:8px; border-radius:8px;">
+                    <span style="font-size:11px; color:#1e40af; font-weight:700; display:block;">કુલ નાઇટ સમય</span>
+                    <b id="nightSumTotalMins" style="font-size:15px; color:#1d4ed8;">0 મિનિટ</b>
+                </div>
+                <div style="background:#dcfce7; border:1.5px solid #22c55e; padding:8px; border-radius:8px;">
+                    <span style="font-size:11px; color:#14532d; font-weight:800; display:block;">પગારમાં ઉમેરાતી કુલ નાઇટ રકમ</span>
+                    <b id="nightSumTotalRupees" style="font-size:17px; color:#15803d;">₹0</b>
+                </div>
+            </div>
+
+            <!-- નાઇટ વિગત ટેબલ -->
+            <div style="max-height:230px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:12px;">
+                <table style="width:100%; font-size:12px;">
+                    <thead style="background:#f3e8ff; position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:6px;">#</th>
+                            <th style="padding:6px;">તારીખ</th>
+                            <th style="padding:6px;">કારીગરનું નામ</th>
+                            <th style="padding:6px;">પ્રકાર & ટાઈમ</th>
+                            <th style="padding:6px;">ગણતરી રીત</th>
+                            <th style="padding:6px; text-align:right;">નાઇટ રકમ (₹)</th>
+                            <th style="padding:6px;">નોંધ</th>
+                            <th style="padding:6px; text-align:center;">ક્રિયા</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nightHistoryTableBody">
+                        <tr><td colspan="8" style="text-align:center; padding:14px; color:#94a3b8;">આ મહિનામાં કોઈ નાઇટ એન્ટ્રી નથી.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ઓલ-વર્કર નાઇટ સારાંશ ટેબલ -->
+            <b style="font-size:12.5px; color:#581c87; display:block; margin-bottom:6px;">📊 આ મહિનાનો બધા કારીગરોનો નાઇટ & પગાર સારાંશ:</b>
+            <div style="max-height:170px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+                <table style="width:100%; font-size:12px;">
+                    <thead style="background:#f1f5f9; position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:6px;">#</th>
+                            <th style="padding:6px;">કારીગરનું નામ</th>
+                            <th style="padding:6px; text-align:center;">કુલ નાઇટ</th>
+                            <th style="padding:6px; text-align:right;">ફિક્સ પગાર</th>
+                            <th style="padding:6px; text-align:right;">નાઇટ રકમ (+)</th>
+                            <th style="padding:6px; text-align:right;">કુલ પગાર (નાઇટ સાથે)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nightAllWorkerSummaryBody"></tbody>
+                </table>
             </div>
         </div>
 
@@ -4782,7 +4933,13 @@
 
     // 🔄 સર્વગ્રાહી ઓટોમેટિક માસ્ટર બેકઅપ ફંક્શન (હંમેશા LocalStorage માં સુરક્ષિત સાચવશે)
     function autoBackupAllData() {
-        try {
+        try {  
+            if (typeof generateMasterBackupPackage === "function") {
+                let fullPkg = generateMasterBackupPackage();
+                localStorage.setItem("system_master_auto_backup", JSON.stringify(fullPkg));
+                localStorage.setItem("system_last_backup_datetime", fullPkg.exportDateFormatted);
+                return;
+            }
             let backupMaster = {
                 timestamp: new Date().toISOString(),
                 currentFarmId: currentFarmId,
@@ -4797,6 +4954,9 @@
                 vendors: (typeof cloudVendors !== "undefined" ? cloudVendors : {}),
                 inventory: (typeof cloudInventory !== "undefined" ? cloudInventory : {}),  
                 outwardInventory: (typeof cloudOutwardInv !== "undefined" ? cloudOutwardInv : {}),
+                workerAttendance: (typeof cloudWorkerAttendance !== "undefined" ? cloudWorkerAttendance : {}),
+                workerShiftConfig: (typeof cloudShiftConfig !== "undefined" ? cloudShiftConfig : {}),
+                workerNightOvertime: (typeof cloudWorkerNightOT !== "undefined" ? cloudWorkerNightOT : {}),
                 staffList: staffListObj
             };
             localStorage.setItem("system_master_auto_backup", JSON.stringify(backupMaster));
@@ -5155,18 +5315,20 @@
         let transferWorkerSourceFarmId = "";
 
         // 🔍 કોઈપણ ફાર્મમાંથી કારીગરને સુરક્ષિત શોધવા માટેનું ગ્લોબલ હેલ્પર ફંક્શન
-        function getWorkerById(wId) {
-            if (cloudWorkers && cloudWorkers[wId]) {
-                return { worker: cloudWorkers[wId], farmId: currentFarmId };
+        function getWorkerById(wId) {   
+            if (currentFarmId !== "ALL" && cloudWorkers && cloudWorkers[wId]) {
+                return { worker: cloudWorkers[wId], farmId: (cloudWorkers[wId].farmId || currentFarmId) };
             }
             for (let fId in cachedAllFarmWorkers) {
                 if (cachedAllFarmWorkers[fId] && cachedAllFarmWorkers[fId][wId]) {
                     return { worker: cachedAllFarmWorkers[fId][wId], farmId: fId };
                 }
             }
+            if (cloudWorkers && cloudWorkers[wId]) {
+                return { worker: cloudWorkers[wId], farmId: (cloudWorkers[wId].farmId || currentFarmId) };
+            }
             return { worker: null, farmId: currentFarmId };
         }
-
         // 🔄 ટ્રાન્સફર મોડલ અને એડમિન બટન્સનું ઓટો-ઇન્જેક્શન
         function ensureWorkerTransferUI() {
             let headerDiv = document.querySelector("#workerSectionCard .section-header div[style*='flex']");
@@ -10064,6 +10226,7 @@
             expenseCategories: masterCategories
             ,workerAttendance: (typeof cloudWorkerAttendance !== "undefined" && Object.keys(cloudWorkerAttendance).length > 0 ? cloudWorkerAttendance : JSON.parse(localStorage.getItem("cached_worker_attendance") || "{}"))
             ,workerShiftConfig: (typeof cloudShiftConfig !== "undefined" ? cloudShiftConfig : JSON.parse(localStorage.getItem("cached_worker_shift_config") || "{}"))
+             ,workerNightOvertime: (typeof cloudWorkerNightOT !== "undefined" && Object.keys(cloudWorkerNightOT).length > 0 ? cloudWorkerNightOT : JSON.parse(localStorage.getItem("cached_worker_night_overtime") || "{}"))
         };
     }
 
@@ -10144,6 +10307,7 @@
                 outwardInventory: farmOutward
                 ,workerAttendance: (fId === "ALL" ? (typeof cloudWorkerAttendance !== "undefined" ? cloudWorkerAttendance : {}) : { [fId]: ((typeof cloudWorkerAttendance !== "undefined" && cloudWorkerAttendance[fId]) ? cloudWorkerAttendance[fId] : {}) })
                 ,workerShiftConfig: (typeof cloudShiftConfig !== "undefined" ? cloudShiftConfig : {})
+                 ,workerNightOvertime: (fId === "ALL" ? (typeof cloudWorkerNightOT !== "undefined" ? cloudWorkerNightOT : {}) : { [fId]: ((typeof cloudWorkerNightOT !== "undefined" && cloudWorkerNightOT[fId]) ? cloudWorkerNightOT[fId] : {}) })
             };
 
             let jsonString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(farmPackage, null, 2));
@@ -10302,7 +10466,12 @@
                 localStorage.setItem("cached_worker_shift_config", JSON.stringify(cloudShiftConfig));
                 if (isOnline) firebase.database().ref("worker_shift_config").set(cloudShiftConfig);
             }
-
+            if (data.workerNightOvertime && data.workerNightOvertime[targetFId]) {
+                if (typeof cloudWorkerNightOT === "undefined") window.cloudWorkerNightOT = {};
+                cloudWorkerNightOT[targetFId] = data.workerNightOvertime[targetFId];
+                localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
+                if (isOnline) firebase.database().ref("worker_night_overtime").child(targetFId).set(data.workerNightOvertime[targetFId]);
+            }
             if (typeof generateCalendar === "function") generateCalendar();
             if (typeof renderWorkersTable === "function") renderWorkersTable();
             if (typeof filterData === "function") filterData();
@@ -10431,12 +10600,861 @@
             localStorage.setItem("cached_worker_shift_config", JSON.stringify(cloudShiftConfig));
             if (isOnline) firebase.database().ref("worker_shift_config").set(cloudShiftConfig);
         }
-
+        if (data.workerNightOvertime) {
+            cloudWorkerNightOT = data.workerNightOvertime;
+            localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
+            if (isOnline) firebase.database().ref("worker_night_overtime").set(cloudWorkerNightOT);
+        }
         if (typeof generateCalendar === "function") generateCalendar();
         if (typeof renderWorkersTable === "function") renderWorkersTable();
         if (typeof filterData === "function") filterData();
         if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
     }
+</script>
+<script>
+    // 🌙 નાઇટ / ઓવરટાઇમ સંપૂર્ણ લાઇવ એન્જિન (Offline + Online + LocalStorage + Firebase + Salary Sync)
+    const workerNightRef = firebase.database().ref("worker_night_overtime");
+    var cloudWorkerNightOT = JSON.parse(localStorage.getItem("cached_worker_night_overtime") || "{}");
+
+    function mergePendingOfflineNightOT() {
+        try {
+            let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
+            let changed = false;
+            queue.forEach(item => {
+                if (item && item.path && item.path.indexOf("worker_night_overtime/") === 0) {
+                    let parts = item.path.split("/");
+                    if (parts.length === 5) {
+                        let fId = parts[1], ymKey = parts[2], wId = parts[3], nId = parts[4];
+                        if (item.action === "set" && item.data) {
+                            if (!cloudWorkerNightOT[fId]) cloudWorkerNightOT[fId] = {};
+                            if (!cloudWorkerNightOT[fId][ymKey]) cloudWorkerNightOT[fId][ymKey] = {};
+                            if (!cloudWorkerNightOT[fId][ymKey][wId]) cloudWorkerNightOT[fId][ymKey][wId] = {};
+                            cloudWorkerNightOT[fId][ymKey][wId][nId] = item.data;
+                            changed = true;
+                        } else if (item.action === "remove") {
+                            if (cloudWorkerNightOT[fId]?.[ymKey]?.[wId]?.[nId]) {
+                                delete cloudWorkerNightOT[fId][ymKey][wId][nId];
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            });
+            if (changed) {
+                localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
+            }
+        } catch (e) { console.log("Merge Offline Night Error:", e); }
+    }
+    mergePendingOfflineNightOT();
+
+    workerNightRef.on('value', (snap) => {
+        let val = snap.val();
+        cloudWorkerNightOT = (val && typeof val === "object") ? val : {};
+        mergePendingOfflineNightOT();
+        localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
+
+        let modal = document.getElementById("workerAttendanceModal");
+        if (modal && modal.style.display === "flex") {
+            renderAttendanceCalendarAndReport();
+            renderAllWorkersDailyReport();
+            renderNightTabView();
+        }
+        if (typeof renderWorkersTable === "function") renderWorkersTable();
+    });
+
+    // ગાયબ cancelEditWorkerUpad નો ઉકેલ
+    window.cancelEditWorkerUpad = function() {
+        let idxEl = document.getElementById("editUpadIndex");
+        if (idxEl) idxEl.value = "-1";
+        let titleEl = document.getElementById("upadFormTitle");
+        if (titleEl) titleEl.innerText = "➕ નવો ઉપાડ (Advance) આપો:";
+        let cancelBtn = document.getElementById("btnCancelUpadEdit");
+        if (cancelBtn) cancelBtn.style.display = "none";
+        if (document.getElementById("newUpadAmount")) document.getElementById("newUpadAmount").value = "";
+        if (document.getElementById("newUpadNote")) document.getElementById("newUpadNote").value = "";
+        if (document.getElementById("newUpadRefInput")) document.getElementById("newUpadRefInput").value = "";
+    };
+
+    function getWorkerNightMonthObj(farmId, ymKey, workerId) {
+        return (cloudWorkerNightOT[farmId] && cloudWorkerNightOT[farmId][ymKey] && cloudWorkerNightOT[farmId][ymKey][workerId]) || {};
+    }
+
+    function getWorkerNightSummaryForMonth(w, wId, year, monthIndex) {
+        let ymKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+        let fId = (w && w.farmId) ? w.farmId : currentFarmId;
+        let obj = getWorkerNightMonthObj(fId, ymKey, wId);
+        let entries = Object.values(obj).filter(x => x && typeof x === 'object');
+
+        let count = entries.length;
+        let units = 0;
+        let totalMins = 0;
+        let totalAmount = 0;
+        let byDate = {};
+
+        entries.forEach(e => {
+            let amt = parseFloat(e.finalAmount || 0);
+            let mins = parseFloat(e.workedMins || 0);
+            let u = e.nightType === 'full' ? 1 : (e.nightType === 'half' ? 0.5 : (parseFloat(e.ratio || 0) || 1));
+            units += u;
+            totalMins += mins;
+            totalAmount += amt;
+
+            if (e.date) {
+                if (!byDate[e.date]) byDate[e.date] = { count: 0, totalAmount: 0, entries: [] };
+                byDate[e.date].count++;
+                byDate[e.date].totalAmount += amt;
+                byDate[e.date].entries.push(e);
+            }
+        });
+
+        return {
+            ymKey,
+            count,
+            units: Math.round(units * 100) / 100,
+            totalMins,
+            totalAmount: Math.round(totalAmount),
+            entries,
+            byDate
+        };
+    }
+
+    function calculateNightMetrics(w, year, monthIndex, nightType, inTime, outTime, customRupeesRaw) {
+        let dailyRate = w ? getWorkerDailyRateForMonth(w, year, monthIndex) : 0;
+        let fullNetMins = getShiftNetDurationMins();
+        let workedMins = 0;
+        let ratio = 1;
+
+        if (nightType === "full") {
+            workedMins = fullNetMins;
+            ratio = 1;
+        } else if (nightType === "half") {
+            workedMins = Math.round(fullNetMins / 2);
+            ratio = 0.5;
+        } else {
+            let inM = attTimeToMins(inTime || "20:00");
+            let outM = attTimeToMins(outTime || "06:00");
+            if (inTime && outTime && inTime !== outTime) {
+                workedMins = outM > inM ? (outM - inM) : ((1440 - inM) + outM);
+            } else {
+                workedMins = 0;
+            }
+            ratio = fullNetMins > 0 ? (workedMins / fullNetMins) : 0;
+        }
+
+        let salaryCalcAmount = Math.round(ratio * dailyRate);
+        let customAmt = parseFloat(customRupeesRaw);
+        let isCustom = !isNaN(customAmt) && customAmt > 0;
+        let finalAmount = isCustom ? Math.round(customAmt) : salaryCalcAmount;
+        let rateMode = isCustom ? "custom" : "salary";
+
+        return { workedMins, ratio, dailyRate, salaryCalcAmount, finalAmount, rateMode };
+    }
+
+    function populateNightControls(preselectWorkerId) {
+        let workersMap = getAttFarmWorkersMap();
+        let wSel = document.getElementById("nightEntryWorkerSelect");
+        if (wSel) {
+            let prev = preselectWorkerId || wSel.value;
+            wSel.innerHTML = "";
+            let ids = Object.keys(workersMap);
+            if (ids.length === 0) {
+                wSel.innerHTML = `<option value="">(પહેલાં નવો વર્કર ઉમેરો)</option>`;
+            } else {
+                ids.forEach(id => {
+                    wSel.innerHTML += `<option value="${id}">👷‍♂️ ${workersMap[id].name} (પગાર: ₹${parseFloat(workersMap[id].salary || 0).toLocaleString('en-IN')})</option>`;
+                });
+                if (prev && workersMap[prev]) wSel.value = prev;
+            }
+        }
+
+        let ySel = document.getElementById("nightYearSelect");
+        let mSel = document.getElementById("nightMonthSelect");
+        if (ySel && ySel.options.length === 0) {
+            let curY = new Date().getFullYear();
+            for (let y = curY - 2; y <= curY + 5; y++) {
+                ySel.innerHTML += `<option value="${y}">${y}</option>`;
+            }
+            let now = new Date();
+            ySel.value = now.getFullYear();
+            if (mSel) mSel.value = now.getMonth();
+        }
+
+        let dEl = document.getElementById("nightEntryDate");
+        if (dEl && !dEl.value) {
+            let now = new Date();
+            dEl.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+    }
+
+    window.openWorkerNightTabDirect = function(preselectWorkerId) {
+        if (currentUserRole !== 'admin' && !canUserViewWorkers) {
+            alert("❌ તમારી પાસે વર્કર નાઇટ / પગાર જોવાનો અધિકાર નથી!");
+            return;
+        }
+        let modal = document.getElementById("workerAttendanceModal");
+        if (!modal || modal.style.display !== "flex") {
+            openWorkerAttendanceModal(preselectWorkerId);
+        }
+        switchAttendanceTab('night');
+        if (preselectWorkerId) {
+            let wSel = document.getElementById("nightEntryWorkerSelect");
+            if (wSel) wSel.value = preselectWorkerId;
+        }
+        updateNightLivePreview();
+        renderNightTabView();
+    };
+
+    window.openNightEntryFromCalendarDate = function() {
+        let wId = document.getElementById("attWorkerSelect")?.value;
+        let dateISO = document.getElementById("attEditDate")?.value;
+        switchAttendanceTab('night');
+        if (wId && document.getElementById("nightEntryWorkerSelect")) {
+            document.getElementById("nightEntryWorkerSelect").value = wId;
+        }
+        if (dateISO && document.getElementById("nightEntryDate")) {
+            document.getElementById("nightEntryDate").value = dateISO;
+            let p = dateISO.split("-");
+            if (p.length === 3) {
+                document.getElementById("nightYearSelect").value = parseInt(p[0], 10);
+                document.getElementById("nightMonthSelect").value = parseInt(p[1], 10) - 1;
+            }
+        }
+        updateNightLivePreview();
+        renderNightTabView();
+    };
+
+    const _origSwitchAttTab = switchAttendanceTab;
+    window.switchAttendanceTab = function(tab) {
+        let sView = document.getElementById("attSingleView");
+        let aView = document.getElementById("attAllView");
+        let nView = document.getElementById("attNightView");
+        let sBtn = document.getElementById("attTabSingleBtn");
+        let aBtn = document.getElementById("attTabAllBtn");
+        let nBtn = document.getElementById("attTabNightBtn");
+
+        if (tab === 'night') {
+            if (sView) sView.style.display = "none";
+            if (aView) aView.style.display = "none";
+            if (nView) nView.style.display = "block";
+            if (sBtn) sBtn.className = "btn btn-outline";
+            if (aBtn) aBtn.className = "btn btn-outline";
+            if (nBtn) { nBtn.className = "btn"; nBtn.style.background = "#6b21a8"; nBtn.style.color = "#fff"; }
+
+            let attW = document.getElementById("attWorkerSelect")?.value;
+            let attM = document.getElementById("attMonthSelect")?.value;
+            let attY = document.getElementById("attYearSelect")?.value;
+            populateNightControls(attW);
+            if (attM !== undefined && document.getElementById("nightMonthSelect")) document.getElementById("nightMonthSelect").value = attM;
+            if (attY && document.getElementById("nightYearSelect")) document.getElementById("nightYearSelect").value = attY;
+            updateNightLivePreview();
+            renderNightTabView();
+            return;
+        }
+
+        if (nView) nView.style.display = "none";
+        if (nBtn) { nBtn.className = "btn btn-outline"; nBtn.style.background = ""; nBtn.style.color = "#6b21a8"; }
+        _origSwitchAttTab(tab);
+    };
+
+    function onNightWorkerOrFilterChange() {
+        updateNightLivePreview();
+        renderNightTabView();
+    }
+
+    function onNightTypeChange() {
+        let t = document.getElementById("nightTypeSelect").value;
+        let inEl = document.getElementById("nightInTime");
+        let outEl = document.getElementById("nightOutTime");
+        if (t === "full") {
+            inEl.value = "20:00";
+            outEl.value = "06:00";
+        } else if (t === "half") {
+            inEl.value = "20:00";
+            outEl.value = "01:00";
+        }
+        updateNightLivePreview();
+    }
+
+    function updateNightLivePreview() {
+        let preview = document.getElementById("nightLivePreview");
+        if (!preview) return;
+        let wId = document.getElementById("nightEntryWorkerSelect")?.value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w) { preview.innerText = "કારીગર પસંદ કરો"; return; }
+
+        let dStr = document.getElementById("nightEntryDate")?.value || "";
+        let y = new Date().getFullYear(), m = new Date().getMonth();
+        if (dStr.includes("-")) {
+            let p = dStr.split("-");
+            y = parseInt(p[0], 10);
+            m = parseInt(p[1], 10) - 1;
+        }
+        let nType = document.getElementById("nightTypeSelect").value;
+        let inT = document.getElementById("nightInTime").value;
+        let outT = document.getElementById("nightOutTime").value;
+        let customRaw = document.getElementById("nightCustomAmount").value;
+
+        let res = calculateNightMetrics(w, y, m, nType, inT, outT, customRaw);
+        let modeLabel = res.rateMode === "custom" ? "રૂપિયા મુજબ (Custom ₹)" : "પગાર મુજબ ઓટો";
+        preview.innerText = `⏱️ ${attFormatMinsToGujarati(res.workedMins)} | 💰 નાઇટ પગાર: ₹${res.finalAmount.toLocaleString('en-IN')} (${modeLabel})`;
+    }
+
+    function saveWorkerNightEntry() {
+        if (!canModifyAttendance()) {
+            alert("❌ તમારી પાસે નાઇટ એન્ટ્રી સેવ કરવાનો અધિકાર નથી!");
+            return;
+        }
+        let wId = document.getElementById("nightEntryWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w) { alert("કૃપા કરીને કારીગરનું નામ પસંદ કરો!"); return; }
+
+        let dateISO = document.getElementById("nightEntryDate").value;
+        let nType = document.getElementById("nightTypeSelect").value;
+        let inTime = document.getElementById("nightInTime").value;
+        let outTime = document.getElementById("nightOutTime").value;
+        let customRaw = document.getElementById("nightCustomAmount").value;
+        let note = document.getElementById("nightNote").value.trim();
+
+        if (!dateISO) { alert("કૃપા કરીને નાઇટ તારીખ પસંદ કરો!"); return; }
+        if (nType === "time" && (!inTime || !outTime || inTime === outTime)) {
+            alert("ટાઈમ મુજબ નાઇટ માટે શરૂ અને પૂર્ણ ટાઈમ અલગ-અલગ દાખલ કરો!");
+            return;
+        }
+
+        let p = dateISO.split("-");
+        let year = parseInt(p[0], 10), monthIndex = parseInt(p[1], 10) - 1;
+        let ymKey = dateISO.slice(0, 7);
+        let fId = w.farmId || currentFarmId;
+
+        let res = calculateNightMetrics(w, year, monthIndex, nType, inTime, outTime, customRaw);
+
+        // જો એડિટ કરતા હોઈએ અને કારીગર/મહિનો બદલાયો હોય તો જૂની જગ્યાએથી હટાવો
+        let editId = document.getElementById("editNightEntryId").value.trim();
+        let origW = document.getElementById("editNightOrigWorkerId").value;
+        let origYm = document.getElementById("editNightOrigYmKey").value;
+        let origF = document.getElementById("editNightOrigFarmId").value;
+        if (editId && (origW !== wId || origYm !== ymKey || origF !== fId)) {
+            if (cloudWorkerNightOT[origF]?.[origYm]?.[origW]?.[editId]) {
+                delete cloudWorkerNightOT[origF][origYm][origW][editId];
+                let oldPath = `worker_night_overtime/${origF}/${origYm}/${origW}/${editId}`;
+                if (navigator.onLine) firebase.database().ref(oldPath).remove();
+                else addToSyncQueue({ path: oldPath, action: "remove" });
+            }
+        }
+
+        let nId = editId || ("night_" + Date.now());
+        let entry = {
+            id: nId,
+            date: dateISO,
+            workerId: wId,
+            workerName: w.name,
+            farmId: fId,
+            nightType: nType,
+            inTime: inTime || "20:00",
+            outTime: outTime || "06:00",
+            workedMins: res.workedMins,
+            ratio: res.ratio,
+            customAmount: res.rateMode === "custom" ? res.finalAmount : 0,
+            salaryCalcAmount: res.salaryCalcAmount,
+            finalAmount: res.finalAmount,
+            rateMode: res.rateMode,
+            note: note,
+            timestamp: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        if (!cloudWorkerNightOT[fId]) cloudWorkerNightOT[fId] = {};
+        if (!cloudWorkerNightOT[fId][ymKey]) cloudWorkerNightOT[fId][ymKey] = {};
+        if (!cloudWorkerNightOT[fId][ymKey][wId]) cloudWorkerNightOT[fId][ymKey][wId] = {};
+        cloudWorkerNightOT[fId][ymKey][wId][nId] = entry;
+
+        localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        let fbPath = `worker_night_overtime/${fId}/${ymKey}/${wId}/${nId}`;
+        if (navigator.onLine) {
+            firebase.database().ref(fbPath).set(entry);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: fbPath, action: "set", data: entry });
+        }
+
+        document.getElementById("nightYearSelect").value = year;
+        document.getElementById("nightMonthSelect").value = monthIndex;
+        cancelEditNightEntry();
+        renderNightTabView();
+        renderAttendanceCalendarAndReport();
+        if (typeof renderWorkersTable === "function") renderWorkersTable();
+        alert(`✅ ${w.name} ની નાઇટ (₹${res.finalAmount.toLocaleString('en-IN')}) સેવ થઈ ગઈ અને પગારમાં ઉમેરાઈ ગઈ!`);
+    }
+
+    function editNightEntry(fId, ymKey, wId, nId) {
+        if (!canModifyAttendance()) {
+            alert("❌ નાઇટ એન્ટ્રી સુધારવાનો અધિકાર નથી!");
+            return;
+        }
+        let e = cloudWorkerNightOT[fId]?.[ymKey]?.[wId]?.[nId];
+        if (!e) return;
+        document.getElementById("editNightEntryId").value = nId;
+        document.getElementById("editNightOrigWorkerId").value = wId;
+        document.getElementById("editNightOrigYmKey").value = ymKey;
+        document.getElementById("editNightOrigFarmId").value = fId;
+
+        document.getElementById("nightEntryWorkerSelect").value = wId;
+        document.getElementById("nightEntryDate").value = e.date || "";
+        document.getElementById("nightTypeSelect").value = e.nightType || "full";
+        document.getElementById("nightInTime").value = e.inTime || "20:00";
+        document.getElementById("nightOutTime").value = e.outTime || "06:00";
+        document.getElementById("nightCustomAmount").value = (e.rateMode === "custom" && e.customAmount > 0) ? e.customAmount : "";
+        document.getElementById("nightNote").value = e.note || "";
+
+        document.getElementById("nightFormTitle").innerText = `✏️ નાઇટ એન્ટ્રી સુધારો (${e.workerName}):`;
+        document.getElementById("btnSaveNightEntry").innerText = "💾 નાઇટ સુધારો સેવ કરો";
+        document.getElementById("btnCancelNightEdit").style.display = "inline-flex";
+        updateNightLivePreview();
+    }
+
+    function cancelEditNightEntry() {
+        document.getElementById("editNightEntryId").value = "";
+        document.getElementById("editNightOrigWorkerId").value = "";
+        document.getElementById("editNightOrigYmKey").value = "";
+        document.getElementById("editNightOrigFarmId").value = "";
+        document.getElementById("nightCustomAmount").value = "";
+        document.getElementById("nightNote").value = "";
+        document.getElementById("nightFormTitle").innerText = "🌙 નાઇટ / ઓવરટાઇમ એન્ટ્રી ઉમેરો (પગાર મુજબ અથવા રૂપિયા મુજબ):";
+        document.getElementById("btnSaveNightEntry").innerText = "💾 નાઇટ એન્ટ્રી સેવ કરો (પગારમાં ઉમેરો)";
+        document.getElementById("btnCancelNightEdit").style.display = "none";
+        updateNightLivePreview();
+    }
+
+    function deleteNightEntry(fId, ymKey, wId, nId) {
+        if (!canModifyAttendance()) {
+            alert("❌ નાઇટ એન્ટ્રી ડિલીટ કરવાનો અધિકાર નથી!");
+            return;
+        }
+        if (!confirm("શું તમે આ નાઇટ / ઓવરટાઇમ એન્ટ્રી રદ કરવા માંગો છો?")) return;
+
+        if (cloudWorkerNightOT[fId]?.[ymKey]?.[wId]?.[nId]) {
+            delete cloudWorkerNightOT[fId][ymKey][wId][nId];
+            localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
+            if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+            let fbPath = `worker_night_overtime/${fId}/${ymKey}/${wId}/${nId}`;
+            if (navigator.onLine) {
+                firebase.database().ref(fbPath).remove();
+            } else if (typeof addToSyncQueue === "function") {
+                addToSyncQueue({ path: fbPath, action: "remove" });
+            }
+            renderNightTabView();
+            renderAttendanceCalendarAndReport();
+            if (typeof renderWorkersTable === "function") renderWorkersTable();
+        }
+    }
+
+    function renderNightTabView() {
+        let tbody = document.getElementById("nightHistoryTableBody");
+        let sumBody = document.getElementById("nightAllWorkerSummaryBody");
+        if (!tbody || !sumBody) return;
+
+        let year = parseInt(document.getElementById("nightYearSelect")?.value) || new Date().getFullYear();
+        let monthIndex = parseInt(document.getElementById("nightMonthSelect")?.value) || 0;
+        let ymKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+        let selectedWId = document.getElementById("nightEntryWorkerSelect")?.value;
+        let showAll = document.getElementById("nightShowAllWorkers")?.checked !== false;
+
+        let workersMap = getAttFarmWorkersMap();
+        let wIds = Object.keys(workersMap);
+
+        let allEntries = [];
+        let totCount = 0, totUnits = 0, totMins = 0, totRupees = 0;
+
+        sumBody.innerHTML = "";
+        wIds.forEach((wId, idx) => {
+            let w = workersMap[wId];
+            let ns = getWorkerNightSummaryForMonth(w, wId, year, monthIndex);
+            let baseSal = parseFloat(w.salary || 0);
+
+            if (showAll || wId === selectedWId) {
+                totCount += ns.count;
+                totUnits += ns.units;
+                totMins += ns.totalMins;
+                totRupees += ns.totalAmount;
+                ns.entries.forEach(e => allEntries.push({ ...e, farmId: w.farmId || currentFarmId, workerObj: w }));
+            }
+
+            sumBody.innerHTML += `<tr>
+                <td style="padding:6px;">${idx + 1}</td>
+                <td style="padding:6px;"><b>${w.name}</b></td>
+                <td style="padding:6px; text-align:center; font-weight:700; color:#6b21a8;">${ns.units} નાઇટ (${ns.count} વાર)</td>
+                <td style="padding:6px; text-align:right;">₹${Math.round(baseSal).toLocaleString('en-IN')}</td>
+                <td style="padding:6px; text-align:right; font-weight:800; color:#7e22ce;">+ ₹${ns.totalAmount.toLocaleString('en-IN')}</td>
+                <td style="padding:6px; text-align:right; font-weight:800; color:#15803d;">₹${Math.round(baseSal + ns.totalAmount).toLocaleString('en-IN')}</td>
+            </tr>`;
+        });
+        if (wIds.length === 0) {
+            sumBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:12px; color:#94a3b8;">કોઈ કારીગર નથી.</td></tr>`;
+        }
+
+        allEntries.sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.timestamp || 0) - (a.timestamp || 0));
+        tbody.innerHTML = "";
+
+        if (allEntries.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:14px; color:#94a3b8;">આ મહિનામાં કોઈ નાઇટ એન્ટ્રી નથી.</td></tr>`;
+        } else {
+            allEntries.forEach((e, idx) => {
+                let typeLabel = e.nightType === 'full' ? '🌙 ફુલ નાઇટ' : (e.nightType === 'half' ? '🌗 હાફ નાઇટ' : '⏱️ ટાઈમ મુજબ');
+                let rateBadge = e.rateMode === 'custom'
+                    ? `<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-weight:700;">💰 રૂપિયા મુજબ</span>`
+                    : `<span style="background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; font-weight:700;">📊 પગાર મુજબ</span>`;
+
+                tbody.innerHTML += `<tr>
+                    <td style="padding:6px;">${idx + 1}</td>
+                    <td style="padding:6px; white-space:nowrap;"><b>${formatToDMY(e.date)}</b></td>
+                    <td style="padding:6px;"><b>${e.workerName || (e.workerObj && e.workerObj.name) || '-'}</b></td>
+                    <td style="padding:6px;"><b>${typeLabel}</b><br><small style="color:#64748b;">${attFormat12Hr(e.inTime)} - ${attFormat12Hr(e.outTime)} (${attFormatMinsToGujarati(e.workedMins)})</small></td>
+                    <td style="padding:6px;">${rateBadge}</td>
+                    <td style="padding:6px; text-align:right; font-weight:800; color:#6b21a8;">₹${parseFloat(e.finalAmount || 0).toLocaleString('en-IN')}</td>
+                    <td style="padding:6px;">${e.note || '-'}</td>
+                    <td style="padding:6px; text-align:center; white-space:nowrap;">
+                        <button type="button" class="btn btn-outline" style="padding:2px 6px; font-size:11px;" onclick="editNightEntry('${e.farmId}', '${ymKey}', '${e.workerId}', '${e.id}')">✏️</button>
+                        <button type="button" onclick="deleteNightEntry('${e.farmId}', '${ymKey}', '${e.workerId}', '${e.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">❌</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        document.getElementById("nightSumTotalCount").innerText = `${totUnits} નાઇટ (${totCount} વાર)`;
+        document.getElementById("nightSumTotalMins").innerText = attFormatMinsToGujarati(totMins);
+        document.getElementById("nightSumTotalRupees").innerText = "₹" + totRupees.toLocaleString('en-IN');
+    }
+
+    function printNightMonthlyReport() {
+        let year = parseInt(document.getElementById("nightYearSelect")?.value) || new Date().getFullYear();
+        let monthIndex = parseInt(document.getElementById("nightMonthSelect")?.value) || 0;
+        let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let workersMap = getAttFarmWorkersMap();
+        let wIds = Object.keys(workersMap);
+
+        let rowsHTML = "", grandNight = 0;
+        wIds.forEach((wId, idx) => {
+            let w = workersMap[wId];
+            let ns = getWorkerNightSummaryForMonth(w, wId, year, monthIndex);
+            let base = parseFloat(w.salary || 0);
+            grandNight += ns.totalAmount;
+            rowsHTML += `<tr>
+                <td>${idx + 1}</td>
+                <td><b>${w.name}</b></td>
+                <td style="text-align:center;">${ns.units} નાઇટ (${ns.count} વાર)</td>
+                <td style="text-align:right;">₹${Math.round(base).toLocaleString('en-IN')}</td>
+                <td style="text-align:right; color:#6b21a8; font-weight:bold;">+ ₹${ns.totalAmount.toLocaleString('en-IN')}</td>
+                <td style="text-align:right; color:#15803d; font-weight:bold;">₹${Math.round(base + ns.totalAmount).toLocaleString('en-IN')}</td>
+            </tr>`;
+        });
+
+        let win = window.open('', '_blank', 'width=850,height=650');
+        if (!win) { alert("પોપ-અપ Allow કરો!"); return; }
+        win.document.write(`
+            <html><head><title>નાઇટ & ઓવરટાઇમ રિપોર્ટ</title>
+            <style>body{font-family:Arial,sans-serif;padding:22px;}table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px;}th,td{border:1px solid #cbd5e1;padding:6px;text-align:left;}th{background:#f3e8ff;}</style></head><body>
+            <h2 style="margin:0;text-align:center;color:#6b21a8;">${currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
+            <h4 style="margin:4px 0 12px 0;text-align:center;color:#475569;">કારીગર નાઇટ / ઓવરટાઇમ પગાર રિપોર્ટ (${mNames[monthIndex]} ${year})</h4>
+            <table>
+                <thead><tr><th>#</th><th>કારીગરનું નામ</th><th style="text-align:center;">કુલ નાઇટ</th><th style="text-align:right;">ફિક્સ પગાર</th><th style="text-align:right;">નાઇટ પગાર (+)</th><th style="text-align:right;">કુલ પગાર</th></tr></thead>
+                <tbody>${rowsHTML}</tbody>
+                <tfoot><tr style="font-weight:bold;background:#faf5ff;"><td colspan="4" style="text-align:right;">કુલ નાઇટ પગાર સરવાળો:</td><td style="text-align:right;color:#6b21a8;">+ ₹${grandNight.toLocaleString('en-IN')}</td><td></td></tr></tfoot>
+            </table></body></html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    }
+
+    // 📅 હાજરી કૅલેન્ડરમાં નાઇટ લખેલું દેખાય અને પગાર ગણતરીમાં નાઇટ ઉમેરાય તે માટે ઓવરરાઇડ્સ
+    const _origComputeWorkerMonthlySummary = computeWorkerMonthlySummary;
+    window.computeWorkerMonthlySummary = function(w, wId, year, monthIndex) {
+        let s = _origComputeWorkerMonthlySummary(w, wId, year, monthIndex);
+        let ns = getWorkerNightSummaryForMonth(w, wId, year, monthIndex);
+        s.nightCount = ns.count;
+        s.nightUnits = ns.units;
+        s.nightMins = ns.totalMins;
+        s.nightBonus = ns.totalAmount;
+        s.nightByDate = ns.byDate;
+        s.nightEntries = ns.entries;
+        s.netPayable = (s.earnedSalary + ns.totalAmount) - s.appliedUpad;
+        return s;
+    };
+
+    const _origRenderAttendanceCal = renderAttendanceCalendarAndReport;
+    window.renderAttendanceCalendarAndReport = function() {
+        _origRenderAttendanceCal();
+        let wId = document.getElementById("attWorkerSelect")?.value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        let year = parseInt(document.getElementById("attYearSelect")?.value) || new Date().getFullYear();
+        let month = parseInt(document.getElementById("attMonthSelect")?.value) || 0;
+
+        if (!w) {
+            if (document.getElementById("attSumNightCount")) document.getElementById("attSumNightCount").innerText = "0";
+            if (document.getElementById("attSumNightBonus")) document.getElementById("attSumNightBonus").innerText = "+ ₹0";
+            return;
+        }
+
+        let s = computeWorkerMonthlySummary(w, wId, year, month);
+        let cells = document.querySelectorAll("#attCalendarGrid .att-day-cell:not(.att-empty)");
+        cells.forEach(cell => {
+            let onclickStr = cell.getAttribute("onclick") || "";
+            let m = onclickStr.match(/'(\d{4}-\d{2}-\d{2})'/);
+            if (m && m[1]) {
+                let dISO = m[1];
+                let nInfo = s.nightByDate[dISO];
+                if (nInfo) {
+                    let badge = cell.querySelector(".att-day-badge");
+                    if (badge && badge.innerText.trim() === "ખાલી") {
+                        cell.classList.add("att-night");
+                        badge.innerText = "🌙 નાઇટ";
+                        let tSpan = document.createElement("span");
+                        tSpan.className = "att-day-time";
+                        tSpan.innerText = `₹${nInfo.totalAmount.toLocaleString('en-IN')}`;
+                        cell.appendChild(tSpan);
+                    } else {
+                        cell.classList.add("att-has-night");
+                        let pill = document.createElement("span");
+                        pill.className = "att-night-pill";
+                        pill.innerText = `🌙 નાઇટ ₹${nInfo.totalAmount.toLocaleString('en-IN')}`;
+                        cell.appendChild(pill);
+                    }
+                }
+            }
+        });
+
+        if (document.getElementById("attSumNightCount")) document.getElementById("attSumNightCount").innerText = `${s.nightUnits} નાઇટ`;
+        if (document.getElementById("attSumNightBonus")) document.getElementById("attSumNightBonus").innerText = "+ ₹" + Math.round(s.nightBonus).toLocaleString('en-IN');
+        let netEl = document.getElementById("attSumNetPay");
+        if (netEl) {
+            netEl.innerText = "₹" + Math.round(s.netPayable).toLocaleString('en-IN');
+            netEl.style.color = s.netPayable >= 0 ? "#15803d" : "#b91c1c";
+        }
+    };
+
+    // 🖨️ હાજરી & પગાર પ્રિન્ટ સ્લિપમાં નાઇટ વિગત સાથે પ્રિન્ટ
+    window.printMonthlyAttendanceSalarySlip = function() {
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w) { alert("કારીગર પસંદ કરો!"); return; }
+
+        let year = parseInt(document.getElementById("attYearSelect").value);
+        let monthIndex = parseInt(document.getElementById("attMonthSelect").value);
+        let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+
+        let rowsHTML = "";
+        s.dayRows.forEach(r => {
+            let stText = r.status === 'full' ? 'ફુલ ડે' : (r.status === 'half' ? 'હાફ ડે' : (r.status === 'absent' ? 'ગેરહાજર' : 'ટાઈમ મુજબ'));
+            let nInfo = s.nightByDate[r.dateISO];
+            let nightCol = nInfo ? `<b style="color:#6b21a8;">🌙 +₹${nInfo.totalAmount.toLocaleString('en-IN')}</b>` : '-';
+            rowsHTML += `<tr>
+                <td>${formatToDMY(r.dateISO)}</td>
+                <td><b>${stText}</b></td>
+                <td>${r.inTime ? attFormat12Hr(r.inTime) : '-'}</td>
+                <td>${r.outTime ? attFormat12Hr(r.outTime) : '-'}</td>
+                <td>${r.status === 'absent' ? '-' : attFormatMinsToGujarati(r.workedMins)}</td>
+                <td style="text-align:right; font-weight:bold;">₹${Math.round(r.daySalary).toLocaleString('en-IN')}</td>
+                <td style="text-align:right;">${nightCol}</td>
+                <td>${r.note || '-'}</td>
+            </tr>`;
+        });
+        // ફક્ત નાઇટ હોય તેવી તારીખો પણ ઉમેરો
+        Object.keys(s.nightByDate).forEach(dISO => {
+            if (!s.dayRows.some(r => r.dateISO === dISO)) {
+                let nInfo = s.nightByDate[dISO];
+                rowsHTML += `<tr style="background:#faf5ff;">
+                    <td>${formatToDMY(dISO)}</td>
+                    <td><b style="color:#6b21a8;">🌙 માત્ર નાઇટ</b></td>
+                    <td>-</td><td>-</td><td>-</td><td style="text-align:right;">₹0</td>
+                    <td style="text-align:right;"><b style="color:#6b21a8;">+₹${nInfo.totalAmount.toLocaleString('en-IN')}</b></td>
+                    <td>${(nInfo.entries[0] && nInfo.entries[0].note) || 'નાઇટ ડ્યુટી'}</td>
+                </tr>`;
+            }
+        });
+        if (!rowsHTML) rowsHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b;">આ મહિનામાં કોઈ હાજરી કે નાઇટ નોંધાયેલ નથી.</td></tr>`;
+
+        let win = window.open('', '_blank', 'width=850,height=700');
+        if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
+        win.document.write(`
+            <html><head><title>હાજરી, નાઇટ & પગાર સ્લિપ - ${w.name}</title>
+            <style>body{font-family:Arial,sans-serif;padding:22px;color:#1e293b;font-size:13px;}.box{border:2px solid #334155;padding:18px;border-radius:10px;max-width:780px;margin:auto;}table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px;}th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left;}th{background:#f1f5f9;}</style></head><body>
+                <div class="box">
+                    <h2 style="margin:0;text-align:center;color:#4f46e5;">${currentFarmName || 'પાર્ટી પ્લોટ મેનેજમેન્ટ'}</h2>
+                    <h4 style="margin:4px 0 12px 0;text-align:center;color:#475569;">કારીગર માસિક હાજરી, નાઇટ & પગાર સ્ટેટમેન્ટ (${mNames[monthIndex]} ${year})</h4>
+                    <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role || 'કારીગર'} | <b>મોબાઈલ:</b> ${w.mobile || '-'}</p>
+                    <table>
+                        <thead><tr><th>તારીખ</th><th>સ્થિતિ</th><th>આવેલ ટાઈમ</th><th>ગયેલ ટાઈમ</th><th>કામ સમય</th><th style="text-align:right;">દિવસ પગાર</th><th style="text-align:right;">🌙 નાઇટ</th><th>નોંધ</th></tr></thead>
+                        <tbody>${rowsHTML}</tbody>
+                    </table>
+                    <table style="margin-top:16px;">
+                        <tr><td>ફિક્સ પગાર:</td><td style="text-align:right;font-weight:bold;">₹${Math.round(s.baseSal).toLocaleString('en-IN')}</td></tr>
+                        <tr><td>હાજરી મુજબ કમાયેલ પગાર (${s.totalRatio.toFixed(2)} દિવસ):</td><td style="text-align:right;font-weight:bold;color:#047857;">₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}</td></tr>
+                        <tr><td style="color:#6b21a8;font-weight:bold;">🌙 નાઇટ / ઓવરટાઇમ પગાર (${s.nightUnits} નાઇટ):</td><td style="text-align:right;font-weight:bold;color:#6b21a8;">(+) ₹${Math.round(s.nightBonus).toLocaleString('en-IN')}</td></tr>
+                        <tr><td>લીધેલ ઉપાડ બાદ (Upad):</td><td style="text-align:right;color:#b91c1c;">(-) ₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}</td></tr>
+                        <tr style="background:#dcfce7;font-size:15px;font-weight:bold;">
+                            <td style="color:#14532d;">ચોખ્ખો ચૂકવવાપાત્ર પગાર (Net Payable):</td>
+                            <td style="text-align:right;color:#15803d;">₹${Math.round(s.netPayable).toLocaleString('en-IN')}</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top:40px;display:flex;justify-content:space-between;"><div>કારીગર સહી: ____________</div><div>માલિક / મેનેજર સહી: ____________</div></div>
+                </div></body></html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    };
+
+    // 📲 WhatsApp સ્લિપમાં નાઇટની વિગત
+    window.sendAttendanceSalaryWhatsApp = function() {
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w || !w.mobile || w.mobile.length < 10) {
+            alert("આ કારીગરનો 10 આંકડાનો સાચો મોબાઈલ નંબર દાખલ કરેલ નથી!");
+            return;
+        }
+        let year = parseInt(document.getElementById("attYearSelect").value);
+        let monthIndex = parseInt(document.getElementById("attMonthSelect").value);
+        let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+
+        let cleanMob = w.mobile.replace(/[^0-9]/g, '');
+        if (cleanMob.length === 10) cleanMob = '91' + cleanMob;
+
+        let msg = `*${currentFarmName || 'પાર્ટી પ્લોટ'}*\n` +
+                  `📅 *માસિક હાજરી, નાઇટ & પગાર સ્લિપ (${mNames[monthIndex]} ${year})*\n\n` +
+                  `👷‍♂️ કારીગર: *${w.name}*\n` +
+                  `🟢 ફુલ: ${s.fullDays} | 🟡 હાફ: ${s.halfDays} | 🔵 ટાઈમ: ${s.timeDays} | 🔴 ગેરહા.: ${s.absentDays}\n` +
+                  `⏱️ કુલ હાજરી: *${s.totalRatio.toFixed(2)} દિવસ*\n` +
+                  `----------------------------------\n` +
+                  `💵 ફિક્સ પગાર: ₹${Math.round(s.baseSal).toLocaleString('en-IN')}\n` +
+                  `✅ હાજરી મુજબ પગાર: ₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}\n` +
+                  `🌙 નાઇટ / ઓવરટાઇમ (${s.nightUnits} નાઇટ): *(+) ₹${Math.round(s.nightBonus).toLocaleString('en-IN')}*\n` +
+                  `🔻 લીધેલ ઉપાડ બાદ: (-) ₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}\n` +
+                  `==================================\n` +
+                  `💰 *ચોખ્ખો મળવાપાત્ર પગાર: ₹${Math.round(s.netPayable).toLocaleString('en-IN')}*\n\nઆભાર!`;
+        window.open(`https://wa.me/${cleanMob}?text=${encodeURIComponent(msg)}`);
+    };
+
+    // 💵 પગાર ચુકવણી મોડલ (calculateSalaryPayDetails) માં #payNightCount અને #payNightBonus ઉમેરવું
+    const _origCalcSalaryPayDetails = calculateSalaryPayDetails;
+    window.calculateSalaryPayDetails = function() {
+        _origCalcSalaryPayDetails();  
+        let { worker: w, farmId: realFId } = getWorkerById(selectedWorkerIdForSalary);
+        if (!w) return;
+        let salMonth = document.getElementById("salMonth")?.value;
+        if (!salMonth || !salMonth.includes("-")) return;
+        let p = salMonth.split("-");
+        let y = parseInt(p[0], 10), mIdx = parseInt(p[1], 10) - 1;
+        let ns = getWorkerNightSummaryForMonth({ ...w, farmId: w.farmId || realFId }, selectedWorkerIdForSalary, y, mIdx);
+
+        let baseSalary = parseFloat(w.salary || 0);
+        let totalUpad = (w.upads || []).reduce((sum, u) => sum + parseFloat(u.amount || 0), 0);
+        let net = Math.max(0, baseSalary + ns.totalAmount - totalUpad);
+
+        if (document.getElementById("payNightCount")) document.getElementById("payNightCount").innerText = ns.units;
+        if (document.getElementById("payNightBonus")) document.getElementById("payNightBonus").innerText = "(+) ₹" + ns.totalAmount.toLocaleString('en-IN');
+        if (document.getElementById("payNetSalary")) document.getElementById("payNetSalary").innerText = "₹" + Math.round(net).toLocaleString('en-IN');
+        if (document.getElementById("salActualPaid")) document.getElementById("salActualPaid").value = Math.round(net);
+    };
+
+    // 👷‍♂️ Step 3 વર્કર ટેબલમાં ચાલુ મહિનાની નાઇટ રકમ + "🌙 નાઇટ" બટન ઉમેરવું
+    const _origRenderWorkersTableNight = renderWorkersTable;
+    window.renderWorkersTable = function() {
+        _origRenderWorkersTableNight();
+        let now = new Date();
+        let curY = now.getFullYear(), curM = now.getMonth();
+        let extraNightTotal = 0;
+
+        document.querySelectorAll("#workerTableBody tr").forEach(tr => {
+            let upadBtn = tr.querySelector("button[onclick^='openWorkerUpadModal']");
+            if (!upadBtn) return;
+            let m = upadBtn.getAttribute("onclick").match(/'([^']+)'/);
+            if (!m || !m[1]) return;
+            let wId = m[1];  
+            let { worker: w, farmId: realFId } = getWorkerById(wId);
+            if (w && !w.farmId) w = { ...w, farmId: realFId };
+            if (!w) return;
+
+            if (!tr.querySelector(".night-row-btn")) {
+                let nBtn = document.createElement("button");
+                nBtn.className = "btn night-row-btn";
+                nBtn.style = "padding:3px 8px; font-size:11px; background:#6b21a8; color:white; font-weight:700;";
+                nBtn.innerText = "🌙 નાઇટ";
+                nBtn.title = "આ કારીગરની નાઇટ / ઓવરટાઇમ ઉમેરો";
+                nBtn.onclick = () => openWorkerNightTabDirect(wId);
+                upadBtn.parentNode.insertBefore(nBtn, upadBtn);
+            }
+
+            let ns = getWorkerNightSummaryForMonth(w, wId, curY, curM);
+            if (ns.totalAmount > 0) {
+                extraNightTotal += ns.totalAmount;
+                let tds = tr.querySelectorAll("td");
+                if (tds.length >= 7) {
+                    let baseSal = parseFloat(w.salary || 0);
+                    let totUpad = (w.upads || []).reduce((s, u) => s + parseFloat(u.amount || 0), 0);
+                    let newNet = baseSal + ns.totalAmount - totUpad;
+                    tds[4].innerHTML = `₹${baseSal.toLocaleString('en-IN')}<br><small style="color:#6b21a8; font-weight:700;">+ 🌙 ${ns.units} નાઇટ: ₹${ns.totalAmount.toLocaleString('en-IN')}</small>`;
+                    tds[6].innerText = `₹${newNet.toLocaleString('en-IN')}`;
+                    tds[6].style.color = newNet >= 0 ? '#10b981' : '#b91c1c';
+                }
+            }
+        });
+
+        if (extraNightTotal > 0) {
+            let salSumEl = document.getElementById("workerTotalSalarySum");
+            if (salSumEl) {
+                let curSal = parseFloat(salSumEl.innerText.replace(/[^0-9.-]/g, '')) || 0;
+                salSumEl.innerText = "₹" + (curSal + extraNightTotal).toLocaleString('en-IN');
+            }
+            let netSumEl = document.getElementById("workerTotalNetSum");
+            if (netSumEl) {
+                let curNet = parseFloat(netSumEl.innerText.replace(/[^0-9.-]/g, '')) || 0;
+                netSumEl.innerText = "₹" + (curNet + extraNightTotal).toLocaleString('en-IN');
+            }
+        }
+    };
+
+    // 📋 બધા કારીગર રિપોર્ટ (Admin View) માં પણ નાઇટ રકમ સ્પષ્ટ દેખાય તે માટે
+    const _origRenderAllWorkersDailyReportNight = renderAllWorkersDailyReport;
+    window.renderAllWorkersDailyReport = function() {
+        _origRenderAllWorkersDailyReportNight();
+        let dateISO = document.getElementById("attAllDateInput")?.value;
+        if (!dateISO) return;
+        let p = dateISO.split("-");
+        let year = parseInt(p[0], 10), monthIndex = parseInt(p[1], 10) - 1;
+        let workersMap = getAttFarmWorkersMap();
+        let wIds = Object.keys(workersMap);
+        let rows = document.querySelectorAll("#attAllMonthSummaryBody tr");
+        rows.forEach((tr, idx) => {
+            let wId = wIds[idx];
+            if (!wId) return;
+            let s = computeWorkerMonthlySummary(workersMap[wId], wId, year, monthIndex);
+            let tds = tr.querySelectorAll("td");
+            if (tds.length >= 7 && s.nightBonus > 0) {
+                tds[4].innerHTML = `₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}<br><small style="color:#6b21a8; font-weight:700;">+ 🌙 નાઇટ: ₹${Math.round(s.nightBonus).toLocaleString('en-IN')}</small>`;
+            }
+        });
+    };
+
+    // 🔄 નાઇટ ટેબ ખોલતી વખતે જૂનું અડધું એડિટ ફોર્મ ક્લિયર રહે તે માટે
+    const _origOpenNightTabDirect = openWorkerNightTabDirect;
+    window.openWorkerNightTabDirect = function(preselectWorkerId) {
+        _origOpenNightTabDirect(preselectWorkerId);
+        if (typeof cancelEditNightEntry === "function") cancelEditNightEntry();
+        if (preselectWorkerId && document.getElementById("nightEntryWorkerSelect")) {
+            document.getElementById("nightEntryWorkerSelect").value = preselectWorkerId;
+            updateNightLivePreview();
+            renderNightTabView();
+        }
+    };
 </script>
 </body> 
 </html>
