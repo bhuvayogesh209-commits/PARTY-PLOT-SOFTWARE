@@ -172,6 +172,39 @@
             .modal-content div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
             table th, table td { padding: 8px 6px; font-size: 11.5px; }
         }
+
+      .btn-warning { background: var(--warning); color: #ffffff; }
+        .att-weekdays-grid {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+            text-align: center; font-weight: 700; font-size: 12px; color: #475569; margin-top: 10px;
+        }
+        .att-cal-grid {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 6px;
+        }
+        .att-day-cell {
+            min-height: 62px; border-radius: 8px; padding: 4px 3px; cursor: pointer;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; border: 1.5px solid #e2e8f0; background: #f8fafc;
+            transition: transform 0.12s, box-shadow 0.12s;
+        }
+        .att-day-cell:hover { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+        .att-day-cell.att-empty { background: transparent; border: none; cursor: default; }
+        .att-day-cell.att-empty:hover { transform: none; box-shadow: none; }
+        .att-day-cell.att-full { background: #dcfce7; color: #14532d; border-color: #22c55e; }
+        .att-day-cell.att-absent { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
+        .att-day-cell.att-half { background: #fef3c7; color: #92400e; border-color: #f59e0b; }
+        .att-day-cell.att-time { background: #dbeafe; color: #1e40af; border-color: #3b82f6; }
+        .att-day-cell.att-selected { box-shadow: 0 0 0 3px #4f46e5 !important; transform: scale(1.03); }
+        .att-day-num { font-size: 13px; font-weight: 800; }
+        .att-day-time { font-size: 9.5px; font-weight: 700; margin-top: 2px; line-height: 1.15; }
+        .att-day-badge { font-size: 9px; font-weight: 800; margin-top: 2px; }
+        @media (max-width: 768px) {
+            .att-cal-grid, .att-weekdays-grid { gap: 3px; }
+            .att-day-cell { min-height: 52px; padding: 2px; }
+            .att-day-time { font-size: 8px; }
+        }
+          #workerSectionCard .section-header { flex-wrap: wrap; gap: 10px; }
+        #workerSectionCard .section-header > div { flex-wrap: wrap; }
     </style>
      </head>
 <body>
@@ -378,6 +411,7 @@
         <div class="section-header">
             <div class="section-title">👷‍♂️ Step 3: વર્કર (કારીગર) પગાર અને ઉપાડ ખાતાવહી</div>
             <div style="display:flex; gap:8px;"> 
+             <button class="btn" id="workerAttendanceTopBtn" onclick="openWorkerAttendanceModal()" style="background:#7c3aed; color:white; font-weight:700;">📅 વર્કર હાજરી & પગાર</button>
                 <button class="btn btn-outline" onclick="openWorkerReportModal()" style="background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; font-weight:700;">📑 તારીખ મુજબ સ્ટેટમેન્ટ (Report)</button>
                 <button class="btn btn-primary" id="addWorkerTopBtn" onclick="openAddWorkerModal()">➕ નવો વર્કર ઉમેરો</button>
             </div>
@@ -3132,6 +3166,1170 @@
         </div>
     </div>
 </div>
+
+   <!-- 📅 Worker Attendance, Shift Timing & Monthly Salary Modal -->
+<div class="modal" id="workerAttendanceModal" style="z-index: 1050;">
+    <div class="modal-content" style="max-width: 980px; width: 97%; max-height: 94vh; overflow-y: auto;">
+        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #7c3aed; padding-bottom:8px;">
+            <span style="color:#5b21b6; font-size:17px;">📅 વર્કર હાજરી ખાતાવહી (શિફ્ટ ટાઈમ & મિનિટ મુજબ પગાર)</span>
+            <button class="btn btn-outline" onclick="closeWorkerAttendanceModal()" style="padding:3px 9px; font-size:12px;">✕ બંધ કરો</button>
+        </div>
+
+        <!-- ટેબ બટન્સ: સિંગલ વર્કર કૅલેન્ડર vs ઓલ-વર્કર Admin રિપોર્ટ -->
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+            <button type="button" id="attTabSingleBtn" class="btn btn-primary" onclick="switchAttendanceTab('single')" style="flex:1; justify-content:center;">📅 કારીગર હાજરી કૅલેન્ડર & પગાર</button>
+            <button type="button" id="attTabAllBtn" class="btn btn-outline" onclick="switchAttendanceTab('all')" style="flex:1; justify-content:center; font-weight:700;">📋 બધા કારીગરનો ટાઈમ & હાજરી રિપોર્ટ (Admin)</button>
+        </div>
+
+        <!-- ⏰ શિફ્ટ ટાઈમ અને લંચ ટાઈમ સેટિંગ્સ (કસ્ટમાઇઝ કરી શકાય) -->
+        <div style="background:#f5f3ff; border:1.5px solid #ddd6fe; border-radius:10px; padding:10px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+                <b style="font-size:12.5px; color:#5b21b6;">⏰ શિફ્ટ ટાઈમ & લંચ ટાઈમ સેટિંગ (ફેરફાર કરીને સેવ કરી શકો છો):</b>
+                <span id="attShiftNetInfo" style="font-size:11.5px; font-weight:700; color:#4338ca; background:#ede9fe; padding:2px 8px; border-radius:12px;">કુલ કામનો સમય: 11 કલાક 0 મિનિટ</span>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr auto auto; gap:6px; align-items:end;">
+                <div>
+                    <label style="font-size:11px; font-weight:700;">શિફ્ટ શરૂ (AM):</label>
+                    <input type="time" id="attShiftStart" class="form-control" value="08:00" onchange="updateShiftNetInfoDisplay()" style="font-size:12px; font-weight:700;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700;">શિફ્ટ પૂર્ણ (PM):</label>
+                    <input type="time" id="attShiftEnd" class="form-control" value="20:00" onchange="updateShiftNetInfoDisplay()" style="font-size:12px; font-weight:700;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700;">લંચ શરૂ:</label>
+                    <input type="time" id="attLunchStart" class="form-control" value="13:00" onchange="updateShiftNetInfoDisplay()" style="font-size:12px; font-weight:700;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700;">લંચ પૂર્ણ:</label>
+                    <input type="time" id="attLunchEnd" class="form-control" value="14:00" onchange="updateShiftNetInfoDisplay()" style="font-size:12px; font-weight:700;">
+                </div>
+                <label style="font-size:11px; font-weight:700; display:flex; align-items:center; gap:4px; padding-bottom:8px; cursor:pointer;">
+                    <input type="checkbox" id="attDeductLunch" checked onchange="updateShiftNetInfoDisplay()"> લંચ બાદ થાય
+                </label>
+                <button type="button" class="btn btn-primary" onclick="saveWorkerShiftSettings()" style="padding:8px 12px; font-size:12px;">💾 ટાઈમ સેવ</button>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 1: સિંગલ વર્કર કૅલેન્ડર અને પગાર ==================== -->
+        <div id="attSingleView">
+            <!-- વર્કર, મહિનો અને વર્ષ પસંદગી -->
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:12px; display:grid; grid-template-columns: 1.8fr 1fr 1fr; gap:8px; align-items:end;">
+                <div>
+                    <label style="font-size:12px; font-weight:700; color:#1e293b;">👷‍♂️ કારીગર પસંદ કરો:</label>
+                    <select id="attWorkerSelect" class="form-control" onchange="renderAttendanceCalendarAndReport()" style="font-weight:700; color:#1e1b4b; background:#fff;"></select>
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700; color:#1e293b;">📅 મહિનો:</label>
+                    <select id="attMonthSelect" class="form-control" onchange="renderAttendanceCalendarAndReport()" style="font-weight:700;">
+                        <option value="0">જાન્યુઆરી</option><option value="1">ફેબ્રુઆરી</option>
+                        <option value="2">માર્ચ</option><option value="3">એપ્રિલ</option>
+                        <option value="4">મે</option><option value="5">જૂન</option>
+                        <option value="6">જુલાઈ</option><option value="7">ઓગસ્ટ</option>
+                        <option value="8">સપ્ટેમ્બર</option><option value="9">ઓક્ટોબર</option>
+                        <option value="10">નવેમ્બર</option><option value="11">ડિસેમ્બર</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700; color:#1e293b;">📆 વર્ષ:</label>
+                    <select id="attYearSelect" class="form-control" onchange="renderAttendanceCalendarAndReport()" style="font-weight:700;"></select>
+                </div>
+            </div>
+
+            <!-- કલર ઓળખ (Legend) -->
+            <div style="display:flex; gap:10px; flex-wrap:wrap; font-size:11.5px; font-weight:700; margin-bottom:8px; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0;">
+                <span style="color:#166534;">🟢 ફુલ ડે (આવેલ)</span>
+                <span style="color:#b91c1c;">🔴 ગેરહાજર (ન આવેલ)</span>
+                <span style="color:#b45309;">🟡 હાફ ડે (અડધો દિવસ)</span>
+                <span style="color:#1d4ed8;">🔵 ટાઈમ / મિનિટ મુજબ</span>
+                <span style="color:#64748b;">⚪ ખાલી (બાકી)</span>
+                <span style="margin-left:auto; color:#4f46e5;">* તારીખ પર ક્લિક કરી ટાઈમ સુધારો/ઉમેરો</span>
+            </div>
+
+            <!-- કૅલેન્ડર ગ્રીડ -->
+            <div class="att-weekdays-grid">
+                <div>રવિ</div><div>સોમ</div><div>મંગળ</div><div>બુધ</div><div>ગુરુ</div><div>શુક્ર</div><div>શનિ</div>
+            </div>
+            <div class="att-cal-grid" id="attCalendarGrid"></div>
+
+            <!-- ✏️ પસંદ કરેલ તારીખની હાજરી / સમય એડિટ બોક્સ -->
+            <div style="background:#fffbeb; border:1.5px solid #fcd34d; border-radius:10px; padding:12px; margin-top:14px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                    <b style="font-size:13px; color:#92400e;">✏️ તારીખની હાજરી પૂરો / ટાઈમ સુધારો (1 મિનિટ થી આખો દિવસ):</b>
+                    <span id="attLiveCalcPreview" style="font-size:12px; font-weight:800; color:#047857; background:#dcfce7; padding:3px 10px; border-radius:12px;">-</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1.2fr 0.9fr 0.9fr 1.3fr; gap:6px; align-items:end; margin-bottom:8px;">
+                    <div>
+                        <label style="font-size:11px; font-weight:700;">તારીખ *</label>
+                        <input type="date" id="attEditDate" class="form-control" onchange="onAttDateInputChange()" style="font-size:12px; font-weight:700;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700;">હાજરી પ્રકાર *</label>
+                        <select id="attEditStatus" class="form-control" onchange="onAttStatusDropdownChange()" style="font-size:12px; font-weight:700;">
+                            <option value="full">🟢 ફુલ ડે (આખો દિવસ)</option>
+                            <option value="half">🟡 હાફ ડે (અડધો દિવસ)</option>
+                            <option value="time">🔵 ટાઈમ / મિનિટ મુજબ</option>
+                            <option value="absent">🔴 ગેરહાજર (ન આવેલ)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700;">આવેલ ટાઈમ (In)</label>
+                        <input type="time" id="attEditInTime" class="form-control" value="08:00" oninput="updateLiveAttendancePreview()" style="font-size:12px; font-weight:700;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700;">ગયેલ ટાઈમ (Out)</label>
+                        <input type="time" id="attEditOutTime" class="form-control" value="20:00" oninput="updateLiveAttendancePreview()" style="font-size:12px; font-weight:700;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700;">નોંધ / વિગત</label>
+                        <input type="text" id="attEditNote" class="form-control" placeholder="દા.ત. મોડા આવ્યા / વહેલા ગયા" style="font-size:12px;">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-success" onclick="saveWorkerAttendanceEntry()" style="flex:1; justify-content:center; font-weight:800;">💾 હાજરી સેવ / અપડેટ કરો</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteWorkerAttendanceEntry()" style="padding:8px 14px;">🗑️ આ તારીખ રદ કરો</button>
+                </div>
+            </div>
+
+            <!-- 💰 આ મહિનાનો પગાર અને ઉપાડ સરવૈયું (Salary Summary) -->
+            <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                    <b style="font-size:13.5px; color:#1e1b4b;">💰 પસંદ કરેલ મહિનાનો પગાર & ઉપાડ હિસાબ:</b>
+                    <label style="font-size:11.5px; font-weight:700; color:#475569; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                        <input type="checkbox" id="attIncludeAllUpadToggle" onchange="renderAttendanceCalendarAndReport()"> કુલ બધો ઉપાડ બાદ કરો (નહીંતર ફક્ત આ મહિનાનો ઉપાડ)
+                    </label>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap:8px; text-align:center;">
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:8px; border-radius:8px;">
+                        <span style="font-size:11px; color:#1e40af; font-weight:700; display:block;">ફિક્સ પગાર</span>
+                        <b id="attSumBaseSal" style="font-size:16px; color:#1d4ed8;">₹0</b>
+                    </div>
+                    <div style="background:#f5f3ff; border:1px solid #ddd6fe; padding:8px; border-radius:8px;">
+                        <span style="font-size:11px; color:#5b21b6; font-weight:700; display:block;">કુલ હાજરી & સમય</span>
+                        <b id="attSumDaysTime" style="font-size:13.5px; color:#6d28d9;">0 દિવસ</b>
+                    </div>
+                    <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:8px; border-radius:8px;">
+                        <span style="font-size:11px; color:#065f46; font-weight:700; display:block;">હાજરી મુજબ પગાર</span>
+                        <b id="attSumEarnedSal" style="font-size:16px; color:#047857;">₹0</b>
+                    </div>
+                    <div style="background:#fff7ed; border:1px solid #fed7aa; padding:8px; border-radius:8px;">
+                        <span style="font-size:11px; color:#9a3412; font-weight:700; display:block;">ગેરહાજરી કપાત</span>
+                        <b id="attSumDeducted" style="font-size:16px; color:#c2410c;">₹0</b>
+                    </div>
+                    <div style="background:#fef2f2; border:1px solid #fca5a5; padding:8px; border-radius:8px;">
+                        <span style="font-size:11px; color:#991b1b; font-weight:700; display:block;">લીધેલ ઉપાડ બાદ</span>
+                        <b id="attSumUpad" style="font-size:16px; color:#b91c1c;">₹0</b>
+                    </div>
+                    <div style="background:#dcfce7; border:2px solid #22c55e; padding:8px; border-radius:8px;">
+                        <span style="font-size:11px; color:#14532d; font-weight:800; display:block;">ચોખ્ખો મળવાપાત્ર પગાર</span>
+                        <b id="attSumNetPay" style="font-size:18px; color:#15803d;">₹0</b>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-primary" onclick="printMonthlyAttendanceSalarySlip()" style="flex:1; justify-content:center; padding:10px;">🖨️ હાજરી & પગાર રિપોર્ટ પ્રિન્ટ કરો</button>
+                <button type="button" class="btn" onclick="sendAttendanceSalaryWhatsApp()" style="flex:1; justify-content:center; background:#25D366; color:white; padding:10px; font-weight:800;">📲 WhatsApp પર પગાર-હાજરી મેસેજ મોકલો</button>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 2: બધા કારીગરનો ટાઈમ & હાજરી રિપોર્ટ (Admin) ==================== -->
+        <div id="attAllView" style="display:none;">
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <label style="font-size:12px; font-weight:700;">📅 તારીખ પસંદ કરો (કોણ કેટલા વાગે આવ્યું/ગયું):</label>
+                    <input type="date" id="attAllDateInput" class="form-control" onchange="renderAllWorkersDailyReport()" style="width:auto; font-weight:700;">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="printAllWorkersAttendanceReport()" style="font-size:12px; padding:7px 14px;">🖨️ બધા કારીગર રિપોર્ટ પ્રિન્ટ</button>
+            </div>
+
+            <div style="max-height:220px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:14px;">
+                <table style="width:100%; font-size:12px;">
+                    <thead style="background:#f1f5f9; position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:6px;">#</th>
+                            <th style="padding:6px;">કારીગરનું નામ</th>
+                            <th style="padding:6px;">સ્થિતિ</th>
+                            <th style="padding:6px;">આવેલ ટાઈમ (In)</th>
+                            <th style="padding:6px;">ગયેલ ટાઈમ (Out)</th>
+                            <th style="padding:6px;">કામનો સમય</th>
+                            <th style="padding:6px; text-align:right;">આ દિવસનો પગાર</th>
+                            <th style="padding:6px;">નોંધ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attAllDailyBody">
+                        <tr><td colspan="8" style="text-align:center; padding:12px; color:#94a3b8;">કોઈ ડેટા નથી.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <b style="font-size:13px; color:#4338ca; display:block; margin-bottom:6px;">📊 પસંદ કરેલ મહિનાનો તમામ કારીગરોનો પગાર અને હાજરી સારાંશ:</b>
+            <div style="max-height:220px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+                <table style="width:100%; font-size:12px;">
+                    <thead style="background:#eef2ff; position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:6px;">#</th>
+                            <th style="padding:6px;">કારીગરનું નામ</th>
+                            <th style="padding:6px; text-align:right;">ફિક્સ પગાર</th>
+                            <th style="padding:6px; text-align:center;">હાજર દિવસો / સમય</th>
+                            <th style="padding:6px; text-align:right;">કમાયેલ પગાર</th>
+                            <th style="padding:6px; text-align:right;">ઉપાડ બાદ</th>
+                            <th style="padding:6px; text-align:right;">ચોખ્ખો પગાર</th>
+                            <th style="padding:6px; text-align:center;">ક્રિયા</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attAllMonthSummaryBody">
+                        <tr><td colspan="8" style="text-align:center; padding:12px; color:#94a3b8;">કોઈ ડેટા નથી.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 🚀 Worker Attendance & Shift-Based Salary Realtime Engine -->
+<script>
+    if (typeof firebase !== "undefined" && !firebase.apps.length) {
+        firebase.initializeApp({
+            apiKey: "AIzaSyA6iJtcv5Uegh0PMQmeoMbM3b8S2sTmOko",
+            authDomain: "party-plot-software.firebaseapp.com",
+            databaseURL: "https://party-plot-software-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "party-plot-software",
+            storageBucket: "party-plot-software.firebasestorage.app",
+            messagingSenderId: "136125878805",
+            appId: "1:136125878805:web:390d7d3427e2ce9750f41c"
+        });
+    }
+
+    const workerAttRef = firebase.database().ref("worker_attendance");
+    const workerShiftRef = firebase.database().ref("worker_shift_config");
+
+    var cloudWorkerAttendance = JSON.parse(localStorage.getItem("cached_worker_attendance") || "{}");
+    var cloudShiftConfig = JSON.parse(localStorage.getItem("cached_worker_shift_config") || "null") || {
+        shiftStart: "08:00",
+        shiftEnd: "20:00",
+        lunchStart: "13:00",
+        lunchEnd: "14:00",
+        deductLunch: true
+    };
+
+    // લાઈવ Firebase સિંક
+    workerAttRef.on('value', (snap) => {
+        let val = snap.val();
+        cloudWorkerAttendance = (val && typeof val === "object") ? val : {};
+        localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
+        let modal = document.getElementById("workerAttendanceModal");
+        if (modal && modal.style.display === "flex") {
+            renderAttendanceCalendarAndReport();
+            renderAllWorkersDailyReport();
+        }
+    });
+
+    workerShiftRef.on('value', (snap) => {
+        let val = snap.val();
+        if (val && val.shiftStart && val.shiftEnd) {
+            cloudShiftConfig = val;
+            localStorage.setItem("cached_worker_shift_config", JSON.stringify(cloudShiftConfig));
+            loadShiftSettingsToInputs();
+        }
+    });
+
+    // 🔄 જૂનો બગ ફિક્સ: ફાર્મ બદલતાં તે ફાર્મના વર્કર્સ લોડ કરવા માટેનું ફંક્શન
+    var currentFarmWorkerCallback = null;
+    function listenToFarmWorkers() {
+        if (!currentFarmId) return;
+        if (typeof currentWorkerRef !== "undefined" && currentWorkerRef && currentFarmWorkerCallback) {
+            currentWorkerRef.off('value', currentFarmWorkerCallback);
+        }
+        if (currentFarmId === "ALL") {
+            let merged = {};
+            for (let fId in (cachedAllFarmWorkers || {})) {
+                Object.assign(merged, cachedAllFarmWorkers[fId] || {});
+            }
+            cloudWorkers = merged;
+            if (typeof renderWorkersTable === "function") renderWorkersTable();
+            return;
+        }
+        const activeFId = currentFarmId;
+        try {
+            cloudWorkers = JSON.parse(localStorage.getItem("cached_workers_" + activeFId) || "{}") || {};
+        } catch (e) { cloudWorkers = {}; }
+        if (typeof renderWorkersTable === "function") renderWorkersTable();
+
+        currentWorkerRef = firebase.database().ref("farm_workers").child(activeFId);
+        currentFarmWorkerCallback = (snap) => {
+            if (currentFarmId !== activeFId) return;
+            cloudWorkers = snap.val() || {};
+            if (!cachedAllFarmWorkers) cachedAllFarmWorkers = {};
+            cachedAllFarmWorkers[activeFId] = cloudWorkers;
+            localStorage.setItem("cached_workers_" + activeFId, JSON.stringify(cloudWorkers));
+            localStorage.setItem("cached_all_farm_workers", JSON.stringify(cachedAllFarmWorkers));
+            if (typeof renderWorkersTable === "function") renderWorkersTable();
+            if (typeof updateAccountsOverviewSummary === "function") updateAccountsOverviewSummary();
+        };
+        currentWorkerRef.on('value', currentFarmWorkerCallback);
+    }
+
+    // 🕒 ટાઈમ અને મિનિટ ગણતરીના હેલ્પર ફંક્શન્સ
+    function attTimeToMins(tStr) {
+        if (!tStr || !tStr.includes(":")) return 0;
+        let p = tStr.split(":");
+        return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+    }
+
+    function attFormatMinsToGujarati(mins) {
+        mins = Math.max(0, Math.round(mins || 0));
+        let h = Math.floor(mins / 60);
+        let m = mins % 60;
+        if (h > 0 && m > 0) return `${h} ક. ${m} મિ.`;
+        if (h > 0) return `${h} કલાક`;
+        return `${m} મિનિટ`;
+    }
+
+    function attFormat12Hr(tStr) {
+        if (!tStr || !tStr.includes(":")) return "-";
+        let p = tStr.split(":");
+        let h = parseInt(p[0], 10);
+        let m = p[1];
+        let ampm = h >= 12 ? "PM" : "AM";
+        let h12 = h % 12 || 12;
+        return `${String(h12).padStart(2, '0')}:${m} ${ampm}`;
+    }
+
+    function getShiftNetDurationMins() {
+        let sM = attTimeToMins(cloudShiftConfig.shiftStart || "08:00");
+        let eM = attTimeToMins(cloudShiftConfig.shiftEnd || "20:00");
+        let lS = attTimeToMins(cloudShiftConfig.lunchStart || "13:00");
+        let lE = attTimeToMins(cloudShiftConfig.lunchEnd || "14:00");
+        let span = eM > sM ? (eM - sM) : ((1440 - sM) + eM);
+        let lunchOverlap = (cloudShiftConfig.deductLunch !== false) ? Math.max(0, Math.min(eM, lE) - Math.max(sM, lS)) : 0;
+        return Math.max(1, span - lunchOverlap);
+    }
+
+    function calculateDayAttendanceMetrics(status, inTime, outTime) {
+        let fullNetMins = getShiftNetDurationMins();
+        if (status === "absent") {
+            return { workedMins: 0, ratio: 0 };
+        }
+        if (status === "full") {
+            return { workedMins: fullNetMins, ratio: 1 };
+        }
+        if (status === "half") {
+            return { workedMins: Math.round(fullNetMins / 2), ratio: 0.5 };
+        }
+        // ટાઈમ / મિનિટ મુજબ (1 મિનિટ થી લઈને પૂરો દિવસ / ઓવરટાઈમ)
+        let inM = attTimeToMins(inTime);
+        let outM = attTimeToMins(outTime);
+        if (outM <= inM) {
+            return { workedMins: 0, ratio: 0 };
+        }
+        let lS = attTimeToMins(cloudShiftConfig.lunchStart || "13:00");
+        let lE = attTimeToMins(cloudShiftConfig.lunchEnd || "14:00");
+        let lunchOverlap = (cloudShiftConfig.deductLunch !== false) ? Math.max(0, Math.min(outM, lE) - Math.max(inM, lS)) : 0;
+        let workedMins = Math.max(0, (outM - inM) - lunchOverlap);
+        let ratio = workedMins / fullNetMins;
+        return { workedMins, ratio };
+    }
+
+    function loadShiftSettingsToInputs() {
+        if (document.getElementById("attShiftStart")) document.getElementById("attShiftStart").value = cloudShiftConfig.shiftStart || "08:00";
+        if (document.getElementById("attShiftEnd")) document.getElementById("attShiftEnd").value = cloudShiftConfig.shiftEnd || "20:00";
+        if (document.getElementById("attLunchStart")) document.getElementById("attLunchStart").value = cloudShiftConfig.lunchStart || "13:00";
+        if (document.getElementById("attLunchEnd")) document.getElementById("attLunchEnd").value = cloudShiftConfig.lunchEnd || "14:00";
+        if (document.getElementById("attDeductLunch")) document.getElementById("attDeductLunch").checked = (cloudShiftConfig.deductLunch !== false);
+        updateShiftNetInfoDisplay();
+    }
+
+    function updateShiftNetInfoDisplay() {
+        let sStr = document.getElementById("attShiftStart")?.value || "08:00";
+        let eStr = document.getElementById("attShiftEnd")?.value || "20:00";
+        let lSStr = document.getElementById("attLunchStart")?.value || "13:00";
+        let lEStr = document.getElementById("attLunchEnd")?.value || "14:00";
+        let deduct = document.getElementById("attDeductLunch")?.checked !== false;
+
+        let sM = attTimeToMins(sStr), eM = attTimeToMins(eStr);
+        let lS = attTimeToMins(lSStr), lE = attTimeToMins(lEStr);
+        let span = eM > sM ? (eM - sM) : ((1440 - sM) + eM);
+        let lOver = deduct ? Math.max(0, Math.min(eM, lE) - Math.max(sM, lS)) : 0;
+        let net = Math.max(1, span - lOver);
+
+        let infoEl = document.getElementById("attShiftNetInfo");
+        if (infoEl) infoEl.innerText = `કુલ કામનો સમય (1 પૂરો દિવસ): ${attFormatMinsToGujarati(net)}`;
+    }
+
+    function saveWorkerShiftSettings() {
+        if (currentUserRole !== 'admin' && !canUserEditWorkerProfile) {
+            alert("❌ માત્ર Admin અથવા અધિકૃત સ્ટાફ જ શિફ્ટ ટાઈમ બદલી શકે છે!");
+            return;
+        }
+        cloudShiftConfig = {
+            shiftStart: document.getElementById("attShiftStart").value || "08:00",
+            shiftEnd: document.getElementById("attShiftEnd").value || "20:00",
+            lunchStart: document.getElementById("attLunchStart").value || "13:00",
+            lunchEnd: document.getElementById("attLunchEnd").value || "14:00",
+            deductLunch: document.getElementById("attDeductLunch").checked
+        };
+        localStorage.setItem("cached_worker_shift_config", JSON.stringify(cloudShiftConfig));
+        if (navigator.onLine) {
+            workerShiftRef.set(cloudShiftConfig);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: "worker_shift_config", action: "set", data: cloudShiftConfig });
+        }
+        updateShiftNetInfoDisplay();
+        renderAttendanceCalendarAndReport();
+        alert("✅ શિફ્ટ ટાઈમ અને લંચ ટાઈમ સફળતાપૂર્વક સેવ થઈ ગયા છે!");
+    }
+
+    function canModifyAttendance() {
+        return (currentUserRole === 'admin' || canUserEditWorkerProfile || canUserAddUpad || canUserEdit);
+    }
+
+    function getAttFarmWorkersMap() {
+        let map = {};
+        if (currentFarmId === "ALL") {
+            for (let fId in (cachedAllFarmWorkers || {})) {
+                let fw = cachedAllFarmWorkers[fId] || {};
+                for (let wId in fw) {
+                    if (fw[wId] && fw[wId].name) map[wId] = { ...fw[wId], farmId: fId };
+                }
+            }
+        } else {
+            for (let wId in (cloudWorkers || {})) {
+                if (cloudWorkers[wId] && cloudWorkers[wId].name) map[wId] = { ...cloudWorkers[wId], farmId: currentFarmId };
+            }
+        }
+        return map;
+    }
+
+    function openWorkerAttendanceModal(preselectWorkerId) {
+        if (currentUserRole !== 'admin' && !canUserViewWorkers) {
+            alert("❌ તમારી પાસે વર્કર હાજરી જોવાનો અધિકાર નથી!");
+            return;
+        }
+        loadShiftSettingsToInputs();
+
+        // વર્ષ ડ્રોપડાઉન ભરો
+        let ySel = document.getElementById("attYearSelect");
+        let curY = new Date().getFullYear();
+        ySel.innerHTML = "";
+        for (let y = curY - 2; y <= curY + 5; y++) {
+            ySel.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        let now = new Date();
+        document.getElementById("attMonthSelect").value = now.getMonth();
+        document.getElementById("attYearSelect").value = curY;
+
+        // કારીગર ડ્રોપડાઉન ભરો
+        let wSel = document.getElementById("attWorkerSelect");
+        let workersMap = getAttFarmWorkersMap();
+        wSel.innerHTML = "";
+        let wIds = Object.keys(workersMap);
+        if (wIds.length === 0) {
+            wSel.innerHTML = `<option value="">(પહેલાં નવો વર્કર ઉમેરો)</option>`;
+        } else {
+            wIds.forEach(wId => {
+                let w = workersMap[wId];
+                wSel.innerHTML += `<option value="${wId}">👷‍♂️ ${w.name} (${w.role || 'કારીગર'})</option>`;
+            });
+            if (preselectWorkerId && workersMap[preselectWorkerId]) {
+                wSel.value = preselectWorkerId;
+            }
+        }
+
+        let todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        document.getElementById("attEditDate").value = todayISO;
+        document.getElementById("attAllDateInput").value = todayISO;
+
+        // Admin ઓલ-વર્કર ટેબ
+        let allBtn = document.getElementById("attTabAllBtn");
+        if (allBtn) allBtn.style.display = (currentUserRole === 'admin' || canUserViewWorkers) ? "inline-flex" : "none";
+
+        switchAttendanceTab('single');
+        document.getElementById("workerAttendanceModal").style.display = "flex";
+        onAttDateInputChange();
+        renderAttendanceCalendarAndReport();
+    }
+
+    function closeWorkerAttendanceModal() {
+        document.getElementById("workerAttendanceModal").style.display = "none";
+    }
+
+    function switchAttendanceTab(tab) {
+        let sView = document.getElementById("attSingleView");
+        let aView = document.getElementById("attAllView");
+        let sBtn = document.getElementById("attTabSingleBtn");
+        let aBtn = document.getElementById("attTabAllBtn");
+        if (tab === 'all') {
+            sView.style.display = "none";
+            aView.style.display = "block";
+            sBtn.className = "btn btn-outline";
+            aBtn.className = "btn btn-primary";
+            renderAllWorkersDailyReport();
+        } else {
+            sView.style.display = "block";
+            aView.style.display = "none";
+            sBtn.className = "btn btn-primary";
+            aBtn.className = "btn btn-outline";
+            renderAttendanceCalendarAndReport();
+        }
+    }
+
+    function getWorkerDailyRateForMonth(w, year, monthIndex) {
+        let baseSal = parseFloat(w.salary || 0);
+        if (w.salaryType === "daily" || w.salaryType === "per_event") return baseSal;
+        let daysInM = new Date(year, monthIndex + 1, 0).getDate();
+        return baseSal / daysInM;
+    }
+
+    function getAttMonthData(farmId, ymKey, workerId) {
+        return (cloudWorkerAttendance[farmId] && cloudWorkerAttendance[farmId][ymKey] && cloudWorkerAttendance[farmId][ymKey][workerId]) || {};
+    }
+
+    function onAttStatusDropdownChange() {
+        let st = document.getElementById("attEditStatus").value;
+        let inEl = document.getElementById("attEditInTime");
+        let outEl = document.getElementById("attEditOutTime");
+        if (st === "full") {
+            inEl.value = cloudShiftConfig.shiftStart || "08:00";
+            outEl.value = cloudShiftConfig.shiftEnd || "20:00";
+        } else if (st === "half") {
+            inEl.value = cloudShiftConfig.shiftStart || "08:00";
+            outEl.value = cloudShiftConfig.lunchStart || "13:00";
+        } else if (st === "absent") {
+            inEl.value = "";
+            outEl.value = "";
+        } else if (st === "time") {
+            if (!inEl.value) inEl.value = cloudShiftConfig.shiftStart || "08:00";
+            if (!outEl.value) outEl.value = cloudShiftConfig.shiftEnd || "20:00";
+        }
+        updateLiveAttendancePreview();
+    }
+
+    function updateLiveAttendancePreview() {
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        let st = document.getElementById("attEditStatus").value;
+        let inT = document.getElementById("attEditInTime").value;
+        let outT = document.getElementById("attEditOutTime").value;
+        let dStr = document.getElementById("attEditDate").value;
+
+        let y = parseInt(document.getElementById("attYearSelect").value) || new Date().getFullYear();
+        let m = parseInt(document.getElementById("attMonthSelect").value) || 0;
+        if (dStr && dStr.includes("-")) {
+            let p = dStr.split("-");
+            y = parseInt(p[0], 10);
+            m = parseInt(p[1], 10) - 1;
+        }
+
+        let metrics = calculateDayAttendanceMetrics(st, inT, outT);
+        let dayPay = 0;
+        if (w) {
+            dayPay = metrics.ratio * getWorkerDailyRateForMonth(w, y, m);
+        }
+        let preview = document.getElementById("attLiveCalcPreview");
+        if (preview) {
+            if (st === "absent") {
+                preview.innerText = "🔴 ગેરહાજર | પગાર: ₹0";
+                preview.style.background = "#fee2e2";
+                preview.style.color = "#b91c1c";
+            } else {
+                preview.innerText = `⏱️ ${attFormatMinsToGujarati(metrics.workedMins)} (${(metrics.ratio * 100).toFixed(1)}%) | આ દિવસનો પગાર: ₹${Math.round(dayPay).toLocaleString('en-IN')}`;
+                preview.style.background = "#dcfce7";
+                preview.style.color = "#15803d";
+            }
+        }
+    }
+
+    function selectAttendanceDate(dateISO) {
+        document.getElementById("attEditDate").value = dateISO;
+        onAttDateInputChange();
+        renderAttendanceCalendarAndReport();
+    }
+
+    function onAttDateInputChange() {
+        let dateISO = document.getElementById("attEditDate").value;
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!dateISO || !w) { updateLiveAttendancePreview(); return; }
+
+        let ymKey = dateISO.slice(0, 7);
+        let monthRecs = getAttMonthData(w.farmId, ymKey, wId);
+        let rec = monthRecs[dateISO];
+
+        if (rec) {
+            document.getElementById("attEditStatus").value = rec.status || "full";
+            document.getElementById("attEditInTime").value = rec.inTime || "";
+            document.getElementById("attEditOutTime").value = rec.outTime || "";
+            document.getElementById("attEditNote").value = rec.note || "";
+        } else {
+            document.getElementById("attEditStatus").value = "full";
+            document.getElementById("attEditInTime").value = cloudShiftConfig.shiftStart || "08:00";
+            document.getElementById("attEditOutTime").value = cloudShiftConfig.shiftEnd || "20:00";
+            document.getElementById("attEditNote").value = "";
+        }
+        updateLiveAttendancePreview();
+    }
+
+    function saveWorkerAttendanceEntry() {
+        if (!canModifyAttendance()) {
+            alert("❌ તમારી પાસે હાજરી પૂરવાનો કે સુધારવાનો અધિકાર નથી!");
+            return;
+        }
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w) { alert("કૃપા કરીને કારીગર પસંદ કરો!"); return; }
+
+        let dateISO = document.getElementById("attEditDate").value;
+        let status = document.getElementById("attEditStatus").value;
+        let inTime = document.getElementById("attEditInTime").value;
+        let outTime = document.getElementById("attEditOutTime").value;
+        let note = document.getElementById("attEditNote").value.trim();
+
+        if (!dateISO) { alert("કૃપા કરીને તારીખ પસંદ કરો!"); return; }
+        if (status === "time") {
+            if (!inTime || !outTime) {
+                alert("ટાઈમ મુજબ હાજરી માટે આવેલ ટાઈમ અને ગયેલ ટાઈમ બંને દાખલ કરો!");
+                return;
+            }
+            if (attTimeToMins(outTime) <= attTimeToMins(inTime)) {
+                alert("ગયેલ ટાઈમ (Out Time), આવેલ ટાઈમ (In Time) કરતાં વધારે હોવો જોઈએ!");
+                return;
+            }
+        }
+
+        let metrics = calculateDayAttendanceMetrics(status, inTime, outTime);
+        let ymKey = dateISO.slice(0, 7);
+        let fId = w.farmId || currentFarmId;
+
+        let entry = {
+            date: dateISO,
+            workerId: wId,
+            workerName: w.name,
+            farmId: fId,
+            status: status,
+            inTime: status === "absent" ? "" : (inTime || cloudShiftConfig.shiftStart),
+            outTime: status === "absent" ? "" : (outTime || cloudShiftConfig.shiftEnd),
+            workedMins: metrics.workedMins,
+            ratio: metrics.ratio,
+            note: note,
+            updatedAt: Date.now()
+        };
+
+        if (!cloudWorkerAttendance[fId]) cloudWorkerAttendance[fId] = {};
+        if (!cloudWorkerAttendance[fId][ymKey]) cloudWorkerAttendance[fId][ymKey] = {};
+        if (!cloudWorkerAttendance[fId][ymKey][wId]) cloudWorkerAttendance[fId][ymKey][wId] = {};
+        cloudWorkerAttendance[fId][ymKey][wId][dateISO] = entry;
+
+        localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        let fbPath = `worker_attendance/${fId}/${ymKey}/${wId}/${dateISO}`;
+        if (navigator.onLine) {
+            firebase.database().ref(fbPath).set(entry);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: fbPath, action: "set", data: entry });
+        }
+
+        // કૅલેન્ડર તે જ મહિના પર રાખો
+        let p = dateISO.split("-");
+        document.getElementById("attYearSelect").value = parseInt(p[0], 10);
+        document.getElementById("attMonthSelect").value = parseInt(p[1], 10) - 1;
+
+        renderAttendanceCalendarAndReport();
+        updateLiveAttendancePreview();
+    }
+
+    function deleteWorkerAttendanceEntry() {
+        if (!canModifyAttendance()) {
+            alert("❌ હાજરી રદ કરવાનો અધિકાર નથી!");
+            return;
+        }
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        let dateISO = document.getElementById("attEditDate").value;
+        if (!w || !dateISO) return;
+
+        let ymKey = dateISO.slice(0, 7);
+        let fId = w.farmId || currentFarmId;
+        if (cloudWorkerAttendance[fId]?.[ymKey]?.[wId]?.[dateISO]) {
+            delete cloudWorkerAttendance[fId][ymKey][wId][dateISO];
+            localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
+            let fbPath = `worker_attendance/${fId}/${ymKey}/${wId}/${dateISO}`;
+            if (navigator.onLine) {
+                firebase.database().ref(fbPath).remove();
+            } else if (typeof addToSyncQueue === "function") {
+                addToSyncQueue({ path: fbPath, action: "remove" });
+            }
+            onAttDateInputChange();
+            renderAttendanceCalendarAndReport();
+        }
+    }
+
+    function computeWorkerMonthlySummary(w, wId, year, monthIndex) {
+        let ymKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+        let daysInM = new Date(year, monthIndex + 1, 0).getDate();
+        let dailyRate = getWorkerDailyRateForMonth(w, year, monthIndex);
+        let monthRecs = getAttMonthData(w.farmId || currentFarmId, ymKey, wId);
+
+        let fullDays = 0, halfDays = 0, absentDays = 0, timeDays = 0;
+        let totalRatio = 0, totalMins = 0, earnedSalary = 0;
+        let dayRows = [];
+
+        for (let d = 1; d <= daysInM; d++) {
+            let dateISO = `${ymKey}-${String(d).padStart(2, '0')}`;
+            let rec = monthRecs[dateISO];
+            if (rec) {
+                let r = parseFloat(rec.ratio || 0);
+                let mins = parseFloat(rec.workedMins || 0);
+                let dSal = r * dailyRate;
+                totalRatio += r;
+                totalMins += mins;
+                earnedSalary += dSal;
+                if (rec.status === "full") fullDays++;
+                else if (rec.status === "half") halfDays++;
+                else if (rec.status === "absent") absentDays++;
+                else if (rec.status === "time") timeDays++;
+                dayRows.push({ day: d, dateISO, ...rec, daySalary: dSal });
+            }
+        }
+
+        // ઉપાડની ગણતરી (આ મહિનાનો ઉપાડ અને કુલ ઉપાડ)
+        let monthUpad = 0, totalUpad = 0;
+        (w.upads || []).forEach(u => {
+            let amt = parseFloat(u.amount || 0);
+            totalUpad += amt;
+            let parts = (u.date || "").split("/");
+            if (parts.length === 3 && parseInt(parts[1], 10) - 1 === monthIndex && parseInt(parts[2], 10) === year) {
+                monthUpad += amt;
+            }
+        });
+
+        let useAllUpad = document.getElementById("attIncludeAllUpadToggle")?.checked === true;
+        let appliedUpad = useAllUpad ? totalUpad : monthUpad;
+        let baseSal = parseFloat(w.salary || 0);
+        let absenceDeduction = (w.salaryType === "daily" || w.salaryType === "per_event") ? 0 : Math.max(0, baseSal - earnedSalary);
+        let netPayable = earnedSalary - appliedUpad;
+
+        return {
+            ymKey, daysInM, dailyRate, baseSal, fullDays, halfDays, absentDays, timeDays,
+            totalRatio, totalMins, earnedSalary, absenceDeduction, monthUpad, totalUpad,
+            appliedUpad, netPayable, dayRows, monthRecs
+        };
+    }
+
+    function renderAttendanceCalendarAndReport() {
+        let grid = document.getElementById("attCalendarGrid");
+        if (!grid) return;
+        grid.innerHTML = "";
+
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        let year = parseInt(document.getElementById("attYearSelect").value) || new Date().getFullYear();
+        let month = parseInt(document.getElementById("attMonthSelect").value) || 0;
+
+        let firstDay = new Date(year, month, 1).getDay();
+        let daysInM = new Date(year, month + 1, 0).getDate();
+        let ymKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+        let selectedEditDate = document.getElementById("attEditDate").value;
+
+        for (let i = 0; i < firstDay; i++) {
+            grid.innerHTML += `<div class="att-day-cell att-empty"></div>`;
+        }
+
+        let monthRecs = w ? getAttMonthData(w.farmId || currentFarmId, ymKey, wId) : {};
+        let dailyRate = w ? getWorkerDailyRateForMonth(w, year, month) : 0;
+
+        for (let d = 1; d <= daysInM; d++) {
+            let dateISO = `${ymKey}-${String(d).padStart(2, '0')}`;
+            let rec = monthRecs[dateISO];
+            let cls = "att-day-cell";
+            let badgeText = "ખાલી";
+            let timeText = "";
+
+            if (rec) {
+                if (rec.status === "full") {
+                    cls += " att-full";
+                    badgeText = "🟢 પૂરો";
+                    timeText = `${(rec.inTime || '').slice(0, 5)}-${(rec.outTime || '').slice(0, 5)}`;
+                } else if (rec.status === "absent") {
+                    cls += " att-absent";
+                    badgeText = "🔴 ગેરહા.";
+                    timeText = "₹0";
+                } else if (rec.status === "half") {
+                    cls += " att-half";
+                    badgeText = "🟡 હાફ ડે";
+                    timeText = `₹${Math.round(0.5 * dailyRate)}`;
+                } else if (rec.status === "time") {
+                    cls += " att-time";
+                    badgeText = `🔵 ${attFormatMinsToGujarati(rec.workedMins)}`;
+                    timeText = `${(rec.inTime || '').slice(0, 5)}-${(rec.outTime || '').slice(0, 5)}`;
+                }
+            }
+            if (dateISO === selectedEditDate) cls += " att-selected";
+
+            grid.innerHTML += `
+                <div class="${cls}" onclick="selectAttendanceDate('${dateISO}')">
+                    <span class="att-day-num">${d}</span>
+                    <span class="att-day-badge">${badgeText}</span>
+                    ${timeText ? `<span class="att-day-time">${timeText}</span>` : ''}
+                </div>`;
+        }
+
+        if (!w) {
+            document.getElementById("attSumBaseSal").innerText = "₹0";
+            document.getElementById("attSumDaysTime").innerText = "0 દિવસ";
+            document.getElementById("attSumEarnedSal").innerText = "₹0";
+            document.getElementById("attSumDeducted").innerText = "₹0";
+            document.getElementById("attSumUpad").innerText = "₹0";
+            document.getElementById("attSumNetPay").innerText = "₹0";
+            return;
+        }
+
+        let s = computeWorkerMonthlySummary(w, wId, year, month);
+        document.getElementById("attSumBaseSal").innerText = "₹" + Math.round(s.baseSal).toLocaleString('en-IN');
+        document.getElementById("attSumDaysTime").innerText = `${s.totalRatio.toFixed(2)} દિવસ (${attFormatMinsToGujarati(s.totalMins)})`;
+        document.getElementById("attSumEarnedSal").innerText = "₹" + Math.round(s.earnedSalary).toLocaleString('en-IN');
+        document.getElementById("attSumDeducted").innerText = "₹" + Math.round(s.absenceDeduction).toLocaleString('en-IN');
+        document.getElementById("attSumUpad").innerText = "₹" + Math.round(s.appliedUpad).toLocaleString('en-IN');
+        let netEl = document.getElementById("attSumNetPay");
+        netEl.innerText = "₹" + Math.round(s.netPayable).toLocaleString('en-IN');
+        netEl.style.color = s.netPayable >= 0 ? "#15803d" : "#b91c1c";
+    }
+
+    function renderAllWorkersDailyReport() {
+        let dBody = document.getElementById("attAllDailyBody");
+        let mBody = document.getElementById("attAllMonthSummaryBody");
+        if (!dBody || !mBody) return;
+
+        let dateISO = document.getElementById("attAllDateInput").value;
+        if (!dateISO) return;
+        let p = dateISO.split("-");
+        let year = parseInt(p[0], 10);
+        let monthIndex = parseInt(p[1], 10) - 1;
+        let ymKey = dateISO.slice(0, 7);
+
+        let workersMap = getAttFarmWorkersMap();
+        let wIds = Object.keys(workersMap);
+
+        dBody.innerHTML = "";
+        mBody.innerHTML = "";
+
+        if (wIds.length === 0) {
+            dBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:12px; color:#94a3b8;">કોઈ કારીગર મળ્યા નથી.</td></tr>`;
+            mBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:12px; color:#94a3b8;">કોઈ કારીગર મળ્યા નથી.</td></tr>`;
+            return;
+        }
+
+        wIds.forEach((wId, idx) => {
+            let w = workersMap[wId];
+            let monthRecs = getAttMonthData(w.farmId || currentFarmId, ymKey, wId);
+            let rec = monthRecs[dateISO];
+            let dRate = getWorkerDailyRateForMonth(w, year, monthIndex);
+
+            let stBadge = `<span style="color:#64748b;">⚪ બાકી</span>`;
+            let inStr = "-", outStr = "-", workStr = "-", dPay = 0, noteStr = "-";
+
+            if (rec) {
+                dPay = (parseFloat(rec.ratio || 0) * dRate);
+                inStr = rec.inTime ? attFormat12Hr(rec.inTime) : "-";
+                outStr = rec.outTime ? attFormat12Hr(rec.outTime) : "-";
+                workStr = rec.status === "absent" ? "0 મિનિટ" : attFormatMinsToGujarati(rec.workedMins);
+                noteStr = rec.note || "-";
+                if (rec.status === "full") stBadge = `<span style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-weight:700;">🟢 ફુલ ડે</span>`;
+                else if (rec.status === "half") stBadge = `<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-weight:700;">🟡 હાફ ડે</span>`;
+                else if (rec.status === "time") stBadge = `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-weight:700;">🔵 ટાઈમ મુજબ</span>`;
+                else if (rec.status === "absent") stBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-weight:700;">🔴 ગેરહાજર</span>`;
+            }
+
+            dBody.innerHTML += `<tr>
+                <td style="padding:6px;">${idx + 1}</td>
+                <td style="padding:6px;"><b>${w.name}</b> <small style="color:#64748b;">(${w.role || 'કારીગર'})</small></td>
+                <td style="padding:6px;">${stBadge}</td>
+                <td style="padding:6px; font-weight:700; color:#15803d;">${inStr}</td>
+                <td style="padding:6px; font-weight:700; color:#b91c1c;">${outStr}</td>
+                <td style="padding:6px;">${workStr}</td>
+                <td style="padding:6px; text-align:right; font-weight:700;">₹${Math.round(dPay).toLocaleString('en-IN')}</td>
+                <td style="padding:6px;">${noteStr}</td>
+            </tr>`;
+
+            // માસિક સારાંશ
+            let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+            mBody.innerHTML += `<tr>
+                <td style="padding:6px;">${idx + 1}</td>
+                <td style="padding:6px;"><b>${w.name}</b></td>
+                <td style="padding:6px; text-align:right;">₹${Math.round(s.baseSal).toLocaleString('en-IN')}</td>
+                <td style="padding:6px; text-align:center;"><b>${s.totalRatio.toFixed(2)} દિવસ</b><br><small style="color:#64748b;">(${attFormatMinsToGujarati(s.totalMins)})</small></td>
+                <td style="padding:6px; text-align:right; color:#047857; font-weight:700;">₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}</td>
+                <td style="padding:6px; text-align:right; color:#b91c1c; font-weight:700;">₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}</td>
+                <td style="padding:6px; text-align:right; color:#15803d; font-weight:800; font-size:13px;">₹${Math.round(s.netPayable).toLocaleString('en-IN')}</td>
+                <td style="padding:6px; text-align:center;"><button type="button" class="btn btn-outline" style="padding:2px 7px; font-size:11px;" onclick="document.getElementById('attWorkerSelect').value='${wId}'; document.getElementById('attYearSelect').value='${year}'; document.getElementById('attMonthSelect').value='${monthIndex}'; switchAttendanceTab('single');">📅 વિગત</button></td>
+            </tr>`;
+        });
+    }
+
+    function printMonthlyAttendanceSalarySlip() {
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w) { alert("કારીગર પસંદ કરો!"); return; }
+
+        let year = parseInt(document.getElementById("attYearSelect").value);
+        let monthIndex = parseInt(document.getElementById("attMonthSelect").value);
+        let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+
+        let rowsHTML = "";
+        s.dayRows.forEach(r => {
+            let stText = r.status === 'full' ? 'ફુલ ડે' : (r.status === 'half' ? 'હાફ ડે' : (r.status === 'absent' ? 'ગેરહાજર' : 'ટાઈમ મુજબ'));
+            rowsHTML += `<tr>
+                <td>${formatToDMY(r.dateISO)}</td>
+                <td><b>${stText}</b></td>
+                <td>${r.inTime ? attFormat12Hr(r.inTime) : '-'}</td>
+                <td>${r.outTime ? attFormat12Hr(r.outTime) : '-'}</td>
+                <td>${r.status === 'absent' ? '-' : attFormatMinsToGujarati(r.workedMins)}</td>
+                <td style="text-align:right; font-weight:bold;">₹${Math.round(r.daySalary).toLocaleString('en-IN')}</td>
+                <td>${r.note || '-'}</td>
+            </tr>`;
+        });
+        if (!rowsHTML) rowsHTML = `<tr><td colspan="7" style="text-align:center; color:#64748b;">આ મહિનામાં કોઈ હાજરી નોંધાયેલ નથી.</td></tr>`;
+
+        let win = window.open('', '_blank', 'width=850,height=700');
+        if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
+
+        win.document.write(`
+            <html><head><title>હાજરી & પગાર સ્લિપ - ${w.name}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 22px; color: #1e293b; font-size: 13px; }
+                .box { border: 2px solid #334155; padding: 18px; border-radius: 10px; max-width: 780px; margin: auto; }
+                table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+                th { background: #f1f5f9; }
+            </style></head><body>
+                <div class="box">
+                    <h2 style="margin:0; text-align:center; color:#4f46e5;">${currentFarmName || 'પાર્ટી પ્લોટ મેનેજમેન્ટ'}</h2>
+                    <h4 style="margin:4px 0 12px 0; text-align:center; color:#475569;">કારીગર માસિક હાજરી & પગાર સ્ટેટમેન્ટ (${mNames[monthIndex]} ${year})</h4>
+                    <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role || 'કારીગર'} | <b>મોબાઈલ:</b> ${w.mobile || '-'}</p>
+                    <p><b>શિફ્ટ ટાઈમ:</b> ${attFormat12Hr(cloudShiftConfig.shiftStart)} થી ${attFormat12Hr(cloudShiftConfig.shiftEnd)} (લંચ: ${attFormat12Hr(cloudShiftConfig.lunchStart)} - ${attFormat12Hr(cloudShiftConfig.lunchEnd)})</p>
+                    <table>
+                        <thead><tr><th>તારીખ</th><th>સ્થિતિ</th><th>આવેલ ટાઈમ</th><th>ગયેલ ટાઈમ</th><th>કુલ કામ સમય</th><th style="text-align:right;">દિવસ પગાર</th><th>નોંધ</th></tr></thead>
+                        <tbody>${rowsHTML}</tbody>
+                    </table>
+                    <table style="margin-top:16px;">
+                        <tr><td>ફિક્સ પગાર:</td><td style="text-align:right; font-weight:bold;">₹${Math.round(s.baseSal).toLocaleString('en-IN')}</td></tr>
+                        <tr><td>કુલ હાજર દિવસ / કામ કરેલ સમય:</td><td style="text-align:right; font-weight:bold;">${s.totalRatio.toFixed(2)} દિવસ (${attFormatMinsToGujarati(s.totalMins)})</td></tr>
+                        <tr><td>હાજરી મુજબ કમાયેલ પગાર:</td><td style="text-align:right; font-weight:bold; color:#047857;">₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}</td></tr>
+                        <tr><td>ગેરહાજરી / ઓછા સમયની કપાત:</td><td style="text-align:right; color:#c2410c;">(-) ₹${Math.round(s.absenceDeduction).toLocaleString('en-IN')}</td></tr>
+                        <tr><td>લીધેલ ઉપાડ બાદ (Upad):</td><td style="text-align:right; color:#b91c1c;">(-) ₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}</td></tr>
+                        <tr style="background:#dcfce7; font-size:15px; font-weight:bold;">
+                            <td style="color:#14532d;">ચોખ્ખો ચૂકવવાપાત્ર પગાર (Net Payable):</td>
+                            <td style="text-align:right; color:#15803d;">₹${Math.round(s.netPayable).toLocaleString('en-IN')}</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top:40px; display:flex; justify-content:space-between;">
+                        <div>કારીગર સહી: ____________</div>
+                        <div>માલિક / મેનેજર સહી: ____________</div>
+                    </div>
+                </div>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    }
+
+    function printAllWorkersAttendanceReport() {
+        let dateISO = document.getElementById("attAllDateInput").value;
+        if (!dateISO) return;
+        let p = dateISO.split("-");
+        let year = parseInt(p[0], 10);
+        let monthIndex = parseInt(p[1], 10) - 1;
+        let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let workersMap = getAttFarmWorkersMap();
+        let wIds = Object.keys(workersMap);
+
+        let rowsHTML = "";
+        let totNet = 0;
+        wIds.forEach((wId, idx) => {
+            let w = workersMap[wId];
+            let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+            totNet += s.netPayable;
+            rowsHTML += `<tr>
+                <td>${idx + 1}</td>
+                <td><b>${w.name}</b> (${w.role || 'કારીગર'})</td>
+                <td style="text-align:right;">₹${Math.round(s.baseSal).toLocaleString('en-IN')}</td>
+                <td style="text-align:center;">${s.totalRatio.toFixed(2)} દિવસ (${attFormatMinsToGujarati(s.totalMins)})</td>
+                <td style="text-align:right;">₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}</td>
+                <td style="text-align:right; color:#b91c1c;">₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}</td>
+                <td style="text-align:right; font-weight:bold; color:#15803d;">₹${Math.round(s.netPayable).toLocaleString('en-IN')}</td>
+            </tr>`;
+        });
+
+        let win = window.open('', '_blank', 'width=850,height=650');
+        if (!win) { alert("પોપ-અપ Allow કરો!"); return; }
+        win.document.write(`
+            <html><head><title>બધા કારીગર હાજરી & પગાર રિપોર્ટ</title>
+            <style>body{font-family:Arial,sans-serif;padding:22px;}table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px;}th,td{border:1px solid #cbd5e1;padding:6px;text-align:left;}th{background:#f1f5f9;}</style></head><body>
+            <h2 style="margin:0;text-align:center;color:#4f46e5;">${currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
+            <h4 style="margin:4px 0 12px 0;text-align:center;color:#475569;">તમામ કારીગર માસિક હાજરી & પગાર સારાંશ (${mNames[monthIndex]} ${year})</h4>
+            <table>
+                <thead><tr><th>#</th><th>કારીગર નામ</th><th style="text-align:right;">ફિક્સ પગાર</th><th style="text-align:center;">કુલ હાજરી & સમય</th><th style="text-align:right;">કમાયેલ પગાર</th><th style="text-align:right;">ઉપાડ બાદ</th><th style="text-align:right;">ચોખ્ખો પગાર</th></tr></thead>
+                <tbody>${rowsHTML}</tbody>
+                <tfoot><tr style="font-weight:bold;background:#ecfdf5;"><td colspan="6" style="text-align:right;">કુલ ચૂકવવાપાત્ર પગાર સરવાળો:</td><td style="text-align:right;color:#15803d;">₹${Math.round(totNet).toLocaleString('en-IN')}</td></tr></tfoot>
+            </table>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    }
+
+    function sendAttendanceSalaryWhatsApp() {
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w) { alert("કારીગર પસંદ કરો!"); return; }
+        if (!w.mobile || w.mobile.length < 10) {
+            alert("આ કારીગરનો 10 આંકડાનો સાચો મોબાઈલ નંબર દાખલ કરેલ નથી!");
+            return;
+        }
+
+        let year = parseInt(document.getElementById("attYearSelect").value);
+        let monthIndex = parseInt(document.getElementById("attMonthSelect").value);
+        let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+
+        let cleanMob = w.mobile.replace(/[^0-9]/g, '');
+        if (cleanMob.length === 10) cleanMob = '91' + cleanMob;
+
+        let msg = `*${currentFarmName || 'પાર્ટી પ્લોટ'}*\n` +
+                  `📅 *માસિક હાજરી અને પગાર સ્લિપ (${mNames[monthIndex]} ${year})*\n\n` +
+                  `👷‍♂️ કારીગરનું નામ: *${w.name}*\n` +
+                  `💼 હોદ્દો: ${w.role || 'કારીગર'}\n` +
+                  `⏰ શિફ્ટ ટાઈમ: ${attFormat12Hr(cloudShiftConfig.shiftStart)} થી ${attFormat12Hr(cloudShiftConfig.shiftEnd)}\n` +
+                  `----------------------------------\n` +
+                  `🟢 ફુલ ડે: ${s.fullDays} | 🟡 હાફ ડે: ${s.halfDays} | 🔵 ટાઈમ મુજબ: ${s.timeDays} | 🔴 ગેરહાજર: ${s.absentDays}\n` +
+                  `⏱️ કુલ હાજરી: *${s.totalRatio.toFixed(2)} દિવસ (${attFormatMinsToGujarati(s.totalMins)})*\n` +
+                  `----------------------------------\n` +
+                  `💵 ફિક્સ પગાર: ₹${Math.round(s.baseSal).toLocaleString('en-IN')}\n` +
+                  `📉 ગેરહાજરી કપાત: (-) ₹${Math.round(s.absenceDeduction).toLocaleString('en-IN')}\n` +
+                  `✅ હાજરી મુજબ પગાર: *₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}*\n` +
+                  `🔻 લીધેલ ઉપાડ બાદ: (-) ₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}\n` +
+                  `==================================\n` +
+                  `💰 *આ મહિનાનો ચોખ્ખો મળવાપાત્ર પગાર: ₹${Math.round(s.netPayable).toLocaleString('en-IN')}*\n\n` +
+                  `આભાર!`;
+
+        window.open(`https://wa.me/${cleanMob}?text=${encodeURIComponent(msg)}`);
+    }
+
+    // 👷‍♂️ વર્કર ટેબલની દરેક લાઈનમાં ઓટોમેટિક "📅 હાજરી" બટન ઉમેરવું
+    setInterval(() => {
+        let rows = document.querySelectorAll("#workerTableBody tr");
+        rows.forEach(tr => {
+            let upadBtn = tr.querySelector("button[onclick^='openWorkerUpadModal']");
+            if (upadBtn && !tr.querySelector(".att-row-btn")) {
+                let m = upadBtn.getAttribute("onclick").match(/'([^']+)'/);
+                if (m && m[1]) {
+                    let wId = m[1];
+                    let btn = document.createElement("button");
+                    btn.className = "btn att-row-btn";
+                    btn.style = "padding:3px 8px; font-size:11px; background:#7c3aed; color:white; font-weight:700;";
+                    btn.innerText = "📅 હાજરી";
+                    btn.title = "આ કારીગરની હાજરી & સમય મુજબ પગાર જુઓ/પૂરો";
+                    btn.onclick = () => openWorkerAttendanceModal(wId);
+                    upadBtn.parentNode.insertBefore(btn, upadBtn);
+                }
+            }
+        });
+    }, 800);
+</script>
+<script>
+ // ૧. ઑફલાઇન કતાર (offline_sync_queue) માં રહેલી હાજરી ભૂંસાય નહીં તેની સુરક્ષા
+    function mergePendingOfflineAttendance() {
+        try {
+            let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
+            let changed = false;
+            queue.forEach(item => {
+                if (item && item.path && item.path.indexOf("worker_attendance/") === 0) {
+                    let parts = item.path.split("/");
+                    if (parts.length === 5) {
+                        let fId = parts[1], ymKey = parts[2], wId = parts[3], dISO = parts[4];
+                        if (item.action === "set" && item.data) {
+                            if (!cloudWorkerAttendance[fId]) cloudWorkerAttendance[fId] = {};
+                            if (!cloudWorkerAttendance[fId][ymKey]) cloudWorkerAttendance[fId][ymKey] = {};
+                            if (!cloudWorkerAttendance[fId][ymKey][wId]) cloudWorkerAttendance[fId][ymKey][wId] = {};
+                            cloudWorkerAttendance[fId][ymKey][wId][dISO] = item.data;
+                            changed = true;
+                        } else if (item.action === "remove") {
+                            if (cloudWorkerAttendance[fId]?.[ymKey]?.[wId]?.[dISO]) {
+                                delete cloudWorkerAttendance[fId][ymKey][wId][dISO];
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            });
+            if (changed) {
+                localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
+            }
+        } catch (e) { console.log("Merge Offline Att Error:", e); }
+    }
+
+    workerAttRef.on('value', () => {
+        mergePendingOfflineAttendance();
+        let modal = document.getElementById("workerAttendanceModal");
+        if (modal && modal.style.display === "flex") {
+            renderAttendanceCalendarAndReport();
+            renderAllWorkersDailyReport();
+        }
+    });
+    mergePendingOfflineAttendance();
+
+    // ૨. પરવાનગી સુરક્ષા: ફક્ત વર્કર અધિકાર ધરાવતા સ્ટાફ/Admin જ હાજરી બદલી શકે
+    window.canModifyAttendance = function() {
+        return (currentUserRole === 'admin' || canUserEditWorkerProfile || canUserAddUpad);
+    };
+
+    // ૩. Admin "બધા ફાર્મના કારીગરો જુઓ" મોડમાં હોય ત્યારે પણ દરેક ફાર્મનો કારીગર હાજરીમાં ખૂલે
+    window.getAttFarmWorkersMap = function() {
+        let map = {};
+        let showAll = (currentFarmId === "ALL" || (typeof isShowAllFarmsWorkers !== "undefined" && isShowAllFarmsWorkers && currentUserRole === 'admin'));
+        if (showAll) {
+            for (let fId in (cachedAllFarmWorkers || {})) {
+                let fw = cachedAllFarmWorkers[fId] || {};
+                for (let wId in fw) {
+                    if (fw[wId] && fw[wId].name) map[wId] = { ...fw[wId], farmId: fId };
+                }
+            }
+        } else {
+            for (let wId in (cloudWorkers || {})) {
+                if (cloudWorkers[wId] && cloudWorkers[wId].name) map[wId] = { ...cloudWorkers[wId], farmId: currentFarmId };
+            }
+        }
+        return map;
+    };
+
+    // ૪. હાજરી સેવ કરતાં જ તાત્કાલિક "✅ સેવ થઈ ગયું!" કન્ફર્મેશન દેખાય
+    const _origSaveAttEntry = saveWorkerAttendanceEntry;
+    window.saveWorkerAttendanceEntry = function() {
+        _origSaveAttEntry();
+        let preview = document.getElementById("attLiveCalcPreview");
+        if (preview) {
+            let oldText = preview.innerText;
+            preview.innerText = "✅ હાજરી સફળતાપૂર્વક સેવ થઈ ગઈ!";
+            preview.style.background = "#bbf7d0";
+            preview.style.color = "#14532d";
+            setTimeout(() => { updateLiveAttendancePreview(); }, 1800);
+        }
+    };
+</script>
 
 <!-- Booking Modal -->
 <div class="modal" id="bookingModal">
@@ -7294,6 +8492,30 @@
             }
         }
     };
+    // ઑફલાઇન લોગિન સ્ક્રીન પર સ્ટાફ લિસ્ટ લોડ કરવા
+    if (typeof updateLoginUserDropdown === "function") updateLoginUserDropdown();
+
+    // ઓટો-લોગિન વખતે એક્સ્ટ્રા વસ્તુઓની પરવાનગી પણ સેટ થાય
+    const _origWindowOnload = window.onload;
+    window.onload = function() {
+        if (typeof updateLoginUserDropdown === "function") updateLoginUserDropdown();
+        if (typeof _origWindowOnload === "function") _origWindowOnload();
+        if (currentUserRole && currentUserRole !== "admin" && staffListObj && staffListObj[currentUserRole]) {
+            let s = staffListObj[currentUserRole];
+            canUserEditExtraItems = s.canEditExtraItems !== false;
+            canUserDeleteExtraItems = s.canDeleteExtraItems === true;
+        }
+    };
+
+    // ડેટા ક્લિયર વખતે ALL Farms કૅશ પણ અપડેટ થાય
+    const _origClearAllData = clearAllData;
+    window.clearAllData = function() {
+        _origClearAllData();
+        if (currentFarmId && currentFarmId !== "ALL" && typeof cachedAllFarmBookings !== "undefined") {
+            delete cachedAllFarmBookings[currentFarmId];
+            localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
+        }
+    };
 </script> 
      <!-- ૧. 📖 Modal: દૈનિક રોજમેળ -->
 <div class="modal" id="rojmelModal">
@@ -8393,6 +9615,12 @@
 
     // દર ૧.૨ સેકન્ડે UI રીફ્રેશ પર બટન્સ આપોઆપ જળવાઈ રહેશે
     setInterval(injectNewModuleButtons, 1200);
+      const _origSendDirectDueReminder = sendDirectDueReminder;
+    window.sendDirectDueReminder = function(mobile, name, date, balance, total) {
+        let cleanName = String(name || "").split("\n")[0].trim();
+        let cleanDate = String(date || "").split("\n")[0].trim();
+        _origSendDirectDueReminder(mobile, cleanName, cleanDate, balance, total);
+    };
 
     // 🌐 ૧. સર્વગ્રાહી તારીખ કન્વર્ટર (હંમેશા ૧૦૦% પાકી DD/MM/YYYY ફોર્મેટ જ આપશે)
     function formatToDMY(dateVal) {
@@ -8834,6 +10062,8 @@
             inventory: masterInventory,
             outwardInventory: masterOutward,
             expenseCategories: masterCategories
+            ,workerAttendance: (typeof cloudWorkerAttendance !== "undefined" && Object.keys(cloudWorkerAttendance).length > 0 ? cloudWorkerAttendance : JSON.parse(localStorage.getItem("cached_worker_attendance") || "{}"))
+            ,workerShiftConfig: (typeof cloudShiftConfig !== "undefined" ? cloudShiftConfig : JSON.parse(localStorage.getItem("cached_worker_shift_config") || "{}"))
         };
     }
 
@@ -8912,6 +10142,8 @@
                 workers: cloudWorkers,
                 allFarmWorkers: farmWorkers,
                 outwardInventory: farmOutward
+                ,workerAttendance: (fId === "ALL" ? (typeof cloudWorkerAttendance !== "undefined" ? cloudWorkerAttendance : {}) : { [fId]: ((typeof cloudWorkerAttendance !== "undefined" && cloudWorkerAttendance[fId]) ? cloudWorkerAttendance[fId] : {}) })
+                ,workerShiftConfig: (typeof cloudShiftConfig !== "undefined" ? cloudShiftConfig : {})
             };
 
             let jsonString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(farmPackage, null, 2));
@@ -9059,6 +10291,18 @@
                 if (typeof renderOutwardInventoryTable === "function") renderOutwardInventoryTable();
             }
 
+             if (data.workerAttendance && data.workerAttendance[targetFId]) {
+                if (typeof cloudWorkerAttendance === "undefined") window.cloudWorkerAttendance = {};
+                cloudWorkerAttendance[targetFId] = data.workerAttendance[targetFId];
+                localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
+                if (isOnline) firebase.database().ref("worker_attendance").child(targetFId).set(data.workerAttendance[targetFId]);
+            }
+            if (data.workerShiftConfig && data.workerShiftConfig.shiftStart) {
+                cloudShiftConfig = data.workerShiftConfig;
+                localStorage.setItem("cached_worker_shift_config", JSON.stringify(cloudShiftConfig));
+                if (isOnline) firebase.database().ref("worker_shift_config").set(cloudShiftConfig);
+            }
+
             if (typeof generateCalendar === "function") generateCalendar();
             if (typeof renderWorkersTable === "function") renderWorkersTable();
             if (typeof filterData === "function") filterData();
@@ -9175,6 +10419,17 @@
             localStorage.setItem("cached_expense_categories", JSON.stringify(cats));
             if (isOnline) firebase.database().ref("expense_categories").set(cats);
             if (typeof updateExpenseCategoryDropdowns === "function") updateExpenseCategoryDropdowns();
+        }
+
+          if (data.workerAttendance) {
+            cloudWorkerAttendance = data.workerAttendance;
+            localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
+            if (isOnline) firebase.database().ref("worker_attendance").set(cloudWorkerAttendance);
+        }
+        if (data.workerShiftConfig && data.workerShiftConfig.shiftStart) {
+            cloudShiftConfig = data.workerShiftConfig;
+            localStorage.setItem("cached_worker_shift_config", JSON.stringify(cloudShiftConfig));
+            if (isOnline) firebase.database().ref("worker_shift_config").set(cloudShiftConfig);
         }
 
         if (typeof generateCalendar === "function") generateCalendar();
