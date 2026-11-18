@@ -1695,10 +1695,10 @@
             </div>
         </div>
 
-        <!-- Expense Filter Bar -->
+        <!-- Expense Filter Bar -->   
         <div class="controls-row" style="background:#f1f5f9; padding:12px; border-radius:8px; margin-bottom:15px;">
             <label style="font-size:13px; font-weight:700;">ખર્ચ ફિલ્ટર:</label>
-            <select id="expFilterFarm" class="form-control" style="width:190px;" onchange="renderExpensesTable()">
+            <select id="expFilterFarm" class="form-control" style="width:190px; font-weight:700;" onchange="renderExpensesTable()">
                 <option value="ALL">🏰 બધા ફાર્મ & જનરલ</option>
             </select>
             <select id="expFilterCategory" class="form-control" style="width:160px;" onchange="renderExpensesTable()">
@@ -1711,7 +1711,13 @@
                 <option value="Labour">મજૂરી / લેબર</option>
                 <option value="Other">અન્ય ખર્ચ</option>
             </select>
-            <input type="text" id="expSearchInput" class="form-control" onkeyup="renderExpensesTable()" placeholder="નોંધ, વાહન નંબર કે વિગત શોધો..." style="flex:1; min-width:200px;">
+            <input type="date" id="expFilterStartDate" class="form-control" style="width:140px;" onchange="renderExpensesTable()" title="શરૂઆત તારીખ">
+            <input type="date" id="expFilterEndDate" class="form-control" style="width:140px;" onchange="renderExpensesTable()" title="અંતિમ તારીખ">
+            <input type="text" id="expSearchInput" class="form-control" onkeyup="renderExpensesTable()" placeholder="નોંધ, વાહન નંબર કે વિગત શોધો..." style="flex:1; min-width:170px;">
+            <span id="expFilteredTotalBadge" style="background:#fee2e2; color:#b91c1c; border:1.5px solid #fca5a5; padding:6px 12px; border-radius:8px; font-weight:800; font-size:13px; white-space:nowrap;">કુલ ખર્ચ: ₹0</span>
+            <button type="button" class="btn btn-outline" onclick="resetExpenseFilters()" style="padding:8px 10px; font-size:12px;" title="ફિલ્ટર રીસેટ કરો">🔄</button>
+            <button type="button" class="btn btn-primary" onclick="printFilteredExpensesReport()" style="padding:8px 14px; font-weight:700; white-space:nowrap;">🖨️ ખર્ચ પ્રિન્ટ</button>
+            <button type="button" class="btn btn-success" onclick="exportFilteredExpensesExcel()" style="padding:8px 12px; font-weight:700; white-space:nowrap;">📑 Excel</button>
         </div>
 
         <!-- Expenses Table -->
@@ -2108,32 +2114,51 @@
             }
         }
 
-        // ફાર્મ લિસ્ટ સીધું Firebase માંથી સુરક્ષિત લોડ કરવું
-        function populateExpenseFarmDropdowns() {
-            firebase.database().ref("farms").once('value', (snap) => {
-                let farmsData = snap.val() || {};
-                let sel = document.getElementById("expFarmSelect");
-                let filterSel = document.getElementById("expFilterFarm");
-                let pnlSel = document.getElementById("pnlFarmSelect");
+        // ફાર્મ લિસ્ટ સીધું Firebase માંથી સુરક્ષિત લોડ કરવું     
+        function applyExpenseFarmOptionsToDropdowns(farmsData) {
+            farmsData = farmsData || {};
+            let sel = document.getElementById("expFarmSelect");
+            let filterSel = document.getElementById("expFilterFarm");
+            let pnlSel = document.getElementById("pnlFarmSelect");
 
-                let farmOpts = `<option value="COMPANY_GENERAL">🏢 કંપની જનરલ (બધા ફાર્મનો સામાન્ય ખર્ચ)</option>`;
-                for (let fId in farmsData) {
+            let farmOpts = `<option value="COMPANY_GENERAL">🏢 કંપની જનરલ (બધા ફાર્મનો સામાન્ય ખર્ચ)</option>`;
+            for (let fId in farmsData) {
+                if (farmsData[fId] && farmsData[fId].name) {
                     farmOpts += `<option value="${fId}">🏰 ${farmsData[fId].name}</option>`;
                 }
-                if (sel) sel.innerHTML = farmOpts;
+            }
+            if (sel) sel.innerHTML = farmOpts;
 
-                if (filterSel) {
-                    let cur = filterSel.value;
-                    filterSel.innerHTML = `<option value="ALL">🏰 બધા ફાર્મ & જનરલ</option>` + farmOpts;
-                    filterSel.value = cur || "ALL";
-                }
+            if (filterSel) {
+                let cur = filterSel.value;
+                filterSel.innerHTML = `<option value="ALL">🏰 બધા ફાર્મ & જનરલ</option>` + farmOpts;
+                filterSel.value = (cur && Array.from(filterSel.options).some(o => o.value === cur)) ? cur : "ALL";
+            }
 
-                if (pnlSel) {
-                    let curPnl = pnlSel.value;
-                    pnlSel.innerHTML = `<option value="ALL">🏰 બધા જ ફાર્મનો ભેગો રિપોર્ટ (Consolidated)</option>` + farmOpts;
-                    pnlSel.value = curPnl || "ALL";
+            if (pnlSel) {
+                let curPnl = pnlSel.value;
+                pnlSel.innerHTML = `<option value="ALL">🏰 બધા જ ફાર્મનો ભેગો રિપોર્ટ (Consolidated)</option>` + farmOpts;
+                pnlSel.value = (curPnl && Array.from(pnlSel.options).some(o => o.value === curPnl)) ? curPnl : "ALL";
+            }
+        }
+
+        function populateExpenseFarmDropdowns() {
+            try {
+                let cachedFarms = JSON.parse(localStorage.getItem("cached_farms") || "{}");
+                if (Object.keys(cachedFarms).length > 0) {
+                    applyExpenseFarmOptionsToDropdowns(cachedFarms);
                 }
-            });
+            } catch (e) {}
+
+            if (navigator.onLine) {
+                firebase.database().ref("farms").once('value', (snap) => {
+                    let farmsData = snap.val() || {};
+                    if (Object.keys(farmsData).length > 0) {
+                        localStorage.setItem("cached_farms", JSON.stringify(farmsData));
+                        applyExpenseFarmOptionsToDropdowns(farmsData);
+                    }
+                });
+            }
         }
 
         function saveExpense() {
@@ -2226,25 +2251,64 @@
             }
         }
 
+        function getExpenseRawISO(e) {
+            if (e && e.rawDate && e.rawDate.includes("-")) return e.rawDate;
+            if (e && e.date && e.date.includes("/")) {
+                let p = e.date.split("/");
+                if (p.length === 3) return `${p[2]}-${String(p[1]).padStart(2, '0')}-${String(p[0]).padStart(2, '0')}`;
+            }
+            return "";
+        }
+
+        function getFilteredExpensesList() {
+            let farmFilter = document.getElementById("expFilterFarm") ? document.getElementById("expFilterFarm").value : "ALL";
+            let catFilter = document.getElementById("expFilterCategory") ? document.getElementById("expFilterCategory").value : "ALL";
+            let sDate = document.getElementById("expFilterStartDate") ? document.getElementById("expFilterStartDate").value : "";
+            let eDate = document.getElementById("expFilterEndDate") ? document.getElementById("expFilterEndDate").value : "";
+            let search = document.getElementById("expSearchInput") ? document.getElementById("expSearchInput").value.toLowerCase().trim() : "";
+
+            let list = Object.values(cloudExpenses || {});
+            list.sort((a, b) => (getExpenseRawISO(b)).localeCompare(getExpenseRawISO(a)) || (b.timestamp || 0) - (a.timestamp || 0));
+
+            return list.filter(e => {
+                if (!e || typeof e !== 'object') return false;
+                if (farmFilter !== "ALL" && e.farmId !== farmFilter) return false;
+                if (catFilter !== "ALL" && e.category !== catFilter) return false;
+
+                let rDate = getExpenseRawISO(e);
+                if (sDate && rDate && rDate < sDate) return false;
+                if (eDate && rDate && rDate > eDate) return false;
+
+                if (search) {
+                    let hay = `${e.note || ''} ${e.refNumber || ''} ${e.category || ''} ${e.farmName || ''} ${e.date || ''}`.toLowerCase();
+                    if (!hay.includes(search)) return false;
+                }
+                return true;
+            });
+        }
+
+        function resetExpenseFilters() {
+            if (document.getElementById("expFilterFarm")) document.getElementById("expFilterFarm").value = "ALL";
+            if (document.getElementById("expFilterCategory")) document.getElementById("expFilterCategory").value = "ALL";
+            if (document.getElementById("expFilterStartDate")) document.getElementById("expFilterStartDate").value = "";
+            if (document.getElementById("expFilterEndDate")) document.getElementById("expFilterEndDate").value = "";
+            if (document.getElementById("expSearchInput")) document.getElementById("expSearchInput").value = "";
+            renderExpensesTable();
+        }
+
         function renderExpensesTable() {
             let tbody = document.getElementById("expenseTableBody");
             if (!tbody) return;
             tbody.innerHTML = "";
 
-            let farmFilter = document.getElementById("expFilterFarm") ? document.getElementById("expFilterFarm").value : "ALL";
-            let catFilter = document.getElementById("expFilterCategory") ? document.getElementById("expFilterCategory").value : "ALL";
-            let search = document.getElementById("expSearchInput") ? document.getElementById("expSearchInput").value.toLowerCase().trim() : "";
-
+            let filtered = getFilteredExpensesList();
             let count = 0;
-            let list = Object.values(cloudExpenses);
-            list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            let filteredTotal = 0;
 
-            list.forEach(e => {
-                if (farmFilter !== "ALL" && e.farmId !== farmFilter) return;
-                if (catFilter !== "ALL" && e.category !== catFilter) return;
-                if (search && !(e.note || "").toLowerCase().includes(search) && !(e.refNumber || "").toLowerCase().includes(search) && !(e.category || "").toLowerCase().includes(search)) return;
-
+            filtered.forEach(e => {
                 count++;
+                let amt = parseFloat(e.amount || 0);
+                filteredTotal += amt;
                 let modeText = e.mode === 'cheque' ? `🏦 ચેક (${e.refNumber || ''})` : (e.mode === 'gpay' ? `📱 GPay (${e.refNumber || ''})` : '💵 રોકડ');
 
                 let row = `<tr>
@@ -2253,11 +2317,11 @@
                     <td><b>${e.farmName || 'કંપની જનરલ'}</b></td>
                     <td><span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:12px; font-weight:700; font-size:11px;">${e.category}</span></td>
                     <td>${modeText}</td>
-                    <td style="color:#dc2626; font-weight:800; font-size:14px;">₹${parseFloat(e.amount || 0).toLocaleString('en-IN')}</td>
+                    <td style="color:#dc2626; font-weight:800; font-size:14px;">₹${amt.toLocaleString('en-IN')}</td>
                     <td>${e.note || '-'}</td>
                     <td style="white-space:nowrap;">
                         <button class="btn btn-outline" style="padding:2px 7px; font-size:11px;" onclick="editExpense('${e.id}')">✏️</button>
-                        <button class="btn btn-danger" style="padding:2px 7px; font-size:11px;" onclick="deleteExpense('${e.id}', '${e.note || e.category}')">🗑️</button>
+                        <button class="btn btn-danger" style="padding:2px 7px; font-size:11px;" onclick="deleteExpense('${e.id}', '${(e.note || e.category || '').replace(/'/g, "\\'")}')">🗑️</button>
                     </td>
                 </tr>`;
                 tbody.innerHTML += row;
@@ -2266,6 +2330,165 @@
             if (count === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:16px; color:#94a3b8;">કોઈ ખર્ચ મળ્યો નથી.</td></tr>`;
             }
+
+            let badge = document.getElementById("expFilteredTotalBadge");
+            if (badge) {
+                badge.innerText = `કુલ ખર્ચ (${count}): ₹${filteredTotal.toLocaleString('en-IN')}`;
+            }
+        }
+
+        function printFilteredExpensesReport() {
+            if (currentUserRole !== 'admin' && !hasStep4Perm('Expense', 'view')) {
+                alert("❌ તમારી પાસે ખર્ચ રિપોર્ટ પ્રિન્ટ કરવાનો અધિકાર નથી!");
+                return;
+            }
+            let filtered = getFilteredExpensesList();
+            if (filtered.length === 0) {
+                alert("પસંદ કરેલ ફિલ્ટરમાં પ્રિન્ટ કરવા માટે કોઈ ખર્ચ મળ્યો નથી!");
+                return;
+            }
+
+            let farmSel = document.getElementById("expFilterFarm");
+            let farmVal = farmSel ? farmSel.value : "ALL";
+            let farmTitle = (farmSel && farmSel.selectedIndex >= 0) ? farmSel.options[farmSel.selectedIndex].text : "🏰 બધા ફાર્મ & જનરલ";
+
+            let catSel = document.getElementById("expFilterCategory");
+            let catTitle = (catSel && catSel.selectedIndex >= 0) ? catSel.options[catSel.selectedIndex].text : "બધી કેટેગરી";
+
+            let sDate = document.getElementById("expFilterStartDate") ? document.getElementById("expFilterStartDate").value : "";
+            let eDate = document.getElementById("expFilterEndDate") ? document.getElementById("expFilterEndDate").value : "";
+            let search = document.getElementById("expSearchInput") ? document.getElementById("expSearchInput").value.trim() : "";
+
+            let fmtDate = (d) => (!d ? "" : (typeof formatToDMY === "function" ? formatToDMY(d) : d));
+            let dateRangeStr = (sDate || eDate) ? `${sDate ? fmtDate(sDate) : 'શરૂઆત'} થી ${eDate ? fmtDate(eDate) : 'આજ સુધી'}` : "બધી તારીખો";
+
+            let totalSum = 0;
+            let farmSummaryMap = {};
+            let rowsHTML = "";
+
+            filtered.forEach((e, idx) => {
+                let amt = parseFloat(e.amount || 0);
+                totalSum += amt;
+                let fLabel = e.farmName || "કંપની જનરલ";
+                farmSummaryMap[fLabel] = (farmSummaryMap[fLabel] || 0) + amt;
+
+                let modeText = e.mode === 'cheque' ? `ચેક (${e.refNumber || '-'})` : (e.mode === 'gpay' ? `GPay (${e.refNumber || '-'})` : 'રોકડ');
+                rowsHTML += `<tr>
+                    <td style="text-align:center;">${idx + 1}</td>
+                    <td style="white-space:nowrap;"><b>${e.date}</b> ${e.time ? '<br><small style="color:#64748b;">' + e.time + '</small>' : ''}</td>
+                    <td><b>${fLabel}</b></td>
+                    <td>${e.category || '-'}</td>
+                    <td>${modeText}</td>
+                    <td>${e.note || '-'}</td>
+                    <td style="text-align:right; font-weight:bold; color:#b91c1c;">₹${amt.toLocaleString('en-IN')}</td>
+                </tr>`;
+            });
+
+            // જો બધા ફાર્મ સિલેક્ટ હોય અને ૧ થી વધુ ફાર્મના ખર્ચ હોય તો ફાર્મ મુજબ સારાંશ બતાવવો
+            let farmSummaryHTML = "";
+            let farmKeys = Object.keys(farmSummaryMap);
+            if (farmVal === "ALL" && farmKeys.length > 1) {
+                let sRows = farmKeys.map(k => `<tr><td>${k}</td><td style="text-align:right; font-weight:bold; color:#b91c1c;">₹${farmSummaryMap[k].toLocaleString('en-IN')}</td></tr>`).join("");
+                farmSummaryHTML = `
+                <div style="margin-top:14px; background:#fff7ed; border:1px solid #fdba74; border-radius:6px; padding:10px;">
+                    <b style="color:#9a3412; font-size:12.5px;">🏰 ફાર્મ મુજબ ખર્ચ સારાંશ (Farm-wise Summary):</b>
+                    <table style="margin-top:6px;">
+                        <thead><tr><th>ફાર્મ / બ્રાન્ચ</th><th style="text-align:right;">કુલ ખર્ચ (₹)</th></tr></thead>
+                        <tbody>${sRows}</tbody>
+                    </table>
+                </div>`;
+            }
+
+            let win = window.open('', '_blank', 'width=880,height=680');
+            if (!win) { alert("કૃપા કરીને બ્રાઉઝરમાં પોપ-અપ (Pop-up) Allow કરો!"); return; }
+
+            win.document.write(`
+                <html>
+                <head>
+                    <title>ખર્ચ રિપોર્ટ - ${farmTitle}</title>
+                    <style>
+                        body { font-family: 'Noto Sans Gujarati', Arial, sans-serif; padding: 22px; color: #1e293b; font-size: 12.5px; }
+                        .header { text-align: center; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-bottom: 12px; }
+                        .meta { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+                        th { background: #f1f5f9; font-weight: 700; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2 style="margin:0; color:#dc2626;">💸 કંપની ખર્ચ ખાતાવહી રિપોર્ટ (Expense Report)</h2>
+                        <h4 style="margin:4px 0 0 0; color:#4338ca;">${farmTitle}</h4>
+                    </div>
+                    <div class="meta">
+                        <span><b>ફાર્મ ફિલ્ટર:</b> ${farmTitle}</span>
+                        <span><b>કેટેગરી:</b> ${catTitle}</span>
+                        <span><b>તારીખ:</b> ${dateRangeStr}</span>
+                        ${search ? `<span><b>સર્ચ:</b> "${search}"</span>` : ''}
+                        <span><b>કુલ એન્ટ્રી:</b> ${filtered.length}</span>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:35px; text-align:center;">#</th>
+                                <th>તારીખ & સમય</th>
+                                <th>ફાર્મ / બ્રાન્ચ</th>
+                                <th>કેટેગરી</th>
+                                <th>પેમેન્ટ મોડ</th>
+                                <th>નોંધ / વિગત</th>
+                                <th style="text-align:right;">રકમ (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHTML}</tbody>
+                        <tfoot>
+                            <tr style="background:#fef2f2; font-weight:bold; font-size:14px;">
+                                <td colspan="6" style="text-align:right; color:#991b1b;">કુલ ફિલ્ટર ખર્ચ સરવાળો (Total Expense):</td>
+                                <td style="text-align:right; color:#b91c1c;">₹${totalSum.toLocaleString('en-IN')}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    ${farmSummaryHTML}
+
+                    <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:12px;">
+                        <div>તૈયાર કરનાર સહી: ____________</div>
+                        <div>CEO / માલિક સહી: ____________</div>
+                    </div>
+                </body>
+                </html>
+            `);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+
+        function exportFilteredExpensesExcel() {
+            if (currentUserRole !== 'admin' && !hasStep4Perm('Expense', 'view')) {
+                alert("❌ તમારી પાસે ખર્ચ Excel એક્સપોર્ટ કરવાનો અધિકાર નથી!");
+                return;
+            }
+            let filtered = getFilteredExpensesList();
+            if (filtered.length === 0) {
+                alert("એક્સપોર્ટ કરવા માટે કોઈ ખર્ચ મળ્યો નથી!");
+                return;
+            }
+            let farmSel = document.getElementById("expFilterFarm");
+            let farmTitle = (farmSel && farmSel.selectedIndex >= 0) ? farmSel.options[farmSel.selectedIndex].text.replace(/[🏰🏢]\s*/g, '').trim() : "All_Farms";
+
+            let csv = "\uFEFF# ,તારીખ,સમય,ફાર્મ / બ્રાન્ચ,કેટેગરી,પેમેન્ટ મોડ,રેફરન્સ નંબર,નોંધ / વિગત,રકમ (₹)\n";
+            filtered.forEach((e, idx) => {
+                let mText = e.mode === 'cheque' ? 'ચેક' : (e.mode === 'gpay' ? 'GPay/UPI' : 'રોકડ');
+                csv += `"${idx + 1}","${e.date || '-'}","${e.time || '-'}","${(e.farmName || 'કંપની જનરલ').replace(/"/g, '""')}","${(e.category || '-').replace(/"/g, '""')}","${mText}","${(e.refNumber || '-').replace(/"/g, '""')}","${(e.note || '-').replace(/"/g, '""')}","${parseFloat(e.amount || 0)}"\n`;
+            });
+
+            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `ખર્ચ_રિપોર્ટ_${farmTitle.replace(/[^a-zA-Z0-9_\u0A80-\u0AFF]/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         // Capital & Bank Management Functions
