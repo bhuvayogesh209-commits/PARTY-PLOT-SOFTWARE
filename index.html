@@ -199,6 +199,18 @@
         .att-day-cell.att-has-night { box-shadow: inset 0 -3px 0 #7e22ce; border-bottom-color: #7e22ce; }
         .att-night-pill { background: #6b21a8; color: #ffffff; font-size: 8.5px; font-weight: 800; padding: 1px 4px; border-radius: 4px; margin-top: 2px; line-height: 1.15; display: inline-block; }
         .att-day-num { font-size: 13px; font-weight: 800; }
+        .att-cal-chk { width: 15px; height: 15px; cursor: pointer; accent-color: #16a34a; margin: 1px 0; }
+        .att-chk-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+        .att-chk-card { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #fff; cursor: pointer; font-size: 12.5px; font-weight: 800; transition: 0.15s; user-select: none; }
+        .att-chk-card input[type="checkbox"] { width: 17px; height: 17px; cursor: pointer; }
+        .att-chk-card.active-full { background: #dcfce7; border-color: #22c55e; color: #14532d; }
+        .att-chk-card.active-half { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+        .att-chk-card.active-absent { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+        .att-chk-card.active-night { background: #f3e8ff; border-color: #9333ea; color: #581c87; }
+        @media (max-width: 768px) {
+            .att-chk-grid { grid-template-columns: 1fr 1fr; }
+            .att-cal-chk { width: 13px; height: 13px; }
+        }
         .att-day-time { font-size: 9.5px; font-weight: 700; margin-top: 2px; line-height: 1.15; }
         .att-day-badge { font-size: 9px; font-weight: 800; margin-top: 2px; }
         @media (max-width: 768px) {
@@ -3194,8 +3206,16 @@
             <button type="button" id="attTabNightBtn" class="btn btn-outline" onclick="switchAttendanceTab('night')" style="flex:1; justify-content:center; font-weight:700; border-color:#9333ea; color:#6b21a8;">🌙 નાઇટ / ઓવરટાઇમ</button>
         </div>
 
-        <!-- ⏰ શિફ્ટ ટાઈમ અને લંચ ટાઈમ સેટિંગ્સ (કસ્ટમાઇઝ કરી શકાય) -->
-        <div style="background:#f5f3ff; border:1.5px solid #ddd6fe; border-radius:10px; padding:10px; margin-bottom:12px;">
+         <!-- ⏱️ ટાઈમ વિકલ્પ Show / Hide બાર (Default Hide રહેશે) -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:#f5f3ff; border:1.5px solid #ddd6fe; border-radius:8px; padding:7px 12px; margin-bottom:10px;">
+            <span style="font-size:12px; font-weight:700; color:#5b21b6;">☑️ હાજરી મોડ: <b id="attCurrentModeBadge" style="color:#15803d;">ચેકબોક્સ મોડ (ટાઈમ વગર)</b></span>
+            <button type="button" id="btnToggleAttTimeSection" class="btn btn-outline" onclick="toggleAttTimeModeSection()" style="padding:4px 10px; font-size:11.5px; font-weight:700; background:#fff; color:#4f46e5; border-color:#a5b4fc;">
+                ⏱️ ટાઈમ વાળું બતાવો (Show Time)
+            </button>
+        </div>
+
+        <!-- ⏰ શિફ્ટ ટાઈમ અને લંચ ટાઈમ સેટિંગ્સ (Default Hidden) -->
+        <div id="attShiftSettingsBox" style="display:none; background:#f5f3ff; border:1.5px solid #ddd6fe; border-radius:10px; padding:10px; margin-bottom:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
                 <b style="font-size:12.5px; color:#5b21b6;">⏰ શિફ્ટ ટાઈમ & લંચ ટાઈમ સેટિંગ (ફેરફાર કરીને સેવ કરી શકો છો):</b>
                 <span id="attShiftNetInfo" style="font-size:11.5px; font-weight:700; color:#4338ca; background:#ede9fe; padding:2px 8px; border-radius:12px;">કુલ કામનો સમય: 11 કલાક 0 મિનિટ</span>
@@ -3251,13 +3271,12 @@
 
             <!-- કલર ઓળખ (Legend) -->
             <div style="display:flex; gap:10px; flex-wrap:wrap; font-size:11.5px; font-weight:700; margin-bottom:8px; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0;">
-                <span style="color:#166534;">🟢 ફુલ ડે (આવેલ)</span>
-                <span style="color:#b91c1c;">🔴 ગેરહાજર (ન આવેલ)</span>
-                <span style="color:#b45309;">🟡 હાફ ડે (અડધો દિવસ)</span>
-                <span style="color:#1d4ed8;">🔵 ટાઈમ / મિનિટ મુજબ</span>
-                <span style="color:#64748b;">⚪ ખાલી (બાકી)</span>
+                <span style="color:#166534;">☑️ આખો દિવસ</span>
+                <span style="color:#b45309;">🟡 અડધો દિવસ</span>
+                <span style="color:#b91c1c;">🔴 ગેરહાજર</span>
                 <span style="color:#6b21a8;">🌙 નાઇટ / ઓવરટાઇમ</span>
-                <span style="margin-left:auto; color:#4f46e5;">* તારીખ પર ક્લિક કરી ટાઈમ સુધારો/ઉમેરો</span>
+                <span style="color:#1d4ed8;">🔵 ટાઈમ (જો નાખેલ હોય)</span>
+                <span style="margin-left:auto; color:#4f46e5;">* તારીખના બોક્સમાં ☑️ ટીક કરતા જ આખો દિવસ ગણાશે</span>
             </div>
 
             <!-- કૅલેન્ડર ગ્રીડ -->
@@ -3267,44 +3286,90 @@
             <div class="att-cal-grid" id="attCalendarGrid"></div>
 
             <!-- ✏️ પસંદ કરેલ તારીખની હાજરી / સમય એડિટ બોક્સ -->
+             <!-- ☑️ પસંદ કરેલ તારીખની ચેકબોક્સ હાજરી & નાઇટ બોક્સ -->
             <div style="background:#fffbeb; border:1.5px solid #fcd34d; border-radius:10px; padding:12px; margin-top:14px; margin-bottom:14px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-                    <b style="font-size:13px; color:#92400e;">✏️ તારીખની હાજરી પૂરો / ટાઈમ સુધારો (1 મિનિટ થી આખો દિવસ):</b>
+                    <b style="font-size:13px; color:#92400e;">☑️ પસંદ કરેલ તારીખની ચેકબોક્સ હાજરી (ટીક કરો એટલે તરત સેવ):</b>
                     <span id="attLiveCalcPreview" style="font-size:12px; font-weight:800; color:#047857; background:#dcfce7; padding:3px 10px; border-radius:12px;">-</span>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1.2fr 0.9fr 0.9fr 1.3fr; gap:6px; align-items:end; margin-bottom:8px;">
+                <div style="display:grid; grid-template-columns: 1fr 1.6fr; gap:8px; margin-bottom:10px;">
                     <div>
                         <label style="font-size:11px; font-weight:700;">તારીખ *</label>
                         <input type="date" id="attEditDate" class="form-control" onchange="onAttDateInputChange()" style="font-size:12px; font-weight:700;">
                     </div>
                     <div>
-                        <label style="font-size:11px; font-weight:700;">હાજરી પ્રકાર *</label>
-                        <select id="attEditStatus" class="form-control" onchange="onAttStatusDropdownChange()" style="font-size:12px; font-weight:700;">
-                            <option value="full">🟢 ફુલ ડે (આખો દિવસ)</option>
-                            <option value="half">🟡 હાફ ડે (અડધો દિવસ)</option>
-                            <option value="time">🔵 ટાઈમ / મિનિટ મુજબ</option>
-                            <option value="absent">🔴 ગેરહાજર (ન આવેલ)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size:11px; font-weight:700;">આવેલ ટાઈમ (In)</label>
-                        <input type="time" id="attEditInTime" class="form-control" value="08:00" oninput="updateLiveAttendancePreview()" style="font-size:12px; font-weight:700;">
-                    </div>
-                    <div>
-                        <label style="font-size:11px; font-weight:700;">ગયેલ ટાઈમ (Out)</label>
-                        <input type="time" id="attEditOutTime" class="form-control" value="20:00" oninput="updateLiveAttendancePreview()" style="font-size:12px; font-weight:700;">
-                    </div>
-                    <div>
                         <label style="font-size:11px; font-weight:700;">નોંધ / વિગત</label>
-                        <input type="text" id="attEditNote" class="form-control" placeholder="દા.ત. મોડા આવ્યા / વહેલા ગયા" style="font-size:12px;">
+                        <input type="text" id="attEditNote" class="form-control" placeholder="દા.ત. હાજરી નોંધ / બહાર કામ" style="font-size:12px;">
+                    </div>
+                </div>
+
+                <!-- ૪ મુખ્ય ચેકબોક્સ (આખો દિવસ / અડધો દિવસ / ગેરહાજર / નાઇટ) -->
+                <div class="att-chk-grid">
+                    <label id="attLblFull" class="att-chk-card">
+                        <input type="checkbox" id="attChkFull" onchange="onAttCheckboxToggle('full', this.checked)">
+                        <span>🟢 આખો દિવસ</span>
+                    </label>
+                    <label id="attLblHalf" class="att-chk-card">
+                        <input type="checkbox" id="attChkHalf" onchange="onAttCheckboxToggle('half', this.checked)">
+                        <span>🟡 અડધો દિવસ</span>
+                    </label>
+                    <label id="attLblAbsent" class="att-chk-card">
+                        <input type="checkbox" id="attChkAbsent" onchange="onAttCheckboxToggle('absent', this.checked)">
+                        <span>🔴 ગેરહાજર</span>
+                    </label>
+                    <label id="attLblNight" class="att-chk-card">
+                        <input type="checkbox" id="attChkNight" onchange="onAttQuickNightToggle(this.checked)">
+                        <span>🌙 નાઇટ / OT</span>
+                    </label>
+                </div>
+
+                <!-- 🌙 નાઇટ ચેકબોક્સ ટીક કરો ત્યારે દેખાતો વિકલ્પ -->
+                <div id="attQuickNightOptions" style="display:none; background:#faf5ff; border:1.5px solid #c084fc; border-radius:8px; padding:8px; margin-bottom:10px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:6px; align-items:end;">
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#581c87;">નાઇટ પ્રકાર:</label>
+                            <select id="attQuickNightType" class="form-control" style="font-size:12px; font-weight:700;">
+                                <option value="full">🌙 ફુલ નાઇટ (આખી રાત)</option>
+                                <option value="half">🌗 હાફ નાઇટ (અડધી રાત)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700; color:#15803d;">રૂપિયા (₹) વૈકલ્પિક:</label>
+                            <input type="number" id="attQuickNightAmount" class="form-control" placeholder="ખાલી = પગાર મુજબ" style="font-size:12px; font-weight:700;">
+                        </div>
+                        <button type="button" class="btn" onclick="saveQuickNightFromCalendar()" style="background:#6b21a8; color:white; padding:7px 12px; font-size:12px; font-weight:700;">💾 નાઇટ અપડેટ</button>
+                    </div>
+                </div>
+
+                <!-- ⏱️ ટાઈમ વાળા ખાના (Default Hidden - "Show Time" દબાવો ત્યારે જ દેખાશે) -->
+                <div id="attTimeInputsRow" style="display:none; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px; padding:8px; margin-bottom:10px;">
+                    <b style="font-size:11.5px; color:#1e40af; display:block; margin-bottom:6px;">⏱️ ટાઈમ / મિનિટ મુજબ હાજરી દાખલ કરો:</b>
+                    <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap:6px; align-items:end;">
+                        <div>
+                            <label style="font-size:11px; font-weight:700;">પ્રકાર</label>
+                            <select id="attEditStatus" class="form-control" onchange="onAttStatusDropdownChange()" style="font-size:12px; font-weight:700;">
+                                <option value="time">🔵 ટાઈમ / મિનિટ મુજબ</option>
+                                <option value="full">🟢 ફુલ ડે (ટાઈમ સાથે)</option>
+                                <option value="half">🟡 હાફ ડે (ટાઈમ સાથે)</option>
+                                <option value="absent">🔴 ગેરહાજર</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700;">આવેલ ટાઈમ (In)</label>
+                            <input type="time" id="attEditInTime" class="form-control" value="08:00" oninput="updateLiveAttendancePreview()" style="font-size:12px; font-weight:700;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:700;">ગયેલ ટાઈમ (Out)</label>
+                            <input type="time" id="attEditOutTime" class="form-control" value="20:00" oninput="updateLiveAttendancePreview()" style="font-size:12px; font-weight:700;">
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="saveWorkerAttendanceEntry('time')" style="padding:8px 12px; font-size:12px; font-weight:700;">💾 ટાઈમ સેવ</button>
                     </div>
                 </div>
 
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button type="button" class="btn btn-success" onclick="saveWorkerAttendanceEntry()" style="flex:1; justify-content:center; font-weight:800;">💾 હાજરી સેવ / અપડેટ કરો</button>
-                    <button type="button" class="btn btn-danger" onclick="deleteWorkerAttendanceEntry()" style="padding:8px 14px;">🗑️ આ તારીખ રદ કરો</button>
-                    <button type="button" class="btn" onclick="openNightEntryFromCalendarDate()" style="background:#6b21a8; color:white; padding:8px 14px; font-weight:700;">🌙 આ તારીખની નાઇટ ઉમેરો</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteWorkerAttendanceEntry()" style="flex:1; justify-content:center; padding:8px 14px;">🗑️ આ તારીખની હાજરી રદ કરો</button>
+                    <button type="button" class="btn" onclick="openNightEntryFromCalendarDate()" style="background:#6b21a8; color:white; padding:8px 14px; font-weight:700;">🌙 વિગતવાર નાઇટ ટેબ</button>
                 </div>
             </div>
 
@@ -3351,10 +3416,10 @@
 
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button type="button" class="btn btn-primary" onclick="printMonthlyAttendanceSalarySlip()" style="flex:1; justify-content:center; padding:10px;">🖨️ હાજરી & પગાર રિપોર્ટ પ્રિન્ટ કરો</button>
+                <button type="button" class="btn btn-success" onclick="exportSingleWorkerAttendanceExcel()" style="flex:1; justify-content:center; padding:10px; font-weight:800;">📑 Excel એક્સપોર્ટ</button>
                 <button type="button" class="btn" onclick="sendAttendanceSalaryWhatsApp()" style="flex:1; justify-content:center; background:#25D366; color:white; padding:10px; font-weight:800;">📲 WhatsApp પર પગાર-હાજરી મેસેજ મોકલો</button>
             </div>
-        </div>
-
+           </div>
         <!-- ==================== VIEW 3: નાઇટ / ઓવરટાઇમ મેનેજમેન્ટ ==================== -->
         <div id="attNightView" style="display:none;">
             <!-- નાઇટ એન્ટ્રી ઉમેરવાનું અને સુધારવાનું ફોર્મ -->
@@ -3494,7 +3559,10 @@
                     <label style="font-size:12px; font-weight:700;">📅 તારીખ પસંદ કરો (કોણ કેટલા વાગે આવ્યું/ગયું):</label>
                     <input type="date" id="attAllDateInput" class="form-control" onchange="renderAllWorkersDailyReport()" style="width:auto; font-weight:700;">
                 </div>
-                <button type="button" class="btn btn-primary" onclick="printAllWorkersAttendanceReport()" style="font-size:12px; padding:7px 14px;">🖨️ બધા કારીગર રિપોર્ટ પ્રિન્ટ</button>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-success" onclick="exportAllWorkersAttendanceExcel()" style="font-size:12px; padding:7px 14px; font-weight:700;">📑 બધા કારીગર Excel</button>
+                    <button type="button" class="btn btn-primary" onclick="printAllWorkersAttendanceReport()" style="font-size:12px; padding:7px 14px;">🖨️ બધા કારીગર રિપોર્ટ પ્રિન્ટ</button>
+                </div>
             </div>
 
             <div style="max-height:220px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:14px;">
@@ -3795,13 +3863,39 @@
         document.getElementById("attAllDateInput").value = todayISO;
 
         // Admin ઓલ-વર્કર ટેબ
-        let allBtn = document.getElementById("attTabAllBtn");
+        let allBtn = document.getElementById("attTabAllBtn");    
         if (allBtn) allBtn.style.display = (currentUserRole === 'admin' || canUserViewWorkers) ? "inline-flex" : "none";
 
+        toggleAttTimeModeSection(false);
         switchAttendanceTab('single');
         document.getElementById("workerAttendanceModal").style.display = "flex";
         onAttDateInputChange();
         renderAttendanceCalendarAndReport();
+    }
+
+    var isAttTimeSectionVisible = false;
+
+    function isTimeAttendanceRecord(rec) {
+        if (!rec) return false;
+        if (rec.entryMode === "checkbox") return false;
+        if (rec.entryMode === "time" || rec.status === "time") return true;
+        return false;
+    }
+
+    function toggleAttTimeModeSection(forceShow) {
+        isAttTimeSectionVisible = (typeof forceShow === "boolean") ? forceShow : !isAttTimeSectionVisible;
+        let shiftBox = document.getElementById("attShiftSettingsBox");
+        let timeRow = document.getElementById("attTimeInputsRow");
+        let btn = document.getElementById("btnToggleAttTimeSection");
+        let badge = document.getElementById("attCurrentModeBadge");
+
+        if (shiftBox) shiftBox.style.display = isAttTimeSectionVisible ? "block" : "none";
+        if (timeRow) timeRow.style.display = isAttTimeSectionVisible ? "block" : "none";
+        if (btn) btn.innerText = isAttTimeSectionVisible ? "🙈 ટાઈમ વાળું છુપાવો (Hide Time)" : "⏱️ ટાઈમ વાળું બતાવો (Show Time)";
+        if (badge) {
+            badge.innerText = isAttTimeSectionVisible ? "ટાઈમ & ચેકબોક્સ બંને ચાલુ" : "ચેકબોક્સ મોડ (ટાઈમ વગર)";
+            badge.style.color = isAttTimeSectionVisible ? "#1d4ed8" : "#15803d";
+        }
     }
 
     function closeWorkerAttendanceModal() {
@@ -3839,6 +3933,247 @@
         return (cloudWorkerAttendance[farmId] && cloudWorkerAttendance[farmId][ymKey] && cloudWorkerAttendance[farmId][ymKey][workerId]) || {};
     }
 
+    function saveAttendanceRecordDirect(wId, w, dateISO, status, inTime, outTime, note, entryMode) {
+        let isTime = (entryMode === "time" || status === "time");
+        let metrics = calculateDayAttendanceMetrics(status, inTime, outTime);
+        let ymKey = dateISO.slice(0, 7);
+        let fId = w.farmId || currentFarmId;
+
+        let entry = {
+            date: dateISO,
+            workerId: wId,
+            workerName: w.name,
+            farmId: fId,
+            status: status,
+            entryMode: isTime ? "time" : "checkbox",
+            inTime: (isTime && status !== "absent") ? (inTime || cloudShiftConfig.shiftStart) : "",
+            outTime: (isTime && status !== "absent") ? (outTime || cloudShiftConfig.shiftEnd) : "",
+            workedMins: metrics.workedMins,
+            ratio: metrics.ratio,
+            note: note || "",
+            updatedAt: Date.now()
+        };
+
+        if (!cloudWorkerAttendance[fId]) cloudWorkerAttendance[fId] = {};
+        if (!cloudWorkerAttendance[fId][ymKey]) cloudWorkerAttendance[fId][ymKey] = {};
+        if (!cloudWorkerAttendance[fId][ymKey][wId]) cloudWorkerAttendance[fId][ymKey][wId] = {};
+        cloudWorkerAttendance[fId][ymKey][wId][dateISO] = entry;
+
+        localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        let fbPath = `worker_attendance/${fId}/${ymKey}/${wId}/${dateISO}`;
+        if (navigator.onLine) {
+            firebase.database().ref(fbPath).set(entry);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: fbPath, action: "set", data: entry });
+        }
+        return entry;
+    }
+
+    function deleteAttendanceRecordDirect(wId, w, dateISO) {
+        let ymKey = dateISO.slice(0, 7);
+        let fId = w.farmId || currentFarmId;
+        if (cloudWorkerAttendance[fId]?.[ymKey]?.[wId]?.[dateISO]) {
+            delete cloudWorkerAttendance[fId][ymKey][wId][dateISO];
+            localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
+            if (typeof autoBackupAllData === "function") autoBackupAllData();
+            let fbPath = `worker_attendance/${fId}/${ymKey}/${wId}/${dateISO}`;
+            if (navigator.onLine) {
+                firebase.database().ref(fbPath).remove();
+            } else if (typeof addToSyncQueue === "function") {
+                addToSyncQueue({ path: fbPath, action: "remove" });
+            }
+        }
+    }
+
+    function toggleDayFullCheckbox(dateISO, isChecked) {
+        if (!canModifyAttendance()) {
+            alert("❌ તમારી પાસે હાજરી પૂરવાનો કે સુધારવાનો અધિકાર નથી!");
+            renderAttendanceCalendarAndReport();
+            return;
+        }
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w) { alert("કૃપા કરીને કારીગર પસંદ કરો!"); renderAttendanceCalendarAndReport(); return; }
+
+        document.getElementById("attEditDate").value = dateISO;
+        let note = document.getElementById("attEditNote") ? document.getElementById("attEditNote").value.trim() : "";
+
+        if (isChecked) {
+            saveAttendanceRecordDirect(wId, w, dateISO, "full", "", "", note, "checkbox");
+        } else {
+            deleteAttendanceRecordDirect(wId, w, dateISO);
+        }
+        onAttDateInputChange();
+        renderAttendanceCalendarAndReport();
+    }
+
+    function onAttCheckboxToggle(type, isChecked) {
+        if (!canModifyAttendance()) {
+            alert("❌ તમારી પાસે હાજરી પૂરવાનો કે સુધારવાનો અધિકાર નથી!");
+            onAttDateInputChange();
+            return;
+        }
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        let dateISO = document.getElementById("attEditDate").value;
+        if (!w || !dateISO) { alert("કૃપા કરીને કારીગર અને તારીખ પસંદ કરો!"); onAttDateInputChange(); return; }
+
+        let note = document.getElementById("attEditNote") ? document.getElementById("attEditNote").value.trim() : "";
+
+        if (isChecked) {
+            saveAttendanceRecordDirect(wId, w, dateISO, type, "", "", note, "checkbox");
+        } else {
+            deleteAttendanceRecordDirect(wId, w, dateISO);
+        }
+
+        let p = dateISO.split("-");
+        if (p.length === 3) {
+            document.getElementById("attYearSelect").value = parseInt(p[0], 10);
+            document.getElementById("attMonthSelect").value = parseInt(p[1], 10) - 1;
+        }
+        onAttDateInputChange();
+        renderAttendanceCalendarAndReport();
+    }
+
+    function syncQuickNightCheckboxUI() {
+        let wId = document.getElementById("attWorkerSelect")?.value;
+        let dateISO = document.getElementById("attEditDate")?.value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        let chk = document.getElementById("attChkNight");
+        let lbl = document.getElementById("attLblNight");
+        let optBox = document.getElementById("attQuickNightOptions");
+        if (!chk || !lbl || !optBox) return;
+
+        if (!w || !dateISO) {
+            chk.checked = false;
+            lbl.classList.remove("active-night");
+            optBox.style.display = "none";
+            return;
+        }
+        let ymKey = dateISO.slice(0, 7);
+        let fId = w.farmId || currentFarmId;
+        let monthObj = (typeof cloudWorkerNightOT !== "undefined" && cloudWorkerNightOT[fId]?.[ymKey]?.[wId]) || {};
+        let existing = Object.values(monthObj).filter(e => e && e.date === dateISO);
+
+        if (existing.length > 0) {
+            chk.checked = true;
+            lbl.classList.add("active-night");
+            optBox.style.display = "block";
+            let first = existing[0];
+            if (document.getElementById("attQuickNightType")) document.getElementById("attQuickNightType").value = first.nightType || "full";
+            if (document.getElementById("attQuickNightAmount")) document.getElementById("attQuickNightAmount").value = (first.rateMode === "custom" && first.customAmount > 0) ? first.customAmount : "";
+        } else {
+            chk.checked = false;
+            lbl.classList.remove("active-night");
+            optBox.style.display = "none";
+        }
+    }
+
+    function onAttQuickNightToggle(isChecked) {
+        if (!canModifyAttendance()) {
+            alert("❌ તમારી પાસે નાઇટ એન્ટ્રી કરવાનો અધિકાર નથી!");
+            syncQuickNightCheckboxUI();
+            return;
+        }
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        let dateISO = document.getElementById("attEditDate").value;
+        if (!w || !dateISO) { alert("કૃપા કરીને કારીગર અને તારીખ પસંદ કરો!"); syncQuickNightCheckboxUI(); return; }
+
+        let ymKey = dateISO.slice(0, 7);
+        let fId = w.farmId || currentFarmId;
+
+        if (isChecked) {
+            saveQuickNightFromCalendar(true);
+        } else {
+            let monthObj = (typeof cloudWorkerNightOT !== "undefined" && cloudWorkerNightOT[fId]?.[ymKey]?.[wId]) || {};
+            Object.keys(monthObj).forEach(nId => {
+                if (monthObj[nId] && monthObj[nId].date === dateISO) {
+                    delete cloudWorkerNightOT[fId][ymKey][wId][nId];
+                    let fbPath = `worker_night_overtime/${fId}/${ymKey}/${wId}/${nId}`;
+                    if (navigator.onLine) firebase.database().ref(fbPath).remove();
+                    else if (typeof addToSyncQueue === "function") addToSyncQueue({ path: fbPath, action: "remove" });
+                }
+            });
+            localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
+            if (typeof autoBackupAllData === "function") autoBackupAllData();
+            syncQuickNightCheckboxUI();
+            renderAttendanceCalendarAndReport();
+            if (typeof renderWorkersTable === "function") renderWorkersTable();
+        }
+    }
+
+    function saveQuickNightFromCalendar(isAutoFirstCheck) {
+        if (!canModifyAttendance()) {
+            alert("❌ તમારી પાસે નાઇટ એન્ટ્રી કરવાનો અધિકાર નથી!");
+            return;
+        }
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        let dateISO = document.getElementById("attEditDate").value;
+        if (!w || !dateISO) return;
+
+        let p = dateISO.split("-");
+        let year = parseInt(p[0], 10), monthIndex = parseInt(p[1], 10) - 1;
+        let ymKey = dateISO.slice(0, 7);
+        let fId = w.farmId || currentFarmId;
+
+        let nType = isAutoFirstCheck ? "full" : (document.getElementById("attQuickNightType")?.value || "full");
+        let customRaw = isAutoFirstCheck ? "" : (document.getElementById("attQuickNightAmount")?.value || "");
+        let note = document.getElementById("attEditNote")?.value.trim() || "";
+
+        if (typeof cloudWorkerNightOT === "undefined") window.cloudWorkerNightOT = {};
+        if (!cloudWorkerNightOT[fId]) cloudWorkerNightOT[fId] = {};
+        if (!cloudWorkerNightOT[fId][ymKey]) cloudWorkerNightOT[fId][ymKey] = {};
+        if (!cloudWorkerNightOT[fId][ymKey][wId]) cloudWorkerNightOT[fId][ymKey][wId] = {};
+
+        let existingKey = Object.keys(cloudWorkerNightOT[fId][ymKey][wId]).find(k => cloudWorkerNightOT[fId][ymKey][wId][k]?.date === dateISO);
+        let nId = existingKey || ("night_" + Date.now());
+        let res = (typeof calculateNightMetrics === "function")
+            ? calculateNightMetrics(w, year, monthIndex, nType, "", "", customRaw)
+            : { workedMins: 0, ratio: nType === "half" ? 0.5 : 1, salaryCalcAmount: 0, finalAmount: parseFloat(customRaw) || 0, rateMode: customRaw ? "custom" : "salary" };
+
+        let entry = {
+            id: nId,
+            date: dateISO,
+            workerId: wId,
+            workerName: w.name,
+            farmId: fId,
+            nightType: nType,
+            entryMode: "checkbox",
+            inTime: "",
+            outTime: "",
+            workedMins: res.workedMins,
+            ratio: res.ratio,
+            customAmount: res.rateMode === "custom" ? res.finalAmount : 0,
+            salaryCalcAmount: res.salaryCalcAmount,
+            finalAmount: res.finalAmount,
+            rateMode: res.rateMode,
+            note: note,
+            timestamp: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        cloudWorkerNightOT[fId][ymKey][wId][nId] = entry;
+        localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        let fbPath = `worker_night_overtime/${fId}/${ymKey}/${wId}/${nId}`;
+        if (navigator.onLine) firebase.database().ref(fbPath).set(entry);
+        else if (typeof addToSyncQueue === "function") addToSyncQueue({ path: fbPath, action: "set", data: entry });
+
+        syncQuickNightCheckboxUI();
+        renderAttendanceCalendarAndReport();
+        if (typeof renderWorkersTable === "function") renderWorkersTable();
+    }
+
     function onAttStatusDropdownChange() {
         let st = document.getElementById("attEditStatus").value;
         let inEl = document.getElementById("attEditInTime");
@@ -3863,10 +4198,9 @@
         let wId = document.getElementById("attWorkerSelect").value;
         let workersMap = getAttFarmWorkersMap();
         let w = workersMap[wId];
-        let st = document.getElementById("attEditStatus").value;
-        let inT = document.getElementById("attEditInTime").value;
-        let outT = document.getElementById("attEditOutTime").value;
         let dStr = document.getElementById("attEditDate").value;
+        let preview = document.getElementById("attLiveCalcPreview");
+        if (!preview) return;
 
         let y = parseInt(document.getElementById("attYearSelect").value) || new Date().getFullYear();
         let m = parseInt(document.getElementById("attMonthSelect").value) || 0;
@@ -3876,22 +4210,49 @@
             m = parseInt(p[1], 10) - 1;
         }
 
-        let metrics = calculateDayAttendanceMetrics(st, inT, outT);
-        let dayPay = 0;
-        if (w) {
-            dayPay = metrics.ratio * getWorkerDailyRateForMonth(w, y, m);
-        }
-        let preview = document.getElementById("attLiveCalcPreview");
-        if (preview) {
+        let rec = (w && dStr) ? getAttMonthData(w.farmId || currentFarmId, dStr.slice(0, 7), wId)[dStr] : null;
+        if (isAttTimeSectionVisible) {
+            let st = document.getElementById("attEditStatus").value;
+            let inT = document.getElementById("attEditInTime").value;
+            let outT = document.getElementById("attEditOutTime").value;
+            let metrics = calculateDayAttendanceMetrics(st, inT, outT);
+            let dayPay = w ? (metrics.ratio * getWorkerDailyRateForMonth(w, y, m)) : 0;
             if (st === "absent") {
                 preview.innerText = "🔴 ગેરહાજર | પગાર: ₹0";
                 preview.style.background = "#fee2e2";
                 preview.style.color = "#b91c1c";
             } else {
-                preview.innerText = `⏱️ ${attFormatMinsToGujarati(metrics.workedMins)} (${(metrics.ratio * 100).toFixed(1)}%) | આ દિવસનો પગાર: ₹${Math.round(dayPay).toLocaleString('en-IN')}`;
+                preview.innerText = `⏱️ ${attFormatMinsToGujarati(metrics.workedMins)} | આ દિવસનો પગાર: ₹${Math.round(dayPay).toLocaleString('en-IN')}`;
                 preview.style.background = "#dcfce7";
                 preview.style.color = "#15803d";
             }
+            return;
+        }
+
+        if (!rec) {
+            preview.innerText = "⚪ હાજરી બાકી (ચેકબોક્સ ટીક કરો)";
+            preview.style.background = "#f1f5f9";
+            preview.style.color = "#475569";
+            return;
+        }
+        let dRate = w ? getWorkerDailyRateForMonth(w, y, m) : 0;
+        let dayPay = (parseFloat(rec.ratio || 0) * dRate);
+        if (rec.status === "absent") {
+            preview.innerText = "🔴 ગેરહાજર | પગાર: ₹0";
+            preview.style.background = "#fee2e2";
+            preview.style.color = "#b91c1c";
+        } else if (isTimeAttendanceRecord(rec)) {
+            preview.innerText = `🔵 ${attFormat12Hr(rec.inTime)} - ${attFormat12Hr(rec.outTime)} (${attFormatMinsToGujarati(rec.workedMins)}) | ₹${Math.round(dayPay).toLocaleString('en-IN')}`;
+            preview.style.background = "#dbeafe";
+            preview.style.color = "#1e40af";
+        } else if (rec.status === "half") {
+            preview.innerText = `☑️ 🟡 અડધો દિવસ | પગાર: ₹${Math.round(dayPay).toLocaleString('en-IN')}`;
+            preview.style.background = "#fef3c7";
+            preview.style.color = "#92400e";
+        } else {
+            preview.innerText = `☑️ 🟢 આખો દિવસ | પગાર: ₹${Math.round(dayPay).toLocaleString('en-IN')}`;
+            preview.style.background = "#dcfce7";
+            preview.style.color = "#15803d";
         }
     }
 
@@ -3906,27 +4267,47 @@
         let wId = document.getElementById("attWorkerSelect").value;
         let workersMap = getAttFarmWorkersMap();
         let w = workersMap[wId];
-        if (!dateISO || !w) { updateLiveAttendancePreview(); return; }
+
+        let chkFull = document.getElementById("attChkFull");
+        let chkHalf = document.getElementById("attChkHalf");
+        let chkAbs = document.getElementById("attChkAbsent");
+        let lblFull = document.getElementById("attLblFull");
+        let lblHalf = document.getElementById("attLblHalf");
+        let lblAbs = document.getElementById("attLblAbsent");
+
+        if (chkFull) chkFull.checked = false;
+        if (chkHalf) chkHalf.checked = false;
+        if (chkAbs) chkAbs.checked = false;
+        if (lblFull) lblFull.classList.remove("active-full");
+        if (lblHalf) lblHalf.classList.remove("active-half");
+        if (lblAbs) lblAbs.classList.remove("active-absent");
+
+        if (!dateISO || !w) { syncQuickNightCheckboxUI(); updateLiveAttendancePreview(); return; }
 
         let ymKey = dateISO.slice(0, 7);
-        let monthRecs = getAttMonthData(w.farmId, ymKey, wId);
+        let monthRecs = getAttMonthData(w.farmId || currentFarmId, ymKey, wId);
         let rec = monthRecs[dateISO];
 
         if (rec) {
-            document.getElementById("attEditStatus").value = rec.status || "full";
-            document.getElementById("attEditInTime").value = rec.inTime || "";
-            document.getElementById("attEditOutTime").value = rec.outTime || "";
+            if (rec.status === "full" && chkFull) { chkFull.checked = true; lblFull?.classList.add("active-full"); }
+            else if (rec.status === "half" && chkHalf) { chkHalf.checked = true; lblHalf?.classList.add("active-half"); }
+            else if (rec.status === "absent" && chkAbs) { chkAbs.checked = true; lblAbs?.classList.add("active-absent"); }
+
+            document.getElementById("attEditStatus").value = rec.status || "time";
+            document.getElementById("attEditInTime").value = rec.inTime || (isTimeAttendanceRecord(rec) ? (cloudShiftConfig.shiftStart || "08:00") : "");
+            document.getElementById("attEditOutTime").value = rec.outTime || (isTimeAttendanceRecord(rec) ? (cloudShiftConfig.shiftEnd || "20:00") : "");
             document.getElementById("attEditNote").value = rec.note || "";
         } else {
-            document.getElementById("attEditStatus").value = "full";
+            document.getElementById("attEditStatus").value = "time";
             document.getElementById("attEditInTime").value = cloudShiftConfig.shiftStart || "08:00";
             document.getElementById("attEditOutTime").value = cloudShiftConfig.shiftEnd || "20:00";
             document.getElementById("attEditNote").value = "";
         }
+        syncQuickNightCheckboxUI();
         updateLiveAttendancePreview();
     }
 
-    function saveWorkerAttendanceEntry() {
+    function saveWorkerAttendanceEntry(forceMode) {
         if (!canModifyAttendance()) {
             alert("❌ તમારી પાસે હાજરી પૂરવાનો કે સુધારવાનો અધિકાર નથી!");
             return;
@@ -3941,9 +4322,10 @@
         let inTime = document.getElementById("attEditInTime").value;
         let outTime = document.getElementById("attEditOutTime").value;
         let note = document.getElementById("attEditNote").value.trim();
+        let entryMode = (forceMode === "time" || status === "time") ? "time" : "checkbox";
 
         if (!dateISO) { alert("કૃપા કરીને તારીખ પસંદ કરો!"); return; }
-        if (status === "time") {
+        if (entryMode === "time" && status !== "absent") {
             if (!inTime || !outTime) {
                 alert("ટાઈમ મુજબ હાજરી માટે આવેલ ટાઈમ અને ગયેલ ટાઈમ બંને દાખલ કરો!");
                 return;
@@ -3954,44 +4336,13 @@
             }
         }
 
-        let metrics = calculateDayAttendanceMetrics(status, inTime, outTime);
-        let ymKey = dateISO.slice(0, 7);
-        let fId = w.farmId || currentFarmId;
+        saveAttendanceRecordDirect(wId, w, dateISO, status, inTime, outTime, note, entryMode);
 
-        let entry = {
-            date: dateISO,
-            workerId: wId,
-            workerName: w.name,
-            farmId: fId,
-            status: status,
-            inTime: status === "absent" ? "" : (inTime || cloudShiftConfig.shiftStart),
-            outTime: status === "absent" ? "" : (outTime || cloudShiftConfig.shiftEnd),
-            workedMins: metrics.workedMins,
-            ratio: metrics.ratio,
-            note: note,
-            updatedAt: Date.now()
-        };
-
-        if (!cloudWorkerAttendance[fId]) cloudWorkerAttendance[fId] = {};
-        if (!cloudWorkerAttendance[fId][ymKey]) cloudWorkerAttendance[fId][ymKey] = {};
-        if (!cloudWorkerAttendance[fId][ymKey][wId]) cloudWorkerAttendance[fId][ymKey][wId] = {};
-        cloudWorkerAttendance[fId][ymKey][wId][dateISO] = entry;
-
-        localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
-        if (typeof autoBackupAllData === "function") autoBackupAllData();
-
-        let fbPath = `worker_attendance/${fId}/${ymKey}/${wId}/${dateISO}`;
-        if (navigator.onLine) {
-            firebase.database().ref(fbPath).set(entry);
-        } else if (typeof addToSyncQueue === "function") {
-            addToSyncQueue({ path: fbPath, action: "set", data: entry });
-        }
-
-        // કૅલેન્ડર તે જ મહિના પર રાખો
         let p = dateISO.split("-");
         document.getElementById("attYearSelect").value = parseInt(p[0], 10);
         document.getElementById("attMonthSelect").value = parseInt(p[1], 10) - 1;
 
+        onAttDateInputChange();
         renderAttendanceCalendarAndReport();
         updateLiveAttendancePreview();
     }
@@ -4007,20 +4358,9 @@
         let dateISO = document.getElementById("attEditDate").value;
         if (!w || !dateISO) return;
 
-        let ymKey = dateISO.slice(0, 7);
-        let fId = w.farmId || currentFarmId;
-        if (cloudWorkerAttendance[fId]?.[ymKey]?.[wId]?.[dateISO]) {
-            delete cloudWorkerAttendance[fId][ymKey][wId][dateISO];
-            localStorage.setItem("cached_worker_attendance", JSON.stringify(cloudWorkerAttendance));
-            let fbPath = `worker_attendance/${fId}/${ymKey}/${wId}/${dateISO}`;
-            if (navigator.onLine) {
-                firebase.database().ref(fbPath).remove();
-            } else if (typeof addToSyncQueue === "function") {
-                addToSyncQueue({ path: fbPath, action: "remove" });
-            }
-            onAttDateInputChange();
-            renderAttendanceCalendarAndReport();
-        }
+        deleteAttendanceRecordDirect(wId, w, dateISO);
+        onAttDateInputChange();
+        renderAttendanceCalendarAndReport();
     }
 
     function computeWorkerMonthlySummary(w, wId, year, monthIndex) {
@@ -4104,20 +4444,23 @@
             let cls = "att-day-cell";
             let badgeText = "ખાલી";
             let timeText = "";
+            let isFullChecked = false;
+            let hasTime = isTimeAttendanceRecord(rec);
 
             if (rec) {
                 if (rec.status === "full") {
                     cls += " att-full";
-                    badgeText = "🟢 પૂરો";
-                    timeText = `${(rec.inTime || '').slice(0, 5)}-${(rec.outTime || '').slice(0, 5)}`;
+                    isFullChecked = true;
+                    badgeText = "☑️ આખો";
+                    timeText = hasTime ? `${(rec.inTime || '').slice(0, 5)}-${(rec.outTime || '').slice(0, 5)}` : '';
                 } else if (rec.status === "absent") {
                     cls += " att-absent";
                     badgeText = "🔴 ગેરહા.";
-                    timeText = "₹0";
+                    timeText = "";
                 } else if (rec.status === "half") {
                     cls += " att-half";
-                    badgeText = "🟡 હાફ ડે";
-                    timeText = `₹${Math.round(0.5 * dailyRate)}`;
+                    badgeText = "🟡 અડધો";
+                    timeText = hasTime ? `${(rec.inTime || '').slice(0, 5)}-${(rec.outTime || '').slice(0, 5)}` : `₹${Math.round(0.5 * dailyRate)}`;
                 } else if (rec.status === "time") {
                     cls += " att-time";
                     badgeText = `🔵 ${attFormatMinsToGujarati(rec.workedMins)}`;
@@ -4128,7 +4471,10 @@
 
             grid.innerHTML += `
                 <div class="${cls}" onclick="selectAttendanceDate('${dateISO}')">
-                    <span class="att-day-num">${d}</span>
+                    <div style="display:flex; align-items:center; justify-content:center; gap:3px; width:100%;">
+                        <span class="att-day-num">${d}</span>
+                        <input type="checkbox" class="att-cal-chk" ${isFullChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleDayFullCheckbox('${dateISO}', this.checked)" title="ટીક = આખો દિવસ">
+                    </div>
                     <span class="att-day-badge">${badgeText}</span>
                     ${timeText ? `<span class="att-day-time">${timeText}</span>` : ''}
                 </div>`;
@@ -4145,8 +4491,11 @@
         }
 
         let s = computeWorkerMonthlySummary(w, wId, year, month);
+        let hasAnyTime = s.dayRows.some(r => isTimeAttendanceRecord(r));
         document.getElementById("attSumBaseSal").innerText = "₹" + Math.round(s.baseSal).toLocaleString('en-IN');
-        document.getElementById("attSumDaysTime").innerText = `${s.totalRatio.toFixed(2)} દિવસ (${attFormatMinsToGujarati(s.totalMins)})`;
+        document.getElementById("attSumDaysTime").innerText = hasAnyTime
+            ? `${s.totalRatio.toFixed(2)} દિવસ (${attFormatMinsToGujarati(s.totalMins)})`
+            : `${s.totalRatio.toFixed(2)} દિવસ (ફુલ: ${s.fullDays}, હાફ: ${s.halfDays})`;
         document.getElementById("attSumEarnedSal").innerText = "₹" + Math.round(s.earnedSalary).toLocaleString('en-IN');
         document.getElementById("attSumDeducted").innerText = "₹" + Math.round(s.absenceDeduction).toLocaleString('en-IN');
         document.getElementById("attSumUpad").innerText = "₹" + Math.round(s.appliedUpad).toLocaleString('en-IN');
@@ -4190,12 +4539,13 @@
 
             if (rec) {
                 dPay = (parseFloat(rec.ratio || 0) * dRate);
-                inStr = rec.inTime ? attFormat12Hr(rec.inTime) : "-";
-                outStr = rec.outTime ? attFormat12Hr(rec.outTime) : "-";
-                workStr = rec.status === "absent" ? "0 મિનિટ" : attFormatMinsToGujarati(rec.workedMins);
+                let hasTime = isTimeAttendanceRecord(rec);
+                inStr = (hasTime && rec.inTime) ? attFormat12Hr(rec.inTime) : "-";
+                outStr = (hasTime && rec.outTime) ? attFormat12Hr(rec.outTime) : "-";
+                workStr = (rec.status === "absent" || !hasTime) ? (hasTime ? "0 મિનિટ" : "☑️ ચેકબોક્સ") : attFormatMinsToGujarati(rec.workedMins);
                 noteStr = rec.note || "-";
-                if (rec.status === "full") stBadge = `<span style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-weight:700;">🟢 ફુલ ડે</span>`;
-                else if (rec.status === "half") stBadge = `<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-weight:700;">🟡 હાફ ડે</span>`;
+                if (rec.status === "full") stBadge = `<span style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-weight:700;">☑️ આખો દિવસ</span>`;
+                else if (rec.status === "half") stBadge = `<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-weight:700;">☑️ અડધો દિવસ</span>`;
                 else if (rec.status === "time") stBadge = `<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-weight:700;">🔵 ટાઈમ મુજબ</span>`;
                 else if (rec.status === "absent") stBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-weight:700;">🔴 ગેરહાજર</span>`;
             }
@@ -4211,13 +4561,17 @@
                 <td style="padding:6px;">${noteStr}</td>
             </tr>`;
 
-            // માસિક સારાંશ
             let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+            let hasAnyTime = s.dayRows.some(r => isTimeAttendanceRecord(r));
+            let daysColHTML = hasAnyTime
+                ? `<b>${s.totalRatio.toFixed(2)} દિવસ</b><br><small style="color:#64748b;">(${attFormatMinsToGujarati(s.totalMins)})</small>`
+                : `<b>${s.totalRatio.toFixed(2)} દિવસ</b><br><small style="color:#166534;">☑️ ફુલ:${s.fullDays} | હાફ:${s.halfDays}</small>`;
+
             mBody.innerHTML += `<tr>
                 <td style="padding:6px;">${idx + 1}</td>
                 <td style="padding:6px;"><b>${w.name}</b></td>
                 <td style="padding:6px; text-align:right;">₹${Math.round(s.baseSal).toLocaleString('en-IN')}</td>
-                <td style="padding:6px; text-align:center;"><b>${s.totalRatio.toFixed(2)} દિવસ</b><br><small style="color:#64748b;">(${attFormatMinsToGujarati(s.totalMins)})</small></td>
+                <td style="padding:6px; text-align:center;">${daysColHTML}</td>
                 <td style="padding:6px; text-align:right; color:#047857; font-weight:700;">₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}</td>
                 <td style="padding:6px; text-align:right; color:#b91c1c; font-weight:700;">₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}</td>
                 <td style="padding:6px; text-align:right; color:#15803d; font-weight:800; font-size:13px;">₹${Math.round(s.netPayable).toLocaleString('en-IN')}</td>
@@ -4311,13 +4665,18 @@
         wIds.forEach((wId, idx) => {
             let w = workersMap[wId];
             let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+            let hasAnyTime = s.dayRows.some(r => isTimeAttendanceRecord(r));
+            let daysInfo = hasAnyTime
+                ? `${s.totalRatio.toFixed(2)} દિવસ (${attFormatMinsToGujarati(s.totalMins)})`
+                : `☑ ફુલ: ${s.fullDays} | ☑ હાફ: ${s.halfDays} | ગેરહા: ${s.absentDays} (કુલ: ${s.totalRatio.toFixed(2)} દિવસ)`;
             totNet += s.netPayable;
             rowsHTML += `<tr>
                 <td>${idx + 1}</td>
                 <td><b>${w.name}</b> (${w.role || 'કારીગર'})</td>
                 <td style="text-align:right;">₹${Math.round(s.baseSal).toLocaleString('en-IN')}</td>
-                <td style="text-align:center;">${s.totalRatio.toFixed(2)} દિવસ (${attFormatMinsToGujarati(s.totalMins)})</td>
+                <td style="text-align:center;">${daysInfo}</td>
                 <td style="text-align:right;">₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}</td>
+                <td style="text-align:right; color:#6b21a8;">+ ₹${Math.round(s.nightBonus || 0).toLocaleString('en-IN')}</td>
                 <td style="text-align:right; color:#b91c1c;">₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}</td>
                 <td style="text-align:right; font-weight:bold; color:#15803d;">₹${Math.round(s.netPayable).toLocaleString('en-IN')}</td>
             </tr>`;
@@ -4331,15 +4690,104 @@
             <h2 style="margin:0;text-align:center;color:#4f46e5;">${currentFarmName || 'પાર્ટી પ્લોટ'}</h2>
             <h4 style="margin:4px 0 12px 0;text-align:center;color:#475569;">તમામ કારીગર માસિક હાજરી & પગાર સારાંશ (${mNames[monthIndex]} ${year})</h4>
             <table>
-                <thead><tr><th>#</th><th>કારીગર નામ</th><th style="text-align:right;">ફિક્સ પગાર</th><th style="text-align:center;">કુલ હાજરી & સમય</th><th style="text-align:right;">કમાયેલ પગાર</th><th style="text-align:right;">ઉપાડ બાદ</th><th style="text-align:right;">ચોખ્ખો પગાર</th></tr></thead>
+                <thead><tr><th>#</th><th>કારીગર નામ</th><th style="text-align:right;">ફિક્સ પગાર</th><th style="text-align:center;">કુલ હાજરી (ચેકબોક્સ / સમય)</th><th style="text-align:right;">કમાયેલ પગાર</th><th style="text-align:right;">🌙 નાઇટ</th><th style="text-align:right;">ઉપાડ બાદ</th><th style="text-align:right;">ચોખ્ખો પગાર</th></tr></thead>
                 <tbody>${rowsHTML}</tbody>
-                <tfoot><tr style="font-weight:bold;background:#ecfdf5;"><td colspan="6" style="text-align:right;">કુલ ચૂકવવાપાત્ર પગાર સરવાળો:</td><td style="text-align:right;color:#15803d;">₹${Math.round(totNet).toLocaleString('en-IN')}</td></tr></tfoot>
+                <tfoot><tr style="font-weight:bold;background:#ecfdf5;"><td colspan="7" style="text-align:right;">કુલ ચૂકવવાપાત્ર પગાર સરવાળો:</td><td style="text-align:right;color:#15803d;">₹${Math.round(totNet).toLocaleString('en-IN')}</td></tr></tfoot>
             </table>
             </body></html>
         `);
         win.document.close();
         win.focus();
         win.print();
+    }
+
+    function exportSingleWorkerAttendanceExcel() {
+        let wId = document.getElementById("attWorkerSelect").value;
+        let workersMap = getAttFarmWorkersMap();
+        let w = workersMap[wId];
+        if (!w) { alert("કારીગર પસંદ કરો!"); return; }
+
+        let year = parseInt(document.getElementById("attYearSelect").value);
+        let monthIndex = parseInt(document.getElementById("attMonthSelect").value);
+        let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+        let hasAnyTime = s.dayRows.some(r => isTimeAttendanceRecord(r));
+
+        let csv = `\uFEFFકારીગરનું નામ: "${w.name}",મહિનો: "${mNames[monthIndex]} ${year}",ફિક્સ પગાર: "${Math.round(s.baseSal)}"\n\n`;
+        if (hasAnyTime) {
+            csv += "તારીખ,હાજરી સ્થિતિ,આવેલ ટાઈમ,ગયેલ ટાઈમ,કામ સમય,દિવસ પગાર (₹),નાઇટ રકમ (₹),નોંધ\n";
+        } else {
+            csv += "તારીખ,હાજરી (ચેકબોક્સ),દિવસ પગાર (₹),નાઇટ રકમ (₹),નોંધ\n";
+        }
+
+        let nightMap = s.nightByDate || {};
+        s.dayRows.forEach(r => {
+            let stText = r.status === 'full' ? '☑ આખો દિવસ' : (r.status === 'half' ? '☑ અડધો દિવસ' : (r.status === 'absent' ? '☐ ગેરહાજર' : '⏱ ટાઈમ મુજબ'));
+            let nAmt = nightMap[r.dateISO] ? nightMap[r.dateISO].totalAmount : 0;
+            let cleanNote = (r.note || '-').replace(/"/g, '""');
+            if (hasAnyTime) {
+                let isT = isTimeAttendanceRecord(r);
+                let inT = (isT && r.inTime) ? attFormat12Hr(r.inTime) : "-";
+                let outT = (isT && r.outTime) ? attFormat12Hr(r.outTime) : "-";
+                let wT = isT ? attFormatMinsToGujarati(r.workedMins) : "-";
+                csv += `"${formatToDMY(r.dateISO)}","${stText}","${inT}","${outT}","${wT}","${Math.round(r.daySalary)}","${nAmt}","${cleanNote}"\n`;
+            } else {
+                csv += `"${formatToDMY(r.dateISO)}","${stText}","${Math.round(r.daySalary)}","${nAmt}","${cleanNote}"\n`;
+            }
+        });
+
+        Object.keys(nightMap).forEach(dISO => {
+            if (!s.dayRows.some(r => r.dateISO === dISO)) {
+                let nInfo = nightMap[dISO];
+                let cleanNote = ((nInfo.entries[0] && nInfo.entries[0].note) || 'નાઇટ ડ્યુટી').replace(/"/g, '""');
+                if (hasAnyTime) {
+                    csv += `"${formatToDMY(dISO)}","🌙 માત્ર નાઇટ","-","-","-","0","${nInfo.totalAmount}","${cleanNote}"\n`;
+                } else {
+                    csv += `"${formatToDMY(dISO)}","🌙 માત્ર નાઇટ","0","${nInfo.totalAmount}","${cleanNote}"\n`;
+                }
+            }
+        });
+
+        csv += `\nકુલ હાજરી દિવસ,"${s.totalRatio.toFixed(2)}"\n`;
+        csv += `હાજરી મુજબ પગાર (₹),"${Math.round(s.earnedSalary)}"\n`;
+        csv += `નાઇટ / ઓવરટાઇમ (₹),"${Math.round(s.nightBonus || 0)}"\n`;
+        csv += `લીધેલ ઉપાડ બાદ (₹),"${Math.round(s.appliedUpad)}"\n`;
+        csv += `ચોખ્ખો મળવાપાત્ર પગાર (₹),"${Math.round(s.netPayable)}"\n`;
+
+        let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        let link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `${w.name}_હાજરી_પગાર_${mNames[monthIndex]}_${year}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function exportAllWorkersAttendanceExcel() {
+        let dateISO = document.getElementById("attAllDateInput")?.value || "";
+        let p = dateISO ? dateISO.split("-") : [new Date().getFullYear(), String(new Date().getMonth() + 1)];
+        let year = parseInt(p[0], 10);
+        let monthIndex = parseInt(p[1], 10) - 1;
+        let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let workersMap = getAttFarmWorkersMap();
+        let wIds = Object.keys(workersMap);
+
+        if (wIds.length === 0) { alert("એક્સપોર્ટ કરવા માટે કોઈ કારીગર નથી!"); return; }
+
+        let csv = `\uFEFF# ,કારીગરનું નામ,હોદ્દો,ફિક્સ પગાર (₹),આખો દિવસ (☑️),અડધો દિવસ (☑️),ગેરહાજર,ટાઈમ મુજબ દિવસો,કુલ હાજર દિવસ,કમાયેલ પગાર (₹),નાઇટ પગાર (₹),ઉપાડ બાદ (₹),ચોખ્ખો પગાર (₹)\n`;
+        wIds.forEach((wId, idx) => {
+            let w = workersMap[wId];
+            let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+            csv += `"${idx + 1}","${w.name}","${w.role || 'કારીગર'}","${Math.round(s.baseSal)}","${s.fullDays}","${s.halfDays}","${s.absentDays}","${s.timeDays}","${s.totalRatio.toFixed(2)}","${Math.round(s.earnedSalary)}","${Math.round(s.nightBonus || 0)}","${Math.round(s.appliedUpad)}","${Math.round(s.netPayable)}"\n`;
+        });
+
+        let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        let link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `બધા_કારીગર_હાજરી_પગાર_${mNames[monthIndex]}_${year}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     function sendAttendanceSalaryWhatsApp() {
@@ -4468,9 +4916,9 @@
     };
 
     // ૪. હાજરી સેવ કરતાં જ તાત્કાલિક "✅ સેવ થઈ ગયું!" કન્ફર્મેશન દેખાય
-    const _origSaveAttEntry = saveWorkerAttendanceEntry;
-    window.saveWorkerAttendanceEntry = function() {
-        _origSaveAttEntry();
+    const _origSaveAttEntry = saveWorkerAttendanceEntry;   
+    window.saveWorkerAttendanceEntry = function(forceMode) {
+        _origSaveAttEntry(forceMode);
         let preview = document.getElementById("attLiveCalcPreview");
         if (preview) {
             let oldText = preview.innerText;
@@ -10437,6 +10885,11 @@
                 localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
                 if (isOnline) firebase.database().ref("worker_night_overtime").child(targetFId).set(data.workerNightOvertime[targetFId]);
             }
+ 
+           if (typeof loadShiftSettingsToInputs === "function") loadShiftSettingsToInputs();
+            if (typeof renderAttendanceCalendarAndReport === "function") renderAttendanceCalendarAndReport();
+            if (typeof renderNightTabView === "function") renderNightTabView();
+
             if (typeof generateCalendar === "function") generateCalendar();
             if (typeof renderWorkersTable === "function") renderWorkersTable();
             if (typeof filterData === "function") filterData();
@@ -10570,6 +11023,9 @@
             localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
             if (isOnline) firebase.database().ref("worker_night_overtime").set(cloudWorkerNightOT);
         }
+        if (typeof loadShiftSettingsToInputs === "function") loadShiftSettingsToInputs();
+        if (typeof renderAttendanceCalendarAndReport === "function") renderAttendanceCalendarAndReport();
+        if (typeof renderNightTabView === "function") renderNightTabView();
         if (typeof generateCalendar === "function") generateCalendar();
         if (typeof renderWorkersTable === "function") renderWorkersTable();
         if (typeof filterData === "function") filterData();
@@ -11162,6 +11618,7 @@
         if (!w) {
             if (document.getElementById("attSumNightCount")) document.getElementById("attSumNightCount").innerText = "0";
             if (document.getElementById("attSumNightBonus")) document.getElementById("attSumNightBonus").innerText = "+ ₹0";
+            syncQuickNightCheckboxUI();
             return;
         }
 
@@ -11200,9 +11657,10 @@
             netEl.innerText = "₹" + Math.round(s.netPayable).toLocaleString('en-IN');
             netEl.style.color = s.netPayable >= 0 ? "#15803d" : "#b91c1c";
         }
+        syncQuickNightCheckboxUI();
     };
 
-    // 🖨️ હાજરી & પગાર પ્રિન્ટ સ્લિપમાં નાઇટ વિગત સાથે પ્રિન્ટ
+    // 🖨️ હાજરી & પગાર પ્રિન્ટ સ્લિપ (ચેકબોક્સ હોય તો માત્ર ચેકબોક્સ આવે, ટાઈમ નાખ્યો હોય તો જ ટાઈમ આવે!)
     window.printMonthlyAttendanceSalarySlip = function() {
         let wId = document.getElementById("attWorkerSelect").value;
         let workersMap = getAttFarmWorkersMap();
@@ -11213,37 +11671,71 @@
         let monthIndex = parseInt(document.getElementById("attMonthSelect").value);
         let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
         let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+        let hasAnyTime = s.dayRows.some(r => isTimeAttendanceRecord(r));
 
         let rowsHTML = "";
         s.dayRows.forEach(r => {
-            let stText = r.status === 'full' ? 'ફુલ ડે' : (r.status === 'half' ? 'હાફ ડે' : (r.status === 'absent' ? 'ગેરહાજર' : 'ટાઈમ મુજબ'));
+            let stText = r.status === 'full' ? '☑ આખો દિવસ' : (r.status === 'half' ? '☑ અડધો દિવસ' : (r.status === 'absent' ? '☐ ગેરહાજર' : '⏱ ટાઈમ મુજબ'));
             let nInfo = s.nightByDate[r.dateISO];
             let nightCol = nInfo ? `<b style="color:#6b21a8;">🌙 +₹${nInfo.totalAmount.toLocaleString('en-IN')}</b>` : '-';
-            rowsHTML += `<tr>
-                <td>${formatToDMY(r.dateISO)}</td>
-                <td><b>${stText}</b></td>
-                <td>${r.inTime ? attFormat12Hr(r.inTime) : '-'}</td>
-                <td>${r.outTime ? attFormat12Hr(r.outTime) : '-'}</td>
-                <td>${r.status === 'absent' ? '-' : attFormatMinsToGujarati(r.workedMins)}</td>
-                <td style="text-align:right; font-weight:bold;">₹${Math.round(r.daySalary).toLocaleString('en-IN')}</td>
-                <td style="text-align:right;">${nightCol}</td>
-                <td>${r.note || '-'}</td>
-            </tr>`;
-        });
-        // ફક્ત નાઇટ હોય તેવી તારીખો પણ ઉમેરો
-        Object.keys(s.nightByDate).forEach(dISO => {
-            if (!s.dayRows.some(r => r.dateISO === dISO)) {
-                let nInfo = s.nightByDate[dISO];
-                rowsHTML += `<tr style="background:#faf5ff;">
-                    <td>${formatToDMY(dISO)}</td>
-                    <td><b style="color:#6b21a8;">🌙 માત્ર નાઇટ</b></td>
-                    <td>-</td><td>-</td><td>-</td><td style="text-align:right;">₹0</td>
-                    <td style="text-align:right;"><b style="color:#6b21a8;">+₹${nInfo.totalAmount.toLocaleString('en-IN')}</b></td>
-                    <td>${(nInfo.entries[0] && nInfo.entries[0].note) || 'નાઇટ ડ્યુટી'}</td>
+
+            if (hasAnyTime) {
+                let isT = isTimeAttendanceRecord(r);
+                rowsHTML += `<tr>
+                    <td>${formatToDMY(r.dateISO)}</td>
+                    <td><b>${stText}</b></td>
+                    <td>${(isT && r.inTime) ? attFormat12Hr(r.inTime) : '-'}</td>
+                    <td>${(isT && r.outTime) ? attFormat12Hr(r.outTime) : '-'}</td>
+                    <td>${(!isT || r.status === 'absent') ? '-' : attFormatMinsToGujarati(r.workedMins)}</td>
+                    <td style="text-align:right; font-weight:bold;">₹${Math.round(r.daySalary).toLocaleString('en-IN')}</td>
+                    <td style="text-align:right;">${nightCol}</td>
+                    <td>${r.note || '-'}</td>
+                </tr>`;
+            } else {
+                rowsHTML += `<tr>
+                    <td>${formatToDMY(r.dateISO)}</td>
+                    <td><b>${stText}</b></td>
+                    <td style="text-align:right; font-weight:bold;">₹${Math.round(r.daySalary).toLocaleString('en-IN')}</td>
+                    <td style="text-align:right;">${nightCol}</td>
+                    <td>${r.note || '-'}</td>
                 </tr>`;
             }
         });
-        if (!rowsHTML) rowsHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b;">આ મહિનામાં કોઈ હાજરી કે નાઇટ નોંધાયેલ નથી.</td></tr>`;
+
+        Object.keys(s.nightByDate).forEach(dISO => {
+            if (!s.dayRows.some(r => r.dateISO === dISO)) {
+                let nInfo = s.nightByDate[dISO];
+                let nNote = (nInfo.entries[0] && nInfo.entries[0].note) || 'નાઇટ ડ્યુટી';
+                if (hasAnyTime) {
+                    rowsHTML += `<tr style="background:#faf5ff;">
+                        <td>${formatToDMY(dISO)}</td>
+                        <td><b style="color:#6b21a8;">🌙 માત્ર નાઇટ</b></td>
+                        <td>-</td><td>-</td><td>-</td><td style="text-align:right;">₹0</td>
+                        <td style="text-align:right;"><b style="color:#6b21a8;">+₹${nInfo.totalAmount.toLocaleString('en-IN')}</b></td>
+                        <td>${nNote}</td>
+                    </tr>`;
+                } else {
+                    rowsHTML += `<tr style="background:#faf5ff;">
+                        <td>${formatToDMY(dISO)}</td>
+                        <td><b style="color:#6b21a8;">🌙 માત્ર નાઇટ</b></td>
+                        <td style="text-align:right;">₹0</td>
+                        <td style="text-align:right;"><b style="color:#6b21a8;">+₹${nInfo.totalAmount.toLocaleString('en-IN')}</b></td>
+                        <td>${nNote}</td>
+                    </tr>`;
+                }
+            }
+        });
+
+        let colCount = hasAnyTime ? 8 : 5;
+        if (!rowsHTML) rowsHTML = `<tr><td colspan="${colCount}" style="text-align:center; color:#64748b;">આ મહિનામાં કોઈ હાજરી કે નાઇટ નોંધાયેલ નથી.</td></tr>`;
+
+        let tableHeaderHTML = hasAnyTime
+            ? `<tr><th>તારીખ</th><th>સ્થિતિ</th><th>આવેલ ટાઈમ</th><th>ગયેલ ટાઈમ</th><th>કામ સમય</th><th style="text-align:right;">દિવસ પગાર</th><th style="text-align:right;">🌙 નાઇટ</th><th>નોંધ</th></tr>`
+            : `<tr><th>તારીખ</th><th>હાજરી (ચેકબોક્સ)</th><th style="text-align:right;">દિવસ પગાર</th><th style="text-align:right;">🌙 નાઇટ</th><th>નોંધ</th></tr>`;
+
+        let shiftLine = hasAnyTime
+            ? `<p><b>શિફ્ટ ટાઈમ:</b> ${attFormat12Hr(cloudShiftConfig.shiftStart)} થી ${attFormat12Hr(cloudShiftConfig.shiftEnd)}</p>`
+            : '';
 
         let win = window.open('', '_blank', 'width=850,height=700');
         if (!win) { alert("કૃપા કરીને પોપ-અપ Allow કરો!"); return; }
@@ -11254,13 +11746,14 @@
                     <h2 style="margin:0;text-align:center;color:#4f46e5;">${currentFarmName || 'પાર્ટી પ્લોટ મેનેજમેન્ટ'}</h2>
                     <h4 style="margin:4px 0 12px 0;text-align:center;color:#475569;">કારીગર માસિક હાજરી, નાઇટ & પગાર સ્ટેટમેન્ટ (${mNames[monthIndex]} ${year})</h4>
                     <p><b>કારીગરનું નામ:</b> ${w.name} | <b>હોદ્દો:</b> ${w.role || 'કારીગર'} | <b>મોબાઈલ:</b> ${w.mobile || '-'}</p>
+                    ${shiftLine}
                     <table>
-                        <thead><tr><th>તારીખ</th><th>સ્થિતિ</th><th>આવેલ ટાઈમ</th><th>ગયેલ ટાઈમ</th><th>કામ સમય</th><th style="text-align:right;">દિવસ પગાર</th><th style="text-align:right;">🌙 નાઇટ</th><th>નોંધ</th></tr></thead>
+                        <thead>${tableHeaderHTML}</thead>
                         <tbody>${rowsHTML}</tbody>
                     </table>
                     <table style="margin-top:16px;">
                         <tr><td>ફિક્સ પગાર:</td><td style="text-align:right;font-weight:bold;">₹${Math.round(s.baseSal).toLocaleString('en-IN')}</td></tr>
-                        <tr><td>હાજરી મુજબ કમાયેલ પગાર (${s.totalRatio.toFixed(2)} દિવસ):</td><td style="text-align:right;font-weight:bold;color:#047857;">₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}</td></tr>
+                        <tr><td>કુલ ભરેલ હાજરી (${hasAnyTime ? s.totalRatio.toFixed(2) + ' દિવસ' : '☑ ફુલ: ' + s.fullDays + ' | ☑ હાફ: ' + s.halfDays + ' | ગેરહા: ' + s.absentDays}):</td><td style="text-align:right;font-weight:bold;color:#047857;">₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}</td></tr>
                         <tr><td style="color:#6b21a8;font-weight:bold;">🌙 નાઇટ / ઓવરટાઇમ પગાર (${s.nightUnits} નાઇટ):</td><td style="text-align:right;font-weight:bold;color:#6b21a8;">(+) ₹${Math.round(s.nightBonus).toLocaleString('en-IN')}</td></tr>
                         <tr><td>લીધેલ ઉપાડ બાદ (Upad):</td><td style="text-align:right;color:#b91c1c;">(-) ₹${Math.round(s.appliedUpad).toLocaleString('en-IN')}</td></tr>
                         <tr style="background:#dcfce7;font-size:15px;font-weight:bold;">
@@ -11276,7 +11769,7 @@
         win.print();
     };
 
-    // 📲 WhatsApp સ્લિપમાં નાઇટની વિગત
+    // 📲 WhatsApp સ્લિપ (ચેકબોક્સ વિગત + ટાઈમ હોય તો જ ટાઈમ)
     window.sendAttendanceSalaryWhatsApp = function() {
         let wId = document.getElementById("attWorkerSelect").value;
         let workersMap = getAttFarmWorkersMap();
@@ -11289,15 +11782,19 @@
         let monthIndex = parseInt(document.getElementById("attMonthSelect").value);
         let mNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
         let s = computeWorkerMonthlySummary(w, wId, year, monthIndex);
+        let hasAnyTime = s.dayRows.some(r => isTimeAttendanceRecord(r));
 
         let cleanMob = w.mobile.replace(/[^0-9]/g, '');
         if (cleanMob.length === 10) cleanMob = '91' + cleanMob;
 
+        let timeLine = hasAnyTime ? `🔵 ટાઈમ મુજબ: ${s.timeDays} (${attFormatMinsToGujarati(s.totalMins)})\n` : '';
+
         let msg = `*${currentFarmName || 'પાર્ટી પ્લોટ'}*\n` +
                   `📅 *માસિક હાજરી, નાઇટ & પગાર સ્લિપ (${mNames[monthIndex]} ${year})*\n\n` +
                   `👷‍♂️ કારીગર: *${w.name}*\n` +
-                  `🟢 ફુલ: ${s.fullDays} | 🟡 હાફ: ${s.halfDays} | 🔵 ટાઈમ: ${s.timeDays} | 🔴 ગેરહા.: ${s.absentDays}\n` +
-                  `⏱️ કુલ હાજરી: *${s.totalRatio.toFixed(2)} દિવસ*\n` +
+                  `☑️ આખો દિવસ: ${s.fullDays} | ☑️ અડધો દિવસ: ${s.halfDays} | 🔴 ગેરહાજર: ${s.absentDays}\n` +
+                  timeLine +
+                  `📊 કુલ ભરેલ હાજરી: *${s.totalRatio.toFixed(2)} દિવસ*\n` +
                   `----------------------------------\n` +
                   `💵 ફિક્સ પગાર: ₹${Math.round(s.baseSal).toLocaleString('en-IN')}\n` +
                   `✅ હાજરી મુજબ પગાર: ₹${Math.round(s.earnedSalary).toLocaleString('en-IN')}\n` +
