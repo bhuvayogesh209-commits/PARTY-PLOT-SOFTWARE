@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="gu">
 <head>
@@ -1116,6 +1117,18 @@
                         alert(editId ? `✅ સામાન "${item}" સુધારી લેવાયો અને તમામ મોબાઈલમાં લાઈવ સિંક થઈ ગયો!` : `✅ સામાન "${item}" સફળતાપૂર્વક Firebase માં સેવ થયો અને તમામ ૨૦ યુઝર્સને લાઈવ સિંક થઈ ગયો!`);
                     }
                 });
+              
+              if (typeof removeAutoRojmelByPrefix === "function" && typeof upsertAutoRojmelEntry === "function") {
+                    removeAutoRojmelByPrefix(`auto_out_${entryData.id}_`);
+                    (entryData.rentPayments || []).forEach((rp, idx) => {
+                        let rAmt = parseFloat(rp.amount || 0);
+                        if (rAmt > 0) {
+                            let rMode = rp.mode === 'cheque' ? `ચેક:${rp.refNumber || '-'}` : (rp.mode === 'gpay' ? `GPay:${rp.refNumber || '-'}` : 'રોકડ');
+                            let rDesc = `સામાન ભાડું: ${entryData.partyName} (${entryData.itemName}) - ${rMode}${rp.note ? ' | ' + rp.note : ''}`;
+                            upsertAutoRojmelEntry(`auto_out_${entryData.id}_${idx}`, rp.date || entryData.dispatchDate, "JAMA", rAmt, rDesc, "સામાન ભાડું");
+                        }
+                    });
+                }
 
                 updateOutwardLiveBadge();
                 cancelEditOutward();
@@ -1352,6 +1365,13 @@
                     }
                 });
 
+                if (typeof upsertAutoRojmelEntry === "function") {
+                    let rpIdx = entry.rentPayments.length - 1;
+                    let rMode = payMode === 'cheque' ? `ચેક:${refNo || '-'}` : (payMode === 'gpay' ? `GPay:${refNo || '-'}` : 'રોકડ');
+                    let rDesc = `સામાન ભાડું: ${entry.partyName} (${entry.itemName}) - ${rMode}${note ? ' | ' + note : ''}`;
+                    upsertAutoRojmelEntry(`auto_out_${id}_${rpIdx}`, payDate, "JAMA", payAmt, rDesc, "સામાન ભાડું");
+                }
+
                 updateOutwardLiveBadge();
                 alert(`✅ ₹${payAmt.toLocaleString('en-IN')} ભાડું જમા થઈ ગયું!\nબાકી ભાડું: ₹${newPendingRent.toLocaleString('en-IN')}`);
                 closeOutwardRentPayModal();
@@ -1399,7 +1419,7 @@
                         addToSyncQueue({ path: "outward_inventory/" + id, action: "remove" });
                     }
                 }
-
+                if (typeof removeAutoRojmelByPrefix === "function") removeAutoRojmelByPrefix(`auto_out_${id}_`);
                 updateOutwardLiveBadge();
                 renderOutwardInventoryTable();
                 alert(`✅ સામાન એન્ટ્રી (${itemName}) સફળતાપૂર્વક ડિલીટ થઈ ગઈ છે!`);
@@ -2159,6 +2179,80 @@
             }
         }
 
+        function toRojmelISO(dateStr) {
+            if (!dateStr) {
+                let now = new Date();
+                return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            }
+            dateStr = String(dateStr).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+            if (dateStr.includes("/")) {
+                let p = dateStr.split("/");
+                if (p.length === 3 && p[2].length === 4) {
+                    return `${p[2]}-${String(p[1]).padStart(2, '0')}-${String(p[0]).padStart(2, '0')}`;
+                }
+            }
+            let d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            }
+            let now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+
+        function upsertAutoRojmelEntry(rId, dateVal, type, amount, details, sourceTag) {
+            let amt = parseFloat(amount) || 0;
+            if (!rId || amt <= 0) return;
+            let isoDate = toRojmelISO(dateVal);
+            let targetStore = (typeof cloudRojmel !== "undefined" && cloudRojmel) ? cloudRojmel : JSON.parse(localStorage.getItem("cached_daily_rojmel") || "{}");
+            let existing = targetStore[rId];
+            let rData = {
+                id: rId,
+                date: isoDate,
+                type: type,
+                amount: amt,
+                details: String(details || "-"),
+                isAuto: true,
+                autoSource: sourceTag || "ઓટો",
+                timestamp: existing && existing.timestamp ? existing.timestamp : Date.now(),
+                updatedAt: Date.now()
+            };
+            targetStore[rId] = rData;
+            if (typeof cloudRojmel !== "undefined") cloudRojmel = targetStore;
+            localStorage.setItem("cached_daily_rojmel", JSON.stringify(targetStore));
+            if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+            if (navigator.onLine) {
+                firebase.database().ref("daily_rojmel").child(rId).set(rData);
+            } else if (typeof addToSyncQueue === "function") {
+                addToSyncQueue({ path: "daily_rojmel/" + rId, action: "set", data: rData });
+            }
+            if (typeof renderRojmelData === "function") renderRojmelData();
+        }
+
+        function removeAutoRojmelByPrefix(prefix) {
+            if (!prefix) return;
+            let targetStore = (typeof cloudRojmel !== "undefined" && cloudRojmel) ? cloudRojmel : JSON.parse(localStorage.getItem("cached_daily_rojmel") || "{}");
+            let removedAny = false;
+            Object.keys(targetStore).forEach(k => {
+                if (k === prefix || k.indexOf(prefix) === 0) {
+                    delete targetStore[k];
+                    removedAny = true;
+                    if (navigator.onLine) {
+                        firebase.database().ref("daily_rojmel").child(k).remove();
+                    } else if (typeof addToSyncQueue === "function") {
+                        addToSyncQueue({ path: "daily_rojmel/" + k, action: "remove" });
+                    }
+                }
+            });
+            if (removedAny) {
+                if (typeof cloudRojmel !== "undefined") cloudRojmel = targetStore;
+                localStorage.setItem("cached_daily_rojmel", JSON.stringify(targetStore));
+                if (typeof autoBackupAllData === "function") autoBackupAllData();
+                if (typeof renderRojmelData === "function") renderRojmelData();
+            }
+        }
+
         function saveExpense() {
             if (currentUserRole !== 'admin' && !hasStep4Perm('Expense', 'edit')) { 
                 alert("❌ ખર્ચ સેવ કરવાનો અધિકાર નથી!"); 
@@ -2208,6 +2302,10 @@
                 addToSyncQueue({ path: "company_expenses/" + expId, action: "set", data: expData });
             }
 
+            let expModeTxt = mode === 'cheque' ? `ચેક:${refNo}` : (mode === 'gpay' ? `GPay:${refNo}` : 'રોકડ');
+            let expRojmelDesc = `ખર્ચ [${cat}] (${farmName}) - ${expModeTxt}${note ? ' | ' + note : ''}`;
+            upsertAutoRojmelEntry(`auto_exp_${expId}`, dateVal, "UDHAR", amt, expRojmelDesc, "ખર્ચ");
+
             alert("✅ ખર્ચ સફળતાપૂર્વક સેવ થઈ ગયો!");
             closeExpenseModal();
             renderExpensesTable();
@@ -2244,6 +2342,7 @@
                 } else {
                     if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "company_expenses/" + expId, action: "remove" });
                 }
+                removeAutoRojmelByPrefix(`auto_exp_${expId}`);
                 renderExpensesTable();
                 updateAccountsOverviewSummary();
             }
@@ -2535,7 +2634,9 @@
             } else if (typeof addToSyncQueue === "function") {   
                 addToSyncQueue({ path: "company_capital/" + cId, action: "set", data: cData });
             }
-
+            let capRojmelType = type === "IN" ? "JAMA" : "UDHAR";
+            let capDesc = `${type === "IN" ? "મૂડી જમા" : "મૂડી ઉપાડ"}: ${acc}${note ? ' | ' + note : ''}`;
+            upsertAutoRojmelEntry(`auto_cap_${cId}`, dateVal, capRojmelType, amt, capDesc, "મૂડી/બેંક");
             document.getElementById("capAmount").value = "";
             document.getElementById("capNote").value = "";
             renderCapitalTable();
@@ -2555,6 +2656,7 @@
                 } else {
                     if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "company_capital/" + cId, action: "remove" });
                 }
+                removeAutoRojmelByPrefix(`auto_cap_${cId}`);
                 renderCapitalTable();
                 updateAccountsOverviewSummary();
             }
@@ -6638,6 +6740,12 @@
                 addToSyncQueue({ path: `farm_workers/${targetFId}/${selectedWorkerIdForSalary}`, action: "set", data: w });
             }
 
+           if (typeof upsertAutoRojmelEntry === "function") {
+                let sModeTxt = mode === "cheque" ? `ચેક:${refNo}` : (mode === "gpay" ? `GPay:${refNo}` : "રોકડ");
+                let sDesc = `કારીગર પગાર: ${w.name} (${salMonth}) - ${sModeTxt}${note ? ' | ' + note : ''}`;
+                upsertAutoRojmelEntry(`auto_sal_${selectedWorkerIdForSalary}_${salMonth}`, dateVal, "UDHAR", actualPaid, sDesc, "પગાર");
+            }
+
             alert(`✅ ${w.name} નો પગાર (મહિનો: ${salMonth}) સફળતાપૂર્વક ચૂકવાઈ ગયો!`);
             closeSalaryPayModal();
             renderWorkersTable();
@@ -6939,6 +7047,10 @@
                 } else {
                     addToSyncQueue({ path: `farm_workers/${targetFId}/${wId}`, action: "remove" });
                 }
+                if (typeof removeAutoRojmelByPrefix === "function") {
+                    removeAutoRojmelByPrefix(`auto_upad_${wId}_`);
+                    removeAutoRojmelByPrefix(`auto_sal_${wId}_`);
+                }
             }
         }
 
@@ -7074,6 +7186,12 @@
                 addToSyncQueue({ path: `farm_workers/${targetFId}/${selectedWorkerIdForUpad}`, action: "set", data: w });
             }
 
+           if (typeof upsertAutoRojmelEntry === "function") {
+                let uModeTxt = mode === "cheque" ? `ચેક:${refNo}` : (mode === "gpay" ? `GPay:${refNo}` : "રોકડ");
+                let uDesc = `કારીગર ઉપાડ: ${w.name} - ${uModeTxt}${note ? ' | ' + note : ''}`;
+                upsertAutoRojmelEntry(`auto_upad_${selectedWorkerIdForUpad}_${upadEntry.timestamp}`, dateVal, "UDHAR", amt, uDesc, "ઉપાડ");
+            }
+
             document.getElementById("newUpadAmount").value = "";
             document.getElementById("newUpadNote").value = "";
             document.getElementById("newUpadRefInput").value = "";
@@ -7162,6 +7280,10 @@
 
             let { worker: w, farmId: targetFId } = getWorkerById(selectedWorkerIdForUpad);
             if (!w) return;
+            let removedUpad = w.upads && w.upads[index];
+            if (removedUpad && removedUpad.timestamp && typeof removeAutoRojmelByPrefix === "function") {
+                removeAutoRojmelByPrefix(`auto_upad_${selectedWorkerIdForUpad}_${removedUpad.timestamp}`);
+            }
             w.upads.splice(index, 1);
 
             if (targetFId === currentFarmId) {
@@ -8324,6 +8446,11 @@
             }
         } else {
             addToSyncQueue({ action: "remove", farmId: targetFarmId, dateKey: fullKey });
+        } 
+         if (typeof removeAutoRojmelByPrefix === "function") {
+            removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${fullKey}_`);
+            removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${selectedDateBaseKey}_`);
+            removeAutoRojmelByPrefix(`auto_bk_${fullKey}_`);
         }
         alert("✅ બુકિંગ સફળતાપૂર્વક રદ થઈ ગયું છે!");
         closeModal();
@@ -8539,10 +8666,33 @@
         });
 
         localStorage.setItem("cached_bookings_" + targetFarmId, JSON.stringify(cachedAllFarmBookings[targetFarmId] || {}));
-        localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
+        localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));    
         generateCalendar();
         filterData();
-
+        if (typeof removeAutoRojmelByPrefix === "function" && typeof upsertAutoRojmelEntry === "function") {
+            let primaryBaseKey = targetBaseKeys[0];
+            let primaryFullKey = `${primaryBaseKey}_${selectedSlot}`;
+            if (selectedSlot === 'fullday') {
+                removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${primaryBaseKey}_morning_`);
+                removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${primaryBaseKey}_evening_`);
+            } else {
+                removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${primaryBaseKey}_fullday_`);
+            }
+            removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${primaryFullKey}_`);
+            removeAutoRojmelByPrefix(`auto_bk_${primaryFullKey}_`);
+            let slotGuj = selectedSlot === 'fullday' ? 'આખો દિવસ' : (selectedSlot === 'evening' ? 'સાંજ' : 'સવાર');
+            let bNotesArr = [note1, note2, note3].filter(Boolean);
+            let bNoteStr = bNotesArr.length > 0 ? ` | નોંધ: ${bNotesArr.join(', ')}` : '';
+            (currentPaymentsList || []).forEach((pay, idx) => {
+                let pAmt = parseFloat(pay.amount || 0);
+                if (pAmt > 0) {
+                    let pModeTxt = pay.mode === 'cheque' ? `ચેક:${pay.refNumber || '-'}` : (pay.mode === 'gpay' ? `GPay:${pay.refNumber || '-'}` : 'રોકડ');
+                    let pNoteTxt = pay.note ? ` (${pay.note})` : '';
+                    let bkDesc = `બુકિંગ આવક: ${name} (${currentFarmName} - ${slotGuj}) [${pModeTxt}]${pNoteTxt}${bNoteStr}`;
+                    upsertAutoRojmelEntry(`auto_bk_${targetFarmId}_${primaryFullKey}_${idx}`, pay.date, "JAMA", pAmt, bkDesc, "બુકિંગ");
+                }
+            });
+        }
         let dateCountMsg = targetBaseKeys.length > 1 ? ` (કુલ ${targetBaseKeys.length} તારીખો બુક થઈ)` : '';
 
         // 📲 એક જ ક્લિકમાં WhatsApp અથવા Print મોકલવું
@@ -9143,6 +9293,10 @@
                 firebase.database().ref("farm_bookings").child(targetFarmId).child(key).remove();
             } else {
                 addToSyncQueue({ action: "remove", farmId: targetFarmId, dateKey: key });
+            }
+            if (typeof removeAutoRojmelByPrefix === "function") {
+                removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${key}_`);
+                removeAutoRojmelByPrefix(`auto_bk_${key}_`);
             }
             alert("✅ બુકિંગ સફળતાપૂર્વક ડિલીટ થઈ ગયું છે!");
         }
@@ -10006,7 +10160,74 @@
         let now = new Date();
         document.getElementById("rojmelDate").value = now.toISOString().slice(0, 10);
         document.getElementById("rojmelFilterStart").value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-        document.getElementById("rojmelFilterEnd").value = now.toISOString().slice(0, 10);
+        document.getElementById("rojmelFilterEnd").value = now.toISOString().slice(0, 10);  
+        if (!localStorage.getItem("rojmel_auto_backfill_v2") && typeof upsertAutoRojmelEntry === "function") {
+            let store = cloudRojmel || {};
+            Object.values(typeof cloudExpenses !== "undefined" ? cloudExpenses : {}).forEach(e => {
+                if (e && e.id && !store[`auto_exp_${e.id}`]) {
+                    let mTxt = e.mode === 'cheque' ? `ચેક:${e.refNumber || ''}` : (e.mode === 'gpay' ? `GPay:${e.refNumber || ''}` : 'રોકડ');
+                    upsertAutoRojmelEntry(`auto_exp_${e.id}`, e.rawDate || e.date, "UDHAR", e.amount, `ખર્ચ [${e.category}] (${e.farmName || ''}) - ${mTxt}${e.note ? ' | ' + e.note : ''}`, "ખર્ચ");
+                }
+            });
+            Object.values(typeof cloudCapital !== "undefined" ? cloudCapital : {}).forEach(c => {
+                if (c && c.id && !store[`auto_cap_${c.id}`]) {
+                    upsertAutoRojmelEntry(`auto_cap_${c.id}`, c.date, c.type === "IN" ? "JAMA" : "UDHAR", c.amount, `${c.type === "IN" ? "મૂડી જમા" : "મૂડી ઉપાડ"}: ${c.account || ''}${c.note ? ' | ' + c.note : ''}`, "મૂડી/બેંક");
+                }
+            });
+            let allFB = typeof cachedAllFarmBookings !== "undefined" ? cachedAllFarmBookings : {};
+            Object.keys(allFB).forEach(fId => {
+                let farmB = allFB[fId] || {};
+                Object.values(farmB).forEach(b => {
+                    if (!b || !b.customerName || !b.dateKey) return;
+                    let slotG = b.slot === 'fullday' ? 'આખો દિવસ' : (b.slot === 'evening' ? 'સાંજ' : 'સવાર');
+                    let realFId = b.farmId || fId;
+                    if (b.payments && Array.isArray(b.payments) && b.payments.length > 0) {
+                        b.payments.forEach((p, idx) => {
+                            let rId = `auto_bk_${realFId}_${b.dateKey}_${idx}`;
+                            if (!store[rId] && parseFloat(p.amount) > 0) {
+                                let mTxt = p.mode === 'cheque' ? `ચેક:${p.refNumber || '-'}` : (p.mode === 'gpay' ? `GPay:${p.refNumber || '-'}` : 'રોકડ');
+                                upsertAutoRojmelEntry(rId, p.date, "JAMA", p.amount, `બુકિંગ આવક: ${b.customerName} (${b.farmName || ''} - ${slotG}) [${mTxt}]${p.note ? ' (' + p.note + ')' : ''}`, "બુકિંગ");
+                            }
+                        });
+                    } else if (parseFloat(b.advanceAmount) > 0) {
+                        let rId = `auto_bk_${realFId}_${b.dateKey}_0`;
+                        let dp = (b.dateKey || "").replace("bk_", "").split("_");
+                        let bDateStr = dp.length >= 3 ? `${dp[0]}-${dp[1]}-${dp[2]}` : "";
+                        if (!store[rId]) {
+                            upsertAutoRojmelEntry(rId, bDateStr, "JAMA", b.advanceAmount, `બુકિંગ આવક: ${b.customerName} (${b.farmName || ''} - ${slotG}) [રોકડ]`, "બુકિંગ");
+                        }
+                    }
+                });
+            });
+            Object.values(typeof cachedAllFarmWorkers !== "undefined" ? cachedAllFarmWorkers : {}).forEach(farmW => {
+                Object.keys(farmW || {}).forEach(wId => {
+                    let w = farmW[wId];
+                    if (!w) return;
+                    (w.upads || []).forEach((u, idx) => {
+                        let rId = `auto_upad_${wId}_${u.timestamp || idx}`;
+                        if (!store[rId] && parseFloat(u.amount) > 0) {
+                            upsertAutoRojmelEntry(rId, u.date, "UDHAR", u.amount, `કારીગર ઉપાડ: ${w.name}${u.note ? ' | ' + u.note : ''}`, "ઉપાડ");
+                        }
+                    });
+                    (w.salaryPayments || []).forEach(sp => {
+                        let rId = `auto_sal_${wId}_${sp.month}`;
+                        if (!store[rId] && parseFloat(sp.amount) > 0) {
+                            upsertAutoRojmelEntry(rId, sp.rawDate || sp.date, "UDHAR", sp.amount, `કારીગર પગાર: ${w.name} (${sp.month})${sp.note ? ' | ' + sp.note : ''}`, "પગાર");
+                        }
+                    });
+                });
+            });
+            Object.values(typeof cloudOutwardInv !== "undefined" ? cloudOutwardInv : {}).forEach(o => {
+                if (!o || !o.id) return;
+                (o.rentPayments || []).forEach((rp, idx) => {
+                    let rId = `auto_out_${o.id}_${idx}`;
+                    if (!store[rId] && parseFloat(rp.amount) > 0) {
+                        upsertAutoRojmelEntry(rId, rp.date || o.dispatchDate, "JAMA", rp.amount, `સામાન ભાડું: ${o.partyName} (${o.itemName})${rp.note ? ' | ' + rp.note : ''}`, "સામાન ભાડું");
+                    }
+                });
+            });
+            localStorage.setItem("rojmel_auto_backfill_v2", "1");
+        }
         cancelEditRojmel();
         renderRojmelData();
         document.getElementById("rojmelModal").style.display = "flex";
@@ -10165,7 +10386,7 @@
             tbody.innerHTML += `<tr>
                 <td style="padding:6px; white-space:nowrap;">${r.date}</td>
                 <td style="padding:6px;"><span style="background:${isJama ? '#dcfce7' : '#fee2e2'}; color:${isJama ? '#15803d' : '#b91c1c'}; padding:2px 6px; border-radius:4px; font-weight:700;">${isJama ? '📥 જમા' : '📤 ઉધાર'}</span></td>
-                <td style="padding:6px;"><b>${r.details || '-'}</b></td>
+                 <td style="padding:6px;"><b>${r.details || '-'}</b> ${r.isAuto ? `<span style="background:#e0e7ff; color:#3730a3; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:800; margin-left:4px;">⚡ ઓટો (${r.autoSource || 'સિંક'})</span>` : ''}</td>
                 <td style="padding:6px; text-align:right; font-weight:700; color:#15803d;">${isJama ? '₹' + amt.toLocaleString('en-IN') : '-'}</td>
                 <td style="padding:6px; text-align:right; font-weight:700; color:#b91c1c;">${!isJama ? '₹' + amt.toLocaleString('en-IN') : '-'}</td>
                 <td style="padding:6px; text-align:center; white-space:nowrap;">
@@ -10393,6 +10614,10 @@
             } else if (typeof addToSyncQueue === "function") {
                 addToSyncQueue({ path: "vendors/" + vId, action: "update", data: { paidAmount: newPaid } });
             }
+            if (typeof upsertAutoRojmelEntry === "function") {
+                let vDesc = `વેન્ડર ચુકવણી: ${v.name} (${v.category || 'વેન્ડર'})`;
+                upsertAutoRojmelEntry(`auto_vend_${vId}_${Date.now()}`, "", "UDHAR", amt, vDesc, "વેન્ડર");
+            }
         }
     }
 
@@ -10410,6 +10635,7 @@
             } else {
                 if (typeof addToSyncQueue === "function") addToSyncQueue({ path: "vendors/" + vId, action: "remove" });
             }
+            if (typeof removeAutoRojmelByPrefix === "function") removeAutoRojmelByPrefix(`auto_vend_${vId}_`);
         }
     }
 
