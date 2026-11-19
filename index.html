@@ -5499,11 +5499,11 @@
         </div>
 
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
-            <button class="btn btn-success" onclick="saveBooking()" style="justify-content:center;">💾 સેવ / અપડેટ કરો</button>
-            <button class="btn btn-danger" id="modalDeleteBtn" onclick="deleteCurrentModalBooking()" style="justify-content:center;">🗑️ આ બુકિંગ રદ / ડિલીટ કરો</button>
-            <button class="btn" onclick="sendWhatsAppReceipt()" style="background:#25D366; color:white; justify-content:center;">📲 WhatsApp પર રસીદ મોકલો</button>
-            <button class="btn btn-primary" onclick="printInvoice()" style="justify-content:center;">🖨️ રસીદ (Invoice) પ્રિન્ટ કરો</button>
-            <button class="btn btn-outline" onclick="closeModal()" style="justify-content:center;">બંધ કરો</button>
+            <button type="button" class="btn btn-success" id="modalSaveBtn" onclick="saveBooking('save')" style="justify-content:center; font-weight:700; padding:10px;">💾 ફક્ત સેવ / અપડેટ કરો</button>
+            <button type="button" class="btn" id="modalSaveWhatsAppBtn" onclick="saveBooking('whatsapp')" style="background:#25D366; color:white; justify-content:center; font-weight:800; font-size:14px; padding:11px; box-shadow:0 2px 5px rgba(37,211,102,0.35);">💾 સેવ & 📲 WhatsApp પર રસીદ મોકલો</button>
+            <button type="button" class="btn btn-primary" id="modalSavePrintBtn" onclick="saveBooking('print')" style="justify-content:center; font-weight:700; padding:10px;">💾 સેવ & 🖨️ રસીદ (Invoice) પ્રિન્ટ કરો</button>
+            <button type="button" class="btn btn-danger" id="modalDeleteBtn" onclick="deleteCurrentModalBooking()" style="justify-content:center;">🗑️ આ બુકિંગ રદ / ડિલીટ કરો</button>
+            <button type="button" class="btn btn-outline" onclick="closeModal()" style="justify-content:center;">બંધ કરો</button>
         </div>
     </div>
 </div>
@@ -8257,8 +8257,13 @@
             if (el) el.disabled = !canUserEdit;
         });
 
-        let saveBtn = document.querySelector("#bookingModal button[onclick='saveBooking()']");
+        // સ્ટાફ લૉક હોય તો સેવ બટન્સ છુપાવવા
+        let saveBtn = document.getElementById("modalSaveBtn");
+        let waSaveBtn = document.getElementById("modalSaveWhatsAppBtn");
+        let printSaveBtn = document.getElementById("modalSavePrintBtn");
         if (saveBtn) saveBtn.style.display = canUserEdit ? "flex" : "none"; 
+        if (waSaveBtn) waSaveBtn.style.display = canUserEdit ? "flex" : "none"; 
+        if (printSaveBtn) printSaveBtn.style.display = canUserEdit ? "flex" : "none"; 
 
         let delBtn = document.getElementById("modalDeleteBtn");
         if (delBtn) delBtn.style.display = canUserDelete ? "flex" : "none";
@@ -8324,8 +8329,8 @@
         closeModal();
     }
 
-    // 💾 ૨. સુધારેલ saveBooking: શિફ્ટ સમય, ખાલી કરવાનો સમય અને જમણવાર નોંધ સાથે લાઈવ સેવ
-    function saveBooking() {
+    // 💾 ૨. સુધારેલ saveBooking: સેવ થયા પછી આપોઆપ WhatsApp અથવા Print ચાલુ કરશે
+    function saveBooking(afterAction = 'save') {
         let name = document.getElementById("customerName").value.trim();
         let status = document.getElementById("bookingStatus").value;   
 
@@ -8348,6 +8353,14 @@
             return;
         }
 
+        let mobile = document.getElementById("mobile").value.trim();
+        if (afterAction === 'whatsapp') {
+            if (!mobile || mobile.length < 10) {
+                alert("❌ કૃપા કરીને WhatsApp મોકલવા માટે કસ્ટમરનો સાચો ૧૦ આંકડાનો મોબાઈલ નંબર દાખલ કરો!");
+                return;
+            }
+        }
+
         let targetFarmId = currentFarmId;
         if (!targetFarmId || targetFarmId === "ALL") {
             let farmSelect = document.getElementById("farmSelect");
@@ -8360,7 +8373,6 @@
         }
 
         let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
-        let mobile = document.getElementById("mobile").value.trim();
         let hastakName = document.getElementById("hastakName").value.trim();
         let hastakMobile = document.getElementById("hastakMobile").value.trim();
         let event = document.getElementById("event").value.trim();
@@ -8532,8 +8544,18 @@
         filterData();
 
         let dateCountMsg = targetBaseKeys.length > 1 ? ` (કુલ ${targetBaseKeys.length} તારીખો બુક થઈ)` : '';
-        alert(`✅ ${name} નું બુકિંગ સફળતાપૂર્વક અપડેટ / સેવ થઈ ગયું છે!${dateCountMsg}`);
-        closeModal();
+
+        // 📲 એક જ ક્લિકમાં WhatsApp અથવા Print મોકલવું
+        if (afterAction === 'whatsapp') {
+            sendWhatsAppReceipt();
+            closeModal();
+        } else if (afterAction === 'print') {
+            printInvoice();
+            closeModal();
+        } else {
+            alert(`✅ ${name} નું બુકિંગ સફળતાપૂર્વક અપડેટ / સેવ થઈ ગયું છે!${dateCountMsg}`);
+            closeModal();
+        }
     }
 
     // 📲 WhatsApp મેસેજ સ્લિપ (સમય અને ફાર્મ ખાલી કરવાની શરત સાથે)
