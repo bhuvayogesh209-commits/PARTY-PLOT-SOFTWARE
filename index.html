@@ -270,6 +270,12 @@
             }
             .modal-content .att-chk-grid { grid-template-columns: 1fr 1fr !important; }
         }
+        #tallyDirectPrintArea { display: none; }
+        @media print {
+            body.tally-printing > *:not(#tallyDirectPrintArea) { display: none !important; }
+            body.tally-printing { background: #ffffff !important; padding: 0 !important; margin: 0 !important; }
+            body.tally-printing #tallyDirectPrintArea { display: block !important; position: static !important; width: 100% !important; background: #ffffff !important; }
+        }
     </style>
      </head>
 <body>
@@ -13727,19 +13733,39 @@
 
     async function generateAdminTallyPdfBlob() {
         let data = getAdminTallyComputedData();
+        if (data.filtered.length === 0) {
+            alert("⚠️ PDF બનાવવા માટે કોઈ એન્ટ્રી મળી નથી! પહેલાં એન્ટ્રી ઉમેરો અથવા ફિલ્ટર રીસેટ કરો.");
+            return { cancelled: true };
+        }
         let built = buildAdminTallyPrintContentHTML(data);
 
         if (typeof html2pdf === "undefined") {
             return { fallbackPrint: true, filename: built.filename, data };
         }
 
-        let tempDiv = document.createElement("div");
-        tempDiv.id = "tallyPdfTempRender";
-        tempDiv.style.cssText = "position:fixed; top:0; left:0; width:780px; background:#ffffff; color:#000000; padding:14px; z-index:1075; pointer-events:none;";
-        tempDiv.innerHTML = built.bodyHTML;
-        document.body.appendChild(tempDiv);
+        let prevScrollX = window.scrollX || 0;
+        let prevScrollY = window.scrollY || 0;
+        window.scrollTo(0, 0);
+
+        let backdrop = document.createElement("div");
+        backdrop.id = "tallyPdfWaitBackdrop";
+        backdrop.style.cssText = "position:fixed; inset:0; background:rgba(15,23,42,0.85); z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:14px; overflow:auto;";
+
+        let statusBar = document.createElement("div");
+        statusBar.style.cssText = "background:#fef08a; color:#854d0e; font-weight:800; font-size:13px; padding:8px 16px; border-radius:8px; margin-bottom:10px;";
+        statusBar.innerText = "⏳ Tally PDF તૈયાર થઈ રહી છે... કૃપા કરીને ૧ સેકન્ડ રાહ જુઓ";
+        backdrop.appendChild(statusBar);
+
+        let captureBox = document.createElement("div");    
+        captureBox.id = "tallyPdfCaptureBox";
+        captureBox.style.cssText = "width:760px; min-width:760px; background:#ffffff; color:#000000; padding:16px; border-radius:6px; box-shadow:0 10px 25px rgba(0,0,0,0.4);";
+        captureBox.innerHTML = built.bodyHTML;
+        backdrop.appendChild(captureBox);
+
+        document.body.appendChild(backdrop);
 
         try {
+            await new Promise(resolve => setTimeout(resolve, 400));
             let opt = {
                 margin: [8, 8, 8, 8],
                 filename: built.filename,
@@ -13747,10 +13773,11 @@
                 html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
-            let blob = await html2pdf().set(opt).from(tempDiv).outputPdf('blob');
+            let blob = await html2pdf().set(opt).from(captureBox).outputPdf('blob');
             return { blob, filename: built.filename, data };
         } finally {
-            if (tempDiv && tempDiv.parentNode) tempDiv.parentNode.removeChild(tempDiv);
+            if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+            window.scrollTo(prevScrollX, prevScrollY);
         }
     }
 
@@ -13769,6 +13796,7 @@
         if (getTallySafeRole() !== "admin") return;
         try {
             let res = await generateAdminTallyPdfBlob();
+            if (!res || res.cancelled) return;
             if (res.fallbackPrint) {
                 alert("⚠️ ઑફલાઇન મોડમાં પ્રિન્ટ વિન્ડો ખુલે છે — ત્યાંથી 'Save as PDF' પસંદ કરીને PDF સેવ કરો!");
                 printAdminTallyStatement();
@@ -13788,6 +13816,7 @@
 
         try {
             let res = await generateAdminTallyPdfBlob();
+            if (!res || res.cancelled) return;
             if (res.fallbackPrint) {
                 alert("⚠️ ઑફલાઇન મોડમાં ડાયરેક્ટ PDF લાઇબ્રેરી ઉપલબ્ધ નથી. ટેક્સ્ટ WhatsApp મોકલી શકો છો અથવા નેટ ચાલુ કરી PDF સેવ કરો.");
                 if (nums.length > 0) sendAdminTallyWhatsApp();
@@ -13797,7 +13826,7 @@
             // ૧. પહેલાં PDF ફાઇલ ડિવાઇસમાં સેવ/ડાઉનલોડ કરી લો
             triggerPdfBlobDownload(res.blob, res.filename);
 
-            // ૨. મોબાઈલમાં Web Share API દ્વારા સીધી PDF ફાઇલ WhatsApp પર મોકલવાનો પ્રયાસ
+            // ૨. મોબાઈલમાં Web Share API દ્વારા સીધી PDF ફાઇલ WhatsApp પર મોકલો
             let pdfFile = new File([res.blob], res.filename, { type: "application/pdf" });
             let canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [pdfFile] }));
 
@@ -13838,25 +13867,34 @@
     function printAdminTallyStatement() {
         if (getTallySafeRole() !== "admin") return;
         let data = getAdminTallyComputedData();
+        if (data.filtered.length === 0) {
+            alert("⚠️ પ્રિન્ટ કરવા માટે કોઈ એન્ટ્રી મળી નથી! પહેલાં એન્ટ્રી ઉમેરો અથવા ફિલ્ટર રીસેટ કરો.");
+            return;
+        }
         let built = buildAdminTallyPrintContentHTML(data);
 
-        let win = window.open('', '_blank', 'width=980,height=720');
-        if (!win) { alert("કૃપા કરીને બ્રાઉઝરમાં પોપ-અપ (Pop-up) Allow કરો!"); return; }
+        let printArea = document.getElementById("tallyDirectPrintArea");
+        if (!printArea) {
+            printArea = document.createElement("div");
+            printArea.id = "tallyDirectPrintArea";
+            document.body.appendChild(printArea);
+        }
+        printArea.innerHTML = built.bodyHTML;
+        document.body.classList.add("tally-printing");
 
-        win.document.write(`
-            <html>
-            <head>
-                <title>પર્સનલ ટીમ આવક-જાવક (Tally Statement)</title>
-                <style>
-                    body { font-family: 'Noto Sans Gujarati', Arial, sans-serif; padding: 18px; color: #000; font-size: 12px; }
-                </style>
-            </head>
-            <body>${built.bodyHTML}</body>
-            </html>
-        `);
-        win.document.close();
-        win.focus();
-        win.print();
+        let cleanupDone = false;
+        function cleanupTallyPrint() {
+            if (cleanupDone) return;
+            cleanupDone = true;
+            document.body.classList.remove("tally-printing");
+        }   
+        window.addEventListener("afterprint", cleanupTallyPrint, { once: true });
+        document.addEventListener("pointerdown", cleanupTallyPrint, { once: true });
+
+        setTimeout(() => {
+            window.print();
+            setTimeout(cleanupTallyPrint, 20000);
+        }, 250);
     }
 
     function exportAdminTallyExcel() {
