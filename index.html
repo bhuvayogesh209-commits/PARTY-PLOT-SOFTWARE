@@ -5188,14 +5188,46 @@
     <div class="modal-content">
         <div class="modal-title">📝 બુકિંગ ફોર્મ (<span id="modalDateDisplay"></span>)</div> 
 
-        <!-- ⏰ સવાર / સાંજ શિફ્ટ પસંદ કરવાનું બોક્સ -->
-       <div class="form-group" style="background:#eef2ff; padding:10px; border-radius:8px; border:1.5px solid #c7d2fe;">
-            <label style="color:var(--primary); font-weight:700; margin-bottom:4px;">⏰ સમય / શિફ્ટ પસંદ કરો *</label>
+        <!-- ⏰ સવાર / સાંજ શિફ્ટ પસંદ કરવાનું બોક્સ -->   
+          <div class="form-group" style="background:#eef2ff; padding:12px; border-radius:10px; border:1.5px solid #c7d2fe;">
+            <label style="color:var(--primary); font-weight:800; margin-bottom:6px; display:block; font-size:13.5px;">⏰ સમય / શિફ્ટ પસંદ કરો *</label>
             <select id="bookingSlot" class="form-control" onchange="switchSlot()" style="font-weight:700; color:#1e1b4b; background:#fff;">
-                <option value="morning">🌅 સવાર (Morning Shift)</option>
-                <option value="evening">🌙 સાંજ (Evening Shift)</option>
-                <option value="fullday">☀️ આખો દિવસ (Full Day)</option>
+                <option value="morning">🌅 સવાર (Morning Shift: સવારે 06:00 AM થી બપોરે 02:00 PM)</option>
+                <option value="evening">🌙 સાંજ (Evening Shift: બપોરે 03:00 PM થી રાત્રે 09:00 PM)</option>
+                <option value="fullday">☀️ આખો દિવસ (Full Day: 12:00 કલાક મર્યાદા)</option>
             </select>
+
+            <!-- ⏰ ઑટોમેટિક શિફ્ટ સમય અને ફાર્મ ખાલી કરવાની શરત ડિસ્પ્લે -->
+            <div id="slotDefaultInfoBox" style="margin-top:8px; background:#ffffff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 10px; font-size:12px;">
+                <div style="color:#1e40af; font-weight:700;">⏱️ કાર્યક્રમ સમય: <span id="dispSlotTimeText" style="color:#047857; font-weight:800;">સવારે 06:00 AM થી બપોરે 02:00 PM</span></div>
+                <div style="color:#b91c1c; font-weight:800; margin-top:3px;">🚪 ફાર્મ ખાલી કરવાનો સમય: <span id="dispSlotVacateText">બપોરે 02:00 વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.</span></div>
+            </div>
+
+            <!-- ☑️ ફક્ત જમણવાર / મેન્યુઅલ ટાઈમ ચેકબોક્સ (બાય-ડિફોલ્ટ અનચેક) -->
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #c7d2fe;">
+                <label style="font-size:12.5px; font-weight:700; color:#7c2d12; display:flex; align-items:center; gap:7px; cursor:pointer;">
+                    <input type="checkbox" id="customJamnvarToggle" onchange="toggleCustomJamnvarView()" style="width:16px; height:16px; cursor:pointer;">
+                    ☑️ ફક્ત જમણવાર / કસ્ટમ ટાઈમ સેટ કરવો છે?
+                </label>
+            </div>
+
+            <!-- 📝 કસ્ટમ ટાઈમ & જમણવાર નોંધ ઈનપુટ્સ (ચેકબોક્સ ટીક થાય ત્યારે જ દેખાશે) -->
+            <div id="customJamnvarFieldsBox" style="display:none; margin-top:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:10px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#9a3412;">શરૂ સમય (Start Time):</label>
+                        <input type="time" id="customSlotStartTime" class="form-control" oninput="updateCustomTimingPreview()" onchange="updateCustomTimingPreview()" style="font-size:12px; font-weight:700;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#9a3412;">ખાલી કરવાનો સમય (Vacate Time):</label>
+                        <input type="time" id="customSlotVacateTime" class="form-control" oninput="updateCustomTimingPreview()" onchange="updateCustomTimingPreview()" style="font-size:12px; font-weight:700;">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#9a3412;">શેના માટે છે? (જમણવાર / વિશેષ નોંધ):</label>
+                    <input type="text" id="customJamnvarNote" class="form-control" oninput="updateCustomTimingPreview()" placeholder="દા.ત. ફક્ત બપોરનું જમણવાર / સંગીત સંધ્યા / બેસણું" style="font-size:12px; font-weight:700;">
+                </div>
+            </div>
         </div>
 
         <!-- 🧾 રસીદ / પહોંચ નંબર દાખલ કરવાનું નવું ખાનું -->
@@ -7947,8 +7979,84 @@
         renderPaymentHistory();
     }
 
+   // ⏱️ શિફ્ટ મુજબના ઑટોમેટિક ડિફોલ્ટ સમય અને ફાર્મ ખાલી કરવાની શરત મેળવવાનું ફંક્શન
+    function getShiftDefaultTimings(slot) {
+        if (slot === "evening") {
+            return {
+                timeText: "બપોરે 03:00 PM થી રાત્રે 09:00 PM",
+                vacateText: "રાત્રે 09:00 વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.",
+                startTime: "15:00",
+                vacateTime: "21:00"
+            };
+        } else if (slot === "fullday") {
+            return {
+                timeText: "12:00 કલાક (સવારે 08:00 AM થી રાત્રે 08:00 PM)",
+                vacateText: "12 કલાક પછી ફાર્મ ખાલી કરવાનું રહેશે.",
+                startTime: "08:00",
+                vacateTime: "20:00"
+            };
+        } else {
+            // ડિફોલ્ટ: સવાર (Morning Shift)
+            return {
+                timeText: "સવારે 06:00 AM થી બપોરે 02:00 PM",
+                vacateText: "બપોરે 02:00 વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.",
+                startTime: "06:00",
+                vacateTime: "14:00"
+            };
+        }
+    }
+
+    // ☑️ ફક્ત જમણવાર / કસ્ટમ ટાઈમ ચેકબોક્સ ટોગલ
+    function toggleCustomJamnvarView() {
+        let isCustom = document.getElementById("customJamnvarToggle") ? document.getElementById("customJamnvarToggle").checked : false;
+        let box = document.getElementById("customJamnvarFieldsBox");
+        if (box) box.style.display = isCustom ? "block" : "none";
+
+        if (isCustom) {
+            let slot = document.getElementById("bookingSlot") ? document.getElementById("bookingSlot").value : "morning";
+            let def = getShiftDefaultTimings(slot);
+            if (!document.getElementById("customSlotStartTime").value) document.getElementById("customSlotStartTime").value = def.startTime;
+            if (!document.getElementById("customSlotVacateTime").value) document.getElementById("customSlotVacateTime").value = def.vacateTime;
+            updateCustomTimingPreview();
+        } else {
+            updateSlotDefaultTimingDisplay();
+        }
+    }
+
+    function updateCustomTimingPreview() {
+        let slot = document.getElementById("bookingSlot") ? document.getElementById("bookingSlot").value : "morning";
+        let def = getShiftDefaultTimings(slot);
+
+        let sT = document.getElementById("customSlotStartTime") ? document.getElementById("customSlotStartTime").value : "";
+        let vT = document.getElementById("customSlotVacateTime") ? document.getElementById("customSlotVacateTime").value : "";
+        let note = document.getElementById("customJamnvarNote") ? document.getElementById("customJamnvarNote").value.trim() : "";
+
+        let sDisp = sT ? attFormat12Hr(sT) : attFormat12Hr(def.startTime);
+        let vDisp = vT ? attFormat12Hr(vT) : attFormat12Hr(def.vacateTime);
+
+        let timeLabel = `${sDisp} થી ${vDisp}`;
+        if (note) timeLabel += ` (${note})`;
+
+        if (document.getElementById("dispSlotTimeText")) document.getElementById("dispSlotTimeText").innerText = timeLabel;
+        if (document.getElementById("dispSlotVacateText")) document.getElementById("dispSlotVacateText").innerText = `${vDisp} વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.`;
+    }
+
+    function updateSlotDefaultTimingDisplay() {
+        let slot = document.getElementById("bookingSlot") ? document.getElementById("bookingSlot").value : "morning";
+        let def = getShiftDefaultTimings(slot);
+        if (document.getElementById("dispSlotTimeText")) document.getElementById("dispSlotTimeText").innerText = def.timeText;
+        if (document.getElementById("dispSlotVacateText")) document.getElementById("dispSlotVacateText").innerText = def.vacateText;
+    }
+
     function switchSlot() {
         selectedSlot = document.getElementById("bookingSlot").value;
+        let isCustom = document.getElementById("customJamnvarToggle") ? document.getElementById("customJamnvarToggle").checked : false;
+        if (!isCustom) {
+            updateSlotDefaultTimingDisplay();
+        } else {
+            updateCustomTimingPreview();
+        }
+
         let targetKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let targetData = cloudBookings[targetKey];
 
@@ -7972,6 +8080,14 @@
         document.getElementById("hastakMobile").value = "";
         document.getElementById("event").value = "";
         document.getElementById("guests").value = "";
+
+        // શિફ્ટ અને ટાઈમ રીસેટ
+        if (document.getElementById("customJamnvarToggle")) document.getElementById("customJamnvarToggle").checked = false;
+        if (document.getElementById("customJamnvarFieldsBox")) document.getElementById("customJamnvarFieldsBox").style.display = "none";
+        if (document.getElementById("customSlotStartTime")) document.getElementById("customSlotStartTime").value = "";
+        if (document.getElementById("customSlotVacateTime")) document.getElementById("customSlotVacateTime").value = "";
+        if (document.getElementById("customJamnvarNote")) document.getElementById("customJamnvarNote").value = "";
+        updateSlotDefaultTimingDisplay();
 
         if (document.getElementById("mandapSavar")) document.getElementById("mandapSavar").value = "";
         if (document.getElementById("mandapBapor")) document.getElementById("mandapBapor").value = "";
@@ -8002,12 +8118,11 @@
         calculateTotalWithExtraItems();
     }
 
-    // ✏️ મંડપના ૩ ખાના, વોચમેન ખાતું, રસીદ નંબર & તમામ ડેટા લોડ કરવો
+    // ✏️ મંડપના ૩ ખાના, શિફ્ટ ટાઈમ, ખાલી કરવાનો સમય, વોચમેન ખાતું, રસીદ નંબર & તમામ ડેટા લોડ કરવો
     function loadSlotData() {
         let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let data = cloudBookings[fullKey];
 
-        // જો પસંદ કરેલા સ્લોટમાં ડેટા ન મળે તો આ તારીખના ફુલડે, સવાર કે સાંજમાંથી ડેટા ઓટો-શોધો
         if (!data || !data.customerName) {
             if (cloudBookings[`${selectedDateBaseKey}_fullday`] && cloudBookings[`${selectedDateBaseKey}_fullday`].customerName) {
                 data = cloudBookings[`${selectedDateBaseKey}_fullday`];
@@ -8052,7 +8167,21 @@
             document.getElementById("event").value = data.event || "";
             document.getElementById("guests").value = data.guests || "";
 
-            // 🎪 મંડપ મુહૂર્તના ૩ ખાના (સંપૂર્ણ વિગત લોડ કરવી)
+            // ⏰ કસ્ટમ ટાઈમ & જમણવાર ડેટા લોડ કરવો
+            let isCustom = data.isCustomJamnvar === true;
+            if (document.getElementById("customJamnvarToggle")) document.getElementById("customJamnvarToggle").checked = isCustom;
+            if (document.getElementById("customJamnvarFieldsBox")) document.getElementById("customJamnvarFieldsBox").style.display = isCustom ? "block" : "none";
+            if (document.getElementById("customSlotStartTime")) document.getElementById("customSlotStartTime").value = data.customSlotStartTime || "";
+            if (document.getElementById("customSlotVacateTime")) document.getElementById("customSlotVacateTime").value = data.customSlotVacateTime || "";
+            if (document.getElementById("customJamnvarNote")) document.getElementById("customJamnvarNote").value = data.jamnvarNote || "";
+
+            if (isCustom) {
+                updateCustomTimingPreview();
+            } else {
+                updateSlotDefaultTimingDisplay();
+            }
+
+            // 🎪 મંડપ મુહૂર્તના ૩ ખાના
             if (document.getElementById("mandapSavar")) document.getElementById("mandapSavar").value = data.mandapSavar || data.mandapMuhurat || "";
             if (document.getElementById("mandapBapor")) document.getElementById("mandapBapor").value = data.mandapBapor || "";
             if (document.getElementById("mandapSanj")) document.getElementById("mandapSanj").value = data.mandapSanj || "";
@@ -8118,9 +8247,10 @@
             "receiptNo", "customerName", "mobile", "hastakName", "hastakMobile", "event", "guests", 
             "mandapSavar", "mandapBapor", "mandapSanj", "watchmanCount", "watchmanRate",     
             "bookingNote1", "bookingNote2", "bookingNote3", 
-             "basePackageAmount", "cleaningCharge", "otherExtraCharge", "otherExtraChargeNote", "bookingStatus", 
+            "basePackageAmount", "cleaningCharge", "otherExtraCharge", "otherExtraChargeNote", "bookingStatus", 
             "newPaymentAmount", "newPaymentDate", "newPaymentTime", "newPaymentMode", "newPaymentNote", "newPaymentRefInput", 
-            "bookingSlot", "extraItemName", "extraItemQty", "extraItemRate", "multiDateToggle", "bookingEndDate"
+            "bookingSlot", "extraItemName", "extraItemQty", "extraItemRate", "multiDateToggle", "bookingEndDate",
+            "customJamnvarToggle", "customSlotStartTime", "customSlotVacateTime", "customJamnvarNote"
         ];
         fields.forEach(fId => {
             let el = document.getElementById(fId);
@@ -8144,7 +8274,6 @@
         document.getElementById("bookingModal").style.display = "none";
     }
 
-    // 🗑️ ૧. સુધારેલ deleteCurrentModalBooking: સાચા ફાર્મમાંથી જ ક્લાઉડ ડિલીટ થશે
     function deleteCurrentModalBooking() {
         if (!canUserDelete) {
             alert("❌ તમારી પાસે બુકિંગ ડિલીટ કરવાનો અધિકાર નથી!");
@@ -8195,189 +8324,219 @@
         closeModal();
     }
 
-    // 💾 ૨. સુધારેલ saveBooking: ગ્રાહક નામ હોય તો ક્યારેય ખાલી નહિ થાય
+    // 💾 ૨. સુધારેલ saveBooking: શિફ્ટ સમય, ખાલી કરવાનો સમય અને જમણવાર નોંધ સાથે લાઈવ સેવ
     function saveBooking() {
-    let name = document.getElementById("customerName").value.trim();
-    let status = document.getElementById("bookingStatus").value;   
+        let name = document.getElementById("customerName").value.trim();
+        let status = document.getElementById("bookingStatus").value;   
 
-    // સુરક્ષા: જો નામ ભરેલું હોય અને સ્ટેટસ ભૂલથી 'available' રહી ગયું હોય તો તે ડિલીટ ન થાય
-    if (name !== "" && status === "available") {
-        status = "pending";
-        document.getElementById("bookingStatus").value = "pending";
-    }
-
-    if (name === "" && status === "available") {
-        if (!canUserDelete) {
-            alert("❌ તમારી પાસે બુકિંગ રદ / ડિલીટ કરવાનો અધિકાર નથી!");
-            return;
-        }
-        deleteCurrentModalBooking();
-        return;
-    }
-
-    if (name === "") {
-        alert("કૃપા કરીને કસ્ટમરનું નામ દાખલ કરો!");
-        return;
-    }
-
-    let targetFarmId = currentFarmId;
-    if (!targetFarmId || targetFarmId === "ALL") {
-        let farmSelect = document.getElementById("farmSelect");
-        if (farmSelect && farmSelect.value && farmSelect.value !== "ALL") {
-            targetFarmId = farmSelect.value;
-        } else {
-            alert("⚠️ કૃપા કરીને બુકિંગ સેવ કરવા માટે ઉપરથી ચોક્કસ ફાર્મ (જેમ કે તુલસીવન) પસંદ કરો!");
-            return;
-        }
-    }
-
-    let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
-    let mobile = document.getElementById("mobile").value.trim();
-    let hastakName = document.getElementById("hastakName").value.trim();
-    let hastakMobile = document.getElementById("hastakMobile").value.trim();
-    let event = document.getElementById("event").value.trim();
-    let guests = document.getElementById("guests").value.trim();
-
-    let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
-    let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
-    let mSanj = document.getElementById("mandapSanj") ? document.getElementById("mandapSanj").value.trim() : "";
-
-    let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
-    let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
-    let wTotal = wCount * wRate;
-
-    let note1 = document.getElementById("bookingNote1") ? document.getElementById("bookingNote1").value.trim() : "";
-    let note2 = document.getElementById("bookingNote2") ? document.getElementById("bookingNote2").value.trim() : "";
-    let note3 = document.getElementById("bookingNote3") ? document.getElementById("bookingNote3").value.trim() : "";
-
-    let basePackage = parseFloat(document.getElementById("basePackageAmount").value) || 0;
-    let extraTotal = currentExtraItemsList.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
-    let kachara = parseFloat(document.getElementById("cleaningCharge").value) || 0;
-    let otherCharge = parseFloat(document.getElementById("otherExtraCharge") ? document.getElementById("otherExtraCharge").value : 0) || 0;
-    let otherChargeNote = document.getElementById("otherExtraChargeNote") ? document.getElementById("otherExtraChargeNote").value.trim() : "";
-
-    let totalAmount = basePackage + extraTotal + kachara + otherCharge + wTotal;
-    let advanceAmount = currentPaymentsList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-    let balanceAmount = Math.max(0, totalAmount - advanceAmount);
-
-    if (balanceAmount === 0 && totalAmount > 0) {
-        status = "paid";
-    } else if (advanceAmount > 0 && balanceAmount > 0 && status !== "ok") {
-        status = "partial";
-    } else if (status === "available" || !status) {
-        status = "pending";
-    }
-
-    let isMultiDate = document.getElementById("multiDateToggle").checked;
-    let endRawDate = document.getElementById("bookingEndDate").value;
-    let targetBaseKeys = [selectedDateBaseKey];
-
-    if (isMultiDate && endRawDate) {
-        let startParts = selectedDateBaseKey.replace(STORAGE_PREFIX, "").split("_");
-        let startDate = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]));
-        startDate.setHours(0, 0, 0, 0);
-
-        let endParts = endRawDate.split("-");
-        let endDate = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]));
-        endDate.setHours(0, 0, 0, 0);
-
-        if (endDate < startDate) {
-            alert("❌ અંતિમ તારીખ શરૂઆતની તારીખ કરતા આગળની હોવી જોઈએ!");
-            return;
+        if (name !== "" && status === "available") {
+            status = "pending";
+            document.getElementById("bookingStatus").value = "pending";
         }
 
-        targetBaseKeys = [];
-        let curr = new Date(startDate);
-        while (curr <= endDate) {
-            let y = curr.getFullYear();
-            let m = String(curr.getMonth() + 1).padStart(2, '0');
-            let d = String(curr.getDate()).padStart(2, '0');
-            targetBaseKeys.push(`${STORAGE_PREFIX}${y}_${m}_${d}`);
-            curr.setDate(curr.getDate() + 1);
-        }
-    }
-
-    targetBaseKeys.forEach(baseKey => {
-        let fullKey = `${baseKey}_${selectedSlot}`;
-        let bookingData = { 
-            farmId: targetFarmId,
-            farmName: currentFarmName,
-            receiptNo: receiptNo,
-            dateKey: fullKey,
-            baseDateKey: baseKey,
-            slot: selectedSlot,
-            customerName: name,
-            mobile: mobile,
-            hastakName: hastakName,
-            hastakMobile: hastakMobile,
-            event: event,
-            guests: guests, 
-            mandapSavar: mSavar,
-            mandapBapor: mBapor,
-            mandapSanj: mSanj,
-            watchmanCount: wCount,
-            watchmanRate: wRate,
-            watchmanTotal: wTotal,    
-            bookingNote1: note1,
-            bookingNote2: note2,
-            bookingNote3: note3,
-            basePackageAmount: basePackage,
-            extraItems: currentExtraItemsList,
-            totalExtraAmount: extraTotal,
-            cleaningCharge: kachara,
-            otherExtraCharge: otherCharge,
-            otherExtraChargeNote: otherChargeNote,
-            totalAmount: totalAmount,
-            advanceAmount: advanceAmount,
-            balanceAmount: balanceAmount,
-            payments: currentPaymentsList,
-            status: status
-        };
-
-        if (selectedSlot === 'fullday') {
-            delete cloudBookings[`${baseKey}_morning`];
-            delete cloudBookings[`${baseKey}_evening`];
-            delete cloudBookings[baseKey];
-        } else if (selectedSlot === 'morning' || selectedSlot === 'evening') {
-            delete cloudBookings[`${baseKey}_fullday`];
-            delete cloudBookings[baseKey];
-        }
-
-        if (currentFarmId === targetFarmId || currentFarmId === "ALL") {
-            cloudBookings[fullKey] = bookingData;
-        }
-
-        if (!cachedAllFarmBookings[targetFarmId]) cachedAllFarmBookings[targetFarmId] = {};
-        cachedAllFarmBookings[targetFarmId][fullKey] = bookingData;
-
-        if (navigator.onLine) {   
-            let targetRef = firebase.database().ref("farm_bookings").child(targetFarmId);
-            if (selectedSlot === 'fullday') {
-                targetRef.child(`${baseKey}_morning`).remove();
-                targetRef.child(`${baseKey}_evening`).remove();
-                targetRef.child(baseKey).remove();
-            } else {
-                targetRef.child(`${baseKey}_fullday`).remove();
-                targetRef.child(baseKey).remove();
+        if (name === "" && status === "available") {
+            if (!canUserDelete) {
+                alert("❌ તમારી પાસે બુકિંગ રદ / ડિલીટ કરવાનો અધિકાર નથી!");
+                return;
             }
-            targetRef.child(fullKey).set(bookingData);
-        } else {
-            addToSyncQueue({ action: "set", farmId: targetFarmId, dateKey: fullKey, data: bookingData });
+            deleteCurrentModalBooking();
+            return;
         }
-    });
 
-    // માત્ર તે ચોક્કસ ફાર્મનો ડેટા જ તેની કૅશમાં સેવ થશે (મિક્સ નહિ થાય)
-    localStorage.setItem("cached_bookings_" + targetFarmId, JSON.stringify(cachedAllFarmBookings[targetFarmId] || {}));
-    localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
-    generateCalendar();
-    filterData();
+        if (name === "") {
+            alert("કૃપા કરીને કસ્ટમરનું નામ દાખલ કરો!");
+            return;
+        }
 
-    let dateCountMsg = targetBaseKeys.length > 1 ? ` (કુલ ${targetBaseKeys.length} તારીખો બુક થઈ)` : '';
-    alert(`✅ ${name} નું બુકિંગ સફળતાપૂર્વક અપડેટ / સેવ થઈ ગયું છે!${dateCountMsg}`);
-    closeModal();
-}
+        let targetFarmId = currentFarmId;
+        if (!targetFarmId || targetFarmId === "ALL") {
+            let farmSelect = document.getElementById("farmSelect");
+            if (farmSelect && farmSelect.value && farmSelect.value !== "ALL") {
+                targetFarmId = farmSelect.value;
+            } else {
+                alert("⚠️ કૃપા કરીને બુકિંગ સેવ કરવા માટે ઉપરથી ચોક્કસ ફાર્મ પસંદ કરો!");
+                return;
+            }
+        }
 
-    // 📲 WhatsApp મેસેજ સ્લિપ
+        let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
+        let mobile = document.getElementById("mobile").value.trim();
+        let hastakName = document.getElementById("hastakName").value.trim();
+        let hastakMobile = document.getElementById("hastakMobile").value.trim();
+        let event = document.getElementById("event").value.trim();
+        let guests = document.getElementById("guests").value.trim();
+
+        // ⏰ સમય અને ફાર્મ ખાલી કરવાની શરતની ગણતરી (સેફ ફોલબેક સાથે)
+        let isCustomJamnvar = document.getElementById("customJamnvarToggle") ? document.getElementById("customJamnvarToggle").checked : false;
+        let slotTimeText = "";
+        let slotVacateText = "";
+        let customStartTime = "";
+        let customVacateTime = "";
+        let jamnvarNote = "";
+
+        let activeSlot = document.getElementById("bookingSlot") ? document.getElementById("bookingSlot").value : selectedSlot;
+        let def = getShiftDefaultTimings(activeSlot);
+
+        if (isCustomJamnvar) {
+            customStartTime = document.getElementById("customSlotStartTime") ? document.getElementById("customSlotStartTime").value : "";
+            customVacateTime = document.getElementById("customSlotVacateTime") ? document.getElementById("customSlotVacateTime").value : "";
+            jamnvarNote = document.getElementById("customJamnvarNote") ? document.getElementById("customJamnvarNote").value.trim() : "";
+
+            let sDisp = customStartTime ? attFormat12Hr(customStartTime) : attFormat12Hr(def.startTime);
+            let vDisp = customVacateTime ? attFormat12Hr(customVacateTime) : attFormat12Hr(def.vacateTime);
+
+            slotTimeText = `${sDisp} થી ${vDisp}`;
+            slotVacateText = `${vDisp} વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.`;
+        } else {
+            slotTimeText = def.timeText;
+            slotVacateText = def.vacateText;
+        }
+
+        let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
+        let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
+        let mSanj = document.getElementById("mandapSanj") ? document.getElementById("mandapSanj").value.trim() : "";
+
+        let wCount = parseFloat(document.getElementById("watchmanCount") ? document.getElementById("watchmanCount").value : 0) || 0;
+        let wRate = parseFloat(document.getElementById("watchmanRate") ? document.getElementById("watchmanRate").value : 0) || 0;
+        let wTotal = wCount * wRate;
+
+        let note1 = document.getElementById("bookingNote1") ? document.getElementById("bookingNote1").value.trim() : "";
+        let note2 = document.getElementById("bookingNote2") ? document.getElementById("bookingNote2").value.trim() : "";
+        let note3 = document.getElementById("bookingNote3") ? document.getElementById("bookingNote3").value.trim() : "";
+
+        let basePackage = parseFloat(document.getElementById("basePackageAmount").value) || 0;
+        let extraTotal = currentExtraItemsList.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+        let kachara = parseFloat(document.getElementById("cleaningCharge").value) || 0;
+        let otherCharge = parseFloat(document.getElementById("otherExtraCharge") ? document.getElementById("otherExtraCharge").value : 0) || 0;
+        let otherChargeNote = document.getElementById("otherExtraChargeNote") ? document.getElementById("otherExtraChargeNote").value.trim() : "";
+
+        let totalAmount = basePackage + extraTotal + kachara + otherCharge + wTotal;
+        let advanceAmount = currentPaymentsList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+        let balanceAmount = Math.max(0, totalAmount - advanceAmount);
+
+        if (balanceAmount === 0 && totalAmount > 0) {
+            status = "paid";
+        } else if (advanceAmount > 0 && balanceAmount > 0 && status !== "ok") {
+            status = "partial";
+        } else if (status === "available" || !status) {
+            status = "pending";
+        }
+
+        let isMultiDate = document.getElementById("multiDateToggle").checked;
+        let endRawDate = document.getElementById("bookingEndDate").value;
+        let targetBaseKeys = [selectedDateBaseKey];
+
+        if (isMultiDate && endRawDate) {
+            let startParts = selectedDateBaseKey.replace(STORAGE_PREFIX, "").split("_");
+            let startDate = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]));
+            startDate.setHours(0, 0, 0, 0);
+
+            let endParts = endRawDate.split("-");
+            let endDate = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]));
+            endDate.setHours(0, 0, 0, 0);
+
+            if (endDate < startDate) {
+                alert("❌ અંતિમ તારીખ શરૂઆતની તારીખ કરતા આગળની હોવી જોઈએ!");
+                return;
+            }
+
+            targetBaseKeys = [];
+            let curr = new Date(startDate);
+            while (curr <= endDate) {
+                let y = curr.getFullYear();
+                let m = String(curr.getMonth() + 1).padStart(2, '0');
+                let d = String(curr.getDate()).padStart(2, '0');
+                targetBaseKeys.push(`${STORAGE_PREFIX}${y}_${m}_${d}`);
+                curr.setDate(curr.getDate() + 1);
+            }
+        }
+
+        targetBaseKeys.forEach(baseKey => {
+            let fullKey = `${baseKey}_${selectedSlot}`;
+            let bookingData = { 
+                farmId: targetFarmId,
+                farmName: currentFarmName,
+                receiptNo: receiptNo,
+                dateKey: fullKey,
+                baseDateKey: baseKey,
+                slot: selectedSlot,
+                slotTimeText: slotTimeText,
+                slotVacateText: slotVacateText,
+                isCustomJamnvar: isCustomJamnvar,
+                customSlotStartTime: customStartTime,
+                customSlotVacateTime: customVacateTime,
+                jamnvarNote: jamnvarNote,
+                customerName: name,
+                mobile: mobile,
+                hastakName: hastakName,
+                hastakMobile: hastakMobile,
+                event: event,
+                guests: guests, 
+                mandapSavar: mSavar,
+                mandapBapor: mBapor,
+                mandapSanj: mSanj,
+                watchmanCount: wCount,
+                watchmanRate: wRate,
+                watchmanTotal: wTotal,    
+                bookingNote1: note1,
+                bookingNote2: note2,
+                bookingNote3: note3,
+                basePackageAmount: basePackage,
+                extraItems: currentExtraItemsList,
+                totalExtraAmount: extraTotal,
+                cleaningCharge: kachara,
+                otherExtraCharge: otherCharge,
+                otherExtraChargeNote: otherChargeNote,
+                totalAmount: totalAmount,
+                advanceAmount: advanceAmount,
+                balanceAmount: balanceAmount,
+                payments: currentPaymentsList,
+                status: status
+            };
+
+            if (selectedSlot === 'fullday') {
+                delete cloudBookings[`${baseKey}_morning`];
+                delete cloudBookings[`${baseKey}_evening`];
+                delete cloudBookings[baseKey];
+            } else if (selectedSlot === 'morning' || selectedSlot === 'evening') {
+                delete cloudBookings[`${baseKey}_fullday`];
+                delete cloudBookings[baseKey];
+            }
+
+            if (currentFarmId === targetFarmId || currentFarmId === "ALL") {
+                cloudBookings[fullKey] = bookingData;
+            }
+
+            if (!cachedAllFarmBookings[targetFarmId]) cachedAllFarmBookings[targetFarmId] = {};
+            cachedAllFarmBookings[targetFarmId][fullKey] = bookingData;
+
+            if (navigator.onLine) {   
+                let targetRef = firebase.database().ref("farm_bookings").child(targetFarmId);
+                if (selectedSlot === 'fullday') {
+                    targetRef.child(`${baseKey}_morning`).remove();
+                    targetRef.child(`${baseKey}_evening`).remove();
+                    targetRef.child(baseKey).remove();
+                } else {
+                    targetRef.child(`${baseKey}_fullday`).remove();
+                    targetRef.child(baseKey).remove();
+                }
+                targetRef.child(fullKey).set(bookingData);
+            } else {
+                addToSyncQueue({ action: "set", farmId: targetFarmId, dateKey: fullKey, data: bookingData });
+            }
+        });
+
+        localStorage.setItem("cached_bookings_" + targetFarmId, JSON.stringify(cachedAllFarmBookings[targetFarmId] || {}));
+        localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
+        generateCalendar();
+        filterData();
+
+        let dateCountMsg = targetBaseKeys.length > 1 ? ` (કુલ ${targetBaseKeys.length} તારીખો બુક થઈ)` : '';
+        alert(`✅ ${name} નું બુકિંગ સફળતાપૂર્વક અપડેટ / સેવ થઈ ગયું છે!${dateCountMsg}`);
+        closeModal();
+    }
+
+    // 📲 WhatsApp મેસેજ સ્લિપ (સમય અને ફાર્મ ખાલી કરવાની શરત સાથે)
     function sendWhatsAppReceipt() {
         let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
         let name = document.getElementById("customerName").value.trim();
@@ -8386,6 +8545,28 @@
         let hastakMob = document.getElementById("hastakMobile").value.trim();
         let event = document.getElementById("event").value.trim() || "ઇવેન્ટ";  
         let date = document.getElementById("modalDateDisplay").innerText; 
+
+        // ⏰ શિફ્ટ સમય અને ફાર્મ ખાલી કરવાની શરત
+        let isCustomJamnvar = document.getElementById("customJamnvarToggle") ? document.getElementById("customJamnvarToggle").checked : false;
+        let timeText = "";
+        let vacateText = "";
+        let jamnvarNote = "";
+
+        let activeSlot = document.getElementById("bookingSlot") ? document.getElementById("bookingSlot").value : selectedSlot;
+        let def = getShiftDefaultTimings(activeSlot);
+
+        if (isCustomJamnvar) {
+            let sT = document.getElementById("customSlotStartTime") ? document.getElementById("customSlotStartTime").value : "";
+            let vT = document.getElementById("customSlotVacateTime") ? document.getElementById("customSlotVacateTime").value : "";
+            jamnvarNote = document.getElementById("customJamnvarNote") ? document.getElementById("customJamnvarNote").value.trim() : "";
+            let sDisp = sT ? attFormat12Hr(sT) : attFormat12Hr(def.startTime);
+            let vDisp = vT ? attFormat12Hr(vT) : attFormat12Hr(def.vacateTime);
+            timeText = `${sDisp} થી ${vDisp}`;
+            vacateText = `${vDisp} વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.`;
+        } else {
+            timeText = def.timeText;
+            vacateText = def.vacateText;
+        }
 
         let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
         let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
@@ -8430,9 +8611,10 @@
         let cleanMobile = mobile.replace(/[^0-9]/g, '');
         if (cleanMobile.length === 10) cleanMobile = '91' + cleanMobile; 
 
-        let shiftName = (selectedSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((selectedSlot === 'evening') ? '🌙 સાંજ (Evening)' : '🌅 સવાર (Morning)');
+        let shiftName = (activeSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((activeSlot === 'evening') ? '🌙 સાંજ (Evening Shift)' : '🌅 સવાર (Morning Shift)');
         let hastakText = hastak ? `👤 હસ્તક: ${hastak} ${hastakMob ? '(' + hastakMob + ')' : ''}\n` : '';
         let receiptText = receiptNo ? `🧾 રસીદ / પહોંચ નં.: *${receiptNo}*\n` : '';
+        let jamnvarLine = jamnvarNote ? `🍲 જમણવાર / વિગત: *${jamnvarNote}*\n` : '';
 
         let extraItemsText = "";
         if (currentExtraItemsList && currentExtraItemsList.length > 0) {
@@ -8482,6 +8664,9 @@
                   hastakText +
                   `📅 ઇવેન્ટ તારીખ: *${date}*\n` +
                   `⏰ સમય / શિફ્ટ: *${shiftName}*\n` +
+                  `⏱️ કાર્યક્રમ સમય: *${timeText}*\n` +
+                  `🚪 ફાર્મ ખાલી કરવાનો સમય: *${vacateText}*\n` +
+                  jamnvarLine +
                   mandapText +
                   `🎉 ઇવેન્ટ વિગત: ${event}\n` +
                   `------------------------------------------\n` +
@@ -8496,7 +8681,7 @@
         window.open(`https://wa.me/${cleanMobile}?text=${encodeURIComponent(msg)}`); 
     }
 
-    // 🖨️ પ્રિન્ટ પહોંચ (Invoice)
+    // 🖨️ પ્રિન્ટ પહોંચ (Invoice) માં કાર્યક્રમ સમય અને ખાલી કરવાનો નિયમ
     function printInvoice() {
         let receiptNo = document.getElementById("receiptNo") ? document.getElementById("receiptNo").value.trim() : "";
         let name = document.getElementById("customerName").value || "N/A";
@@ -8505,8 +8690,30 @@
         let hastakMob = document.getElementById("hastakMobile").value.trim();
         let event = document.getElementById("event").value || "જનરલ ઇવેન્ટ"; 
         let date = document.getElementById("modalDateDisplay").innerText;   
-        let shiftText = (selectedSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((selectedSlot === 'evening') ? '🌙 સાંજ (Evening Shift)' : '🌅 સવાર (Morning Shift)');
         
+        let activeSlot = document.getElementById("bookingSlot") ? document.getElementById("bookingSlot").value : selectedSlot;
+        let shiftText = (activeSlot === 'fullday') ? '☀️ આખો દિવસ (Full Day)' : ((activeSlot === 'evening') ? '🌙 સાંજ (Evening Shift)' : '🌅 સવાર (Morning Shift)');
+        
+        let isCustomJamnvar = document.getElementById("customJamnvarToggle") ? document.getElementById("customJamnvarToggle").checked : false;
+        let timeText = "";
+        let vacateText = "";
+        let jamnvarNote = "";
+
+        let def = getShiftDefaultTimings(activeSlot);
+
+        if (isCustomJamnvar) {
+            let sT = document.getElementById("customSlotStartTime") ? document.getElementById("customSlotStartTime").value : "";
+            let vT = document.getElementById("customSlotVacateTime") ? document.getElementById("customSlotVacateTime").value : "";
+            jamnvarNote = document.getElementById("customJamnvarNote") ? document.getElementById("customJamnvarNote").value.trim() : "";
+            let sDisp = sT ? attFormat12Hr(sT) : attFormat12Hr(def.startTime);
+            let vDisp = vT ? attFormat12Hr(vT) : attFormat12Hr(def.vacateTime);
+            timeText = `${sDisp} થી ${vDisp}`;
+            vacateText = `${vDisp} વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.`;
+        } else {
+            timeText = def.timeText;
+            vacateText = def.vacateText;
+        }
+
         let mSavar = document.getElementById("mandapSavar") ? document.getElementById("mandapSavar").value.trim() : "";
         let mBapor = document.getElementById("mandapBapor") ? document.getElementById("mandapBapor").value.trim() : "";
         let mSanj = document.getElementById("mandapSanj") ? document.getElementById("mandapSanj").value.trim() : "";
@@ -8666,6 +8873,11 @@
                     </div> 
                     <p><b>ગ્રાહકનું નામ:</b> ${name} | <b>મોબાઈલ:</b> ${mobile}</p>
                     ${hastak ? `<p><b>હસ્તક:</b> ${hastak} ${hastakMob ? '(' + hastakMob + ')' : ''}</p>` : ''}
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 10px; margin-bottom:10px; font-size:13px;">
+                        <div>⏱️ <b>કાર્યક્રમ સમય:</b> <span style="color:#047857; font-weight:bold;">${timeText}</span></div>
+                        <div style="color:#b91c1c; font-weight:bold; margin-top:3px;">🚪 <b>ફાર્મ ખાલી કરવાનો સમય:</b> ${vacateText}</div>
+                        ${jamnvarNote ? `<div style="color:#7c2d12; font-weight:bold; margin-top:3px;">🍲 <b>જમણવાર / વિગત:</b> ${jamnvarNote}</div>` : ''}
+                    </div>
                     <p><b>ઇવેન્ટ વિગત:</b> ${event}</p>
                     ${mandapDisplay}
                     <table>
@@ -8703,7 +8915,6 @@
         staffPermRef.child(sId).child("canDeleteExtraItems").set(isChecked);
     } 
 
-    // 🏢 Step 4 ના ૯ ફીચર્સ માટે ઓનલાઇન & ઑફલાઇન પરવાનગી સેવ કરતું ફંક્શન
     function toggleStep4StaffPerm(sId, mod, type, isChecked) {
         let key = `can${type.charAt(0).toUpperCase() + type.slice(1)}${mod}`;
         if (!staffListObj[sId]) staffListObj[sId] = {};
@@ -8734,7 +8945,6 @@
         }
     }
 
-     // 📋 ૩. સુધારેલ getAllBookings: જે ફાર્મ પસંદ હોય માત્ર તેનું જ બુકિંગ બતાવશે (મિક્સ થશે નહીં)
     function getAllBookings() {
         let bookings = [];
         if (currentFarmId === "ALL") {
@@ -8763,7 +8973,7 @@
         return bookings;
     }
 
-    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ (ફાર્મના નામ સાથે લાઈવ ડિસ્પ્લે)
+    // ૨. ફિલ્ટર અને રિપોર્ટ ટેબલ (શિફ્ટ ટાઈમ, ખાલી કરવાનો સમય અને જમણવાર નોંધ સાથે લાઈવ ડિસ્પ્લે)
     function filterData() {
         const tbody = document.getElementById("bookingTableBody");
         if (!tbody) return;
@@ -8791,7 +9001,7 @@
             if (fYear && y !== fYear) return;
             if (fMonth !== "" && m !== fMonth) return;
             if (fStatus && item.status !== fStatus) return;   
-            if (search && !(item.customerName || '').toLowerCase().includes(search) && !(item.mobile || "").includes(search) && !(item.receiptNo || "").toLowerCase().includes(search) && !(item.bookingNote1 || "").toLowerCase().includes(search) && !(item.bookingNote2 || "").toLowerCase().includes(search) && !(item.bookingNote3 || "").toLowerCase().includes(search) && !(item.otherExtraChargeNote || "").toLowerCase().includes(search) && !(item.farmName || "").toLowerCase().includes(search)) return;
+            if (search && !(item.customerName || '').toLowerCase().includes(search) && !(item.mobile || "").includes(search) && !(item.receiptNo || "").toLowerCase().includes(search) && !(item.bookingNote1 || "").toLowerCase().includes(search) && !(item.bookingNote2 || "").toLowerCase().includes(search) && !(item.bookingNote3 || "").toLowerCase().includes(search) && !(item.otherExtraChargeNote || "").toLowerCase().includes(search) && !(item.farmName || "").toLowerCase().includes(search) && !(item.jamnvarNote || "").toLowerCase().includes(search)) return;
 
             totalCount++;
             sumTotal += parseFloat(item.totalAmount || 0);
@@ -8815,6 +9025,15 @@
                 ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="deleteBooking('${item.dateKey}')">ડિલીટ</button>`
                 : `<span style="color:#94a3b8; font-size:12px;">🔒</span>`;
 
+            // જૂના અને નવા બંને બુકિંગ માટે સમયનું સલામત ડિસ્પ્લે
+            let defaultTiming = getShiftDefaultTimings(itemSlot);
+            let displayTimeText = item.slotTimeText || defaultTiming.timeText;
+            let displayVacateText = item.slotVacateText || defaultTiming.vacateText;
+
+            let timingStr = `<br><small style="color:#1e40af; font-weight:700;">⏱️ ${displayTimeText}</small>`;
+            let vacateStr = `<br><small style="color:#b91c1c; font-weight:700;">🚪 ${displayVacateText}</small>`;
+            let jamnvarStr = item.jamnvarNote ? `<br><small style="color:#7c2d12; font-weight:800;">🍲 ${item.jamnvarNote}</small>` : '';
+
             let mandapStr = "";
             if (item.mandapSavar || item.mandapBapor || item.mandapSanj) {
                 mandapStr = `<br><small style="color:#b45309;">🎪 ${item.mandapSavar ? 'સ:' + item.mandapSavar + ' ' : ''}${item.mandapBapor ? 'બ:' + item.mandapBapor + ' ' : ''}${item.mandapSanj ? 'સા:' + item.mandapSanj : ''}</small>`;
@@ -8828,21 +9047,20 @@
                 notesStr = `<br><small style="color:#475569;" title="વિશેષ નોંધ">📌 ${noteParts.join(" | ")}</small>`;
             }
     
-           let otherChargeStr = (item.otherExtraCharge > 0 || item.otherExtraChargeNote) ? `<br><small style="color:#334155;">📝 અન્ય ચાર્જ: ₹${parseFloat(item.otherExtraCharge || 0).toLocaleString('en-IN')}${item.otherExtraChargeNote ? ' (' + item.otherExtraChargeNote + ')' : ''}</small>` : '';
- 
-            // 🏰 બધા ફાર્મ મોડમાં અથવા સામાન્ય મોડમાં ફાર્મનું નામ સ્પષ્ટ બતાવવું
+            let otherChargeStr = (item.otherExtraCharge > 0 || item.otherExtraChargeNote) ? `<br><small style="color:#334155;">📝 અન્ય ચાર્જ: ₹${parseFloat(item.otherExtraCharge || 0).toLocaleString('en-IN')}${item.otherExtraChargeNote ? ' (' + item.otherExtraChargeNote + ')' : ''}</small>` : '';
+
             let farmBadge = item.farmName ? `<br><span style="background:#e0e7ff; color:#3730a3; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:800;">🏰 ${item.farmName}</span>` : '';
 
             let row = `<tr>
                 <td>${totalCount}</td>
                 <td><b>${d}/${parts[1]}/${y}</b></td>
-                <td><b style="color:var(--primary);">${slotLabel}</b>${mandapStr}</td>
+                <td><b style="color:var(--primary);">${slotLabel}</b>${timingStr}${vacateStr}${jamnvarStr}${mandapStr}</td>
                 <td>
                     <b>${item.customerName}</b> ${farmBadge}
                     ${item.receiptNo ? `<br><small style="color:#4338ca; font-weight:800; background:#e0e7ff; padding:1px 6px; border-radius:4px;">🧾 નં: ${item.receiptNo}</small>` : ''}
                     ${item.hastakName ? `<br><small style="color:#0369a1;">↳ હસ્તક: ${item.hastakName} ${item.hastakMobile ? '(' + item.hastakMobile + ')' : ''}</small>` : ''}
                     ${watchmanStr}  
-                     ${otherChargeStr}
+                    ${otherChargeStr}
                     ${notesStr}
                 </td>
                 <td>${item.mobile || '-'}</td>
@@ -8877,7 +9095,6 @@
         document.getElementById("peakMonthDisplay").innerText = peakText;
     }
 
-    // ૩. ક્લાઉડ (Firebase) માંથી સુરક્ષિત ડિલીટ (સાચા ફાર્મ પાથ સાથે - ૧૦૦% પરફેક્ટ)
     function deleteBooking(key) {  
         if (!canUserDelete) {
             alert("❌ તમારી પાસે ડેટા ડિલીટ કરવાનો અધિકાર નથી!");
@@ -8909,7 +9126,6 @@
         }
     }
 
-    // ૪. ક્લાઉડ (Firebase) માંથી માત્ર પસંદ કરેલા ફાર્મનો જ ડેટા સાફ કરવો (બીજા ફાર્મ સેફ રહેશે)
     function clearAllData() {
         if (currentUserRole !== 'admin') return;
         if (!currentFarmId || currentFarmId === "ALL") {
@@ -8927,7 +9143,7 @@
         }
     }
 
-    // 📑 Excel/CSV એક્સપોર્ટ (રસીદ નંબર & નોંધ ૧, ૨, ૩ સહિત)
+    // 📑 Excel/CSV એક્સપોર્ટ (કાર્યક્રમ સમય, ફાર્મ ખાલી કરવાનો સમય અને જમણવાર નોંધ સહિત)
     function exportExcel() {
         let bookings = getAllBookings();
         if (bookings.length === 0) {
@@ -8935,7 +9151,7 @@
             return;
         }  
 
-           let csv = "\uFEFFરસીદ નંબર,તારીખ,શિફ્ટ,મંડપ સવાર,મંડપ બપોર,મંડપ સાંજ,વોચમેન સંખ્યા,વોચમેન ભાવ,વોચમેન કુલ રકમ (₹),કસ્ટમરનું નામ,મોબાઈલ,હસ્તકનું નામ,હસ્તક મોબાઈલ,ઇવેન્ટ,મહેમાનો,નોંધ ૧,નોંધ ૨,નોંધ ૩,મૂળ ફાર્મ પેકેજ (₹),એક્સ્ટ્રા વસ્તુઓ,કચરા પેટી (₹),અન્ય ચાર્જ (₹),અન્ય ચાર્જ નોંધ,કુલ પેકેજ રકમ (₹),કુલ એડવાન્સ જમા,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી,સ્ટેટસ\n";
+        let csv = "\uFEFFરસીદ નંબર,તારીખ,શિફ્ટ,કાર્યક્રમ સમય,ફાર્મ ખાલી કરવાનો સમય,જમણવાર નોંધ,મંડપ સવાર,મંડપ બપોર,મંડપ સાંજ,વોચમેન સંખ્યા,વોચમેન ભાવ,વોચમેન કુલ રકમ (₹),કસ્ટમરનું નામ,મોબાઈલ,હસ્તકનું નામ,હસ્તક મોબાઈલ,ઇવેન્ટ,મહેમાનો,નોંધ ૧,નોંધ ૨,નોંધ ૩,મૂળ ફાર્મ પેકેજ (₹),એક્સ્ટ્રા વસ્તુઓ,કચરા પેટી (₹),અન્ય ચાર્જ (₹),અન્ય ચાર્જ નોંધ,કુલ પેકેજ રકમ (₹),કુલ એડવાન્સ જમા,બાકી રકમ,પેમેન્ટ હિસ્ટ્રી,સ્ટેટસ\n";
         
         bookings.forEach(b => {
             let parts = b.dateKey.replace(STORAGE_PREFIX, "").split("_");
@@ -8952,7 +9168,11 @@
 
             let statusText = b.status === 'ok' ? 'ઓકે (OK)' : (b.status === 'paid' ? 'પૂર્ણ (Paid)' : (b.status === 'partial' ? 'અડધું પેમેન્ટ (Partial)' : 'બાકી (Pending)'));
 
-            csv += `"${(b.receiptNo || '-').replace(/"/g, '""')}","${formattedDate}","${slotName}","${b.mandapSavar || '-'}","${b.mandapBapor || '-'}","${b.mandapSanj || '-'}","${b.watchmanCount || 0}","${b.watchmanRate || 0}","${b.watchmanTotal || 0}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.bookingNote1 || '-').replace(/"/g, '""')}","${(b.bookingNote2 || '-').replace(/"/g, '""')}","${(b.bookingNote3 || '-').replace(/"/g, '""')}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${(b.otherExtraChargeNote || '-').replace(/"/g, '""')}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
+            let defaultTiming = getShiftDefaultTimings(b.slot || 'morning');
+            let exportTimeText = b.slotTimeText || defaultTiming.timeText;
+            let exportVacateText = b.slotVacateText || defaultTiming.vacateText;
+
+            csv += `"${(b.receiptNo || '-').replace(/"/g, '""')}","${formattedDate}","${slotName}","${(exportTimeText || '-').replace(/"/g, '""')}","${(exportVacateText || '-').replace(/"/g, '""')}","${(b.jamnvarNote || '-').replace(/"/g, '""')}","${b.mandapSavar || '-'}","${b.mandapBapor || '-'}","${b.mandapSanj || '-'}","${b.watchmanCount || 0}","${b.watchmanRate || 0}","${b.watchmanTotal || 0}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.bookingNote1 || '-').replace(/"/g, '""')}","${(b.bookingNote2 || '-').replace(/"/g, '""')}","${(b.bookingNote3 || '-').replace(/"/g, '""')}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${(b.otherExtraChargeNote || '-').replace(/"/g, '""')}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
         });
 
         let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
