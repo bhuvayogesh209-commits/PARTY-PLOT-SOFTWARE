@@ -382,6 +382,7 @@
         <div class="section-header">
             <div class="section-title">📊 નાણાકીય વિગત અને બુકિંગ રિપોર્ટ</div>
             <div style="display:flex; gap:8px;">   
+            <button id="btnAdminTallyTop" class="btn" onclick="openAdminTallyModal()" style="display:none; background:#0f172a; color:#fde047; border:1.5px solid #f59e0b; font-weight:800;">📒 પર્સનલ ટીમ આવક-જાવક (Tally)</button>
                 <!-- ૧. હાલના ફાર્મ (જેમ કે સીતારામ વાડી) નું અલગ બેકઅપ -->
                 <button class="btn btn-outline" onclick="downloadFarmBackupJSON()" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd; font-weight:700;">💾 હાલનું ફાર્મ બેકઅપ</button>
 
@@ -7645,6 +7646,8 @@
             document.getElementById("adminFarmBtnArea").style.display = "none";
             document.getElementById("adminPermBtn").style.display = "none";
         }
+        let adminTallyBtn = document.getElementById("btnAdminTallyTop");
+        if (adminTallyBtn) adminTallyBtn.style.display = (currentUserRole === "admin") ? "inline-flex" : "none";
 
         // 👷‍♂️ વર્કર સેક્શન વિઝિબિલિટી
         let workerSection = document.getElementById("workerSectionCard");
@@ -9410,6 +9413,9 @@
             cloudBookings = {};
             if (cachedAllFarmBookings) delete cachedAllFarmBookings[currentFarmId];
             localStorage.removeItem("cached_bookings_" + currentFarmId);
+            if (typeof removeAutoRojmelByPrefix === "function") {
+                removeAutoRojmelByPrefix(`auto_bk_${currentFarmId}_`);
+            }
             generateCalendar();
             filterData();
             alert("✅ ફાર્મનો ડેટા ક્લિયર થઈ ગયો છે!");
@@ -10227,8 +10233,8 @@
             tbody.innerHTML += `<tr>
                 <td style="padding:6px;"><b>${c.name}</b></td>
                 <td style="padding:6px; text-align:center; white-space:nowrap;">
-                    <button onclick="editCustomExpenseCategory('${c.id}', '${c.name}')" style="background:none; border:none; cursor:pointer;" title="સુધારો">✏️</button>
-                    <button onclick="deleteCustomExpenseCategory('${c.id}', '${c.name}')" style="background:none; border:none; cursor:pointer; color:#ef4444;" title="કાઢી નાખો">🗑️</button>
+                    <button onclick="editCustomExpenseCategory('${c.id}', '${(c.name || '').replace(/'/g, "\\'")}')" style="background:none; border:none; cursor:pointer;" title="સુધારો">✏️</button>
+                    <button onclick="deleteCustomExpenseCategory('${c.id}', '${(c.name || '').replace(/'/g, "\\'")}')" style="background:none; border:none; cursor:pointer; color:#ef4444;" title="કાઢી નાખો">🗑️</button>
                 </td>
             </tr>`;
         });
@@ -10353,13 +10359,16 @@
         }
 
         let rId = editId ? editId : ("roj_" + Date.now());
+        let prevR = (editId && cloudRojmel[editId]) ? cloudRojmel[editId] : null;
         let rData = {
             id: rId,
             date: dateVal,
             type: type,
             amount: amt,
             details: details,
-            timestamp: editId && cloudRojmel[editId] ? (cloudRojmel[editId].timestamp || Date.now()) : Date.now(),
+            isAuto: prevR ? !!prevR.isAuto : false,
+            autoSource: prevR ? (prevR.autoSource || "") : "",
+            timestamp: prevR && prevR.timestamp ? prevR.timestamp : Date.now(),
             updatedAt: Date.now()
         };
 
@@ -10386,7 +10395,10 @@
     function editRojmelEntry(rId) {
         let r = cloudRojmel[rId];
         if (!r) return;
-
+        if (currentUserRole !== 'admin' && !hasStep4Perm('Rojmel', 'edit')) {
+            alert("❌ રોજમેળ એન્ટ્રી સુધારવાનો અધિકાર નથી!");
+            return;
+        }
         document.getElementById("editRojmelId").value = rId;
         document.getElementById("rojmelDate").value = r.date || "";
         document.getElementById("rojmelType").value = r.type || "JAMA";
@@ -10614,7 +10626,7 @@
         let eDate = document.getElementById("rojmelFilterEnd") ? document.getElementById("rojmelFilterEnd").value : "";
         let list = Object.values(cloudRojmel);
         list = list.filter(r => (!sDate || r.date >= sDate) && (!eDate || r.date <= eDate));
-
+        list.sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.timestamp || 0) - (b.timestamp || 0));
         if (list.length === 0) { 
             alert("પસંદ કરેલ તારીખમાં એક્સપોર્ટ કરવા માટે કોઈ રોજમેળ એન્ટ્રી નથી!"); 
             return; 
@@ -10762,7 +10774,7 @@
                 <td style="padding:6px; text-align:right; color:${balance > 0 ? '#b91c1c' : '#15803d'}; font-weight:800;">₹${balance.toLocaleString('en-IN')}</td>
                 <td style="padding:6px; text-align:center; white-space:nowrap;">
                     <button class="btn btn-outline" style="padding:2px 6px; font-size:11px;" onclick="payVendorAmount('${v.id}')">💵 ચુકવણી</button>
-                    <button onclick="deleteVendor('${v.id}', '${v.name}')" style="background:none; border:none; color:#ef4444; cursor:pointer;">🗑️</button>
+                    <button onclick="deleteVendor('${v.id}', '${(v.name || '').replace(/'/g, "\\'")}')" style="background:none; border:none; color:#ef4444; cursor:pointer;">🗑️</button>
                 </td>
             </tr>`;
         });
@@ -10911,7 +10923,7 @@
                     <button class="btn btn-outline" style="padding:2px 6px; font-size:11px; color:#b91c1c;" onclick="changeItemStock('${item.id}', 'out')">📤 બહાર આપ્યા</button>
                     <button class="btn btn-outline" style="padding:2px 6px; font-size:11px; color:#15803d;" onclick="changeItemStock('${item.id}', 'in')">📥 પાછા આવ્યા</button>
                 </td>
-                <td style="padding:6px; text-align:center;"><button onclick="deleteInventoryItem('${item.id}', '${item.name}')" style="background:none; border:none; color:#ef4444; cursor:pointer;">❌</button></td>
+                 <td style="padding:6px; text-align:center;"><button onclick="deleteInventoryItem('${item.id}', '${(item.name || '').replace(/'/g, "\\'")}')" style="background:none; border:none; color:#ef4444; cursor:pointer;">❌</button></td>
             </tr>`;
         });
 
@@ -11129,7 +11141,7 @@
         let eDate = document.getElementById("rojmelFilterEnd").value;
         let list = Object.values(cloudRojmel);
         list = list.filter(r => (!sDate || r.date >= sDate) && (!eDate || r.date <= eDate));
-
+        list.sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.timestamp || 0) - (b.timestamp || 0));
         let jamaList = list.filter(r => r.type === "JAMA");
         let udharList = list.filter(r => r.type === "UDHAR");
         let totJama = jamaList.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
@@ -11458,6 +11470,9 @@
             ,workerAttendance: (typeof cloudWorkerAttendance !== "undefined" && Object.keys(cloudWorkerAttendance).length > 0 ? cloudWorkerAttendance : JSON.parse(localStorage.getItem("cached_worker_attendance") || "{}"))
             ,workerShiftConfig: (typeof cloudShiftConfig !== "undefined" ? cloudShiftConfig : JSON.parse(localStorage.getItem("cached_worker_shift_config") || "{}"))
              ,workerNightOvertime: (typeof cloudWorkerNightOT !== "undefined" && Object.keys(cloudWorkerNightOT).length > 0 ? cloudWorkerNightOT : JSON.parse(localStorage.getItem("cached_worker_night_overtime") || "{}"))
+             ,adminTallyAccounts: (typeof cloudTallyAccounts !== "undefined" && Object.keys(cloudTallyAccounts).length > 0 ? cloudTallyAccounts : JSON.parse(localStorage.getItem("cached_admin_tally_accounts") || "{}"))
+            ,adminTallyEntries: (typeof cloudTallyEntries !== "undefined" && Object.keys(cloudTallyEntries).length > 0 ? cloudTallyEntries : JSON.parse(localStorage.getItem("cached_admin_tally_entries") || "{}"))
+            ,adminTallyConfig: (typeof cloudTallyConfig !== "undefined" ? cloudTallyConfig : JSON.parse(localStorage.getItem("cached_admin_tally_config") || "{}"))
         };
     }
 
@@ -11841,6 +11856,24 @@
             localStorage.setItem("cached_worker_night_overtime", JSON.stringify(cloudWorkerNightOT));
             if (isOnline) firebase.database().ref("worker_night_overtime").set(cloudWorkerNightOT);
         }
+
+         if (data.adminTallyAccounts) {
+            cloudTallyAccounts = data.adminTallyAccounts;
+            localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
+            if (isOnline) firebase.database().ref("admin_tally_accounts").set(cloudTallyAccounts);
+        }
+        if (data.adminTallyEntries) {
+            cloudTallyEntries = data.adminTallyEntries;
+            localStorage.setItem("cached_admin_tally_entries", JSON.stringify(cloudTallyEntries));
+            if (isOnline) firebase.database().ref("admin_tally_entries").set(cloudTallyEntries);
+        }
+        if (data.adminTallyConfig) {
+            cloudTallyConfig = data.adminTallyConfig;
+            localStorage.setItem("cached_admin_tally_config", JSON.stringify(cloudTallyConfig));
+            if (isOnline) firebase.database().ref("admin_tally_config").set(cloudTallyConfig);
+        }
+        if (typeof renderAdminTallyAll === "function") renderAdminTallyAll();
+
         if (typeof loadShiftSettingsToInputs === "function") loadShiftSettingsToInputs();
         if (typeof renderAttendanceCalendarAndReport === "function") renderAttendanceCalendarAndReport();
         if (typeof renderNightTabView === "function") renderNightTabView();
@@ -12735,6 +12768,998 @@
             renderNightTabView();
         }
     };
+</script>
+<!-- START NEW CODE -->
+<!-- 📒 Admin Only: પર્સનલ ટીમ આવક-જાવક (Tally T-Account Format) Modal -->
+<div class="modal" id="adminTallyModal" style="z-index: 1080;">
+    <div class="modal-content" style="max-width: 1120px; width: 97%; max-height: 94vh; overflow-y: auto;">
+        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:2px solid #0f172a; padding-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="color:#0f172a; font-size:18px; font-weight:800;">📒 પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Format — Admin Only)</span>
+                <span id="adminTallySyncBadge" style="font-size:11px; font-weight:700; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px;">🟢 લાઈવ & ઑફલાઇન સિંક</span>
+            </div>
+            <button type="button" class="btn btn-outline" onclick="closeAdminTallyModal()" style="padding:3px 10px; font-size:12px;">✕ બંધ કરો</button>
+        </div>
+
+        <!-- 👥 ૧. વ્યક્તિ / ટીમ ખાતું ઉમેરો & દરેકનું અલગ લાઈવ બેલેન્સ જુઓ -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:10px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                <b style="font-size:13px; color:#1e1b4b;">👥 વ્યક્તિ / ટીમ ખાતા (Men 1, Men 2, Men 3...):</b>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; flex:1; max-width:440px;">
+                    <input type="text" id="tallyNewAccountName" class="form-control" placeholder="નવું નામ લખો (દા.ત. Men 1, Men 2, રાજુભાઈ)" style="font-size:12.5px; font-weight:700; flex:1; min-width:170px;" onkeypress="if(event.key==='Enter') addAdminTallyAccount()">
+                    <button type="button" class="btn btn-primary" onclick="addAdminTallyAccount()" style="padding:7px 14px; font-size:12px; white-space:nowrap;">➕ ખાતું ઉમેરો</button>
+                </div>
+            </div>
+            <div id="tallyAccountsStrip" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(195px, 1fr)); gap:8px;">
+                <!-- Dynamic Person Balance Cards -->
+            </div>
+        </div>
+
+        <!-- ➕ ૨. આવક / જાવક એન્ટ્રી ફોર્મ -->
+        <div style="background:#fffbeb; border:1.5px solid #f59e0b; border-radius:10px; padding:12px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                <b id="tallyEntryFormTitle" style="font-size:13px; color:#92400e;">➕ નવી આવક / જાવક એન્ટ્રી કરો:</b>
+                <button type="button" id="btnCancelTallyEdit" class="btn btn-outline" onclick="cancelEditAdminTallyEntry()" style="display:none; padding:2px 9px; font-size:11px; color:#b91c1c; border-color:#fca5a5;">✕ સુધારો રદ</button>
+            </div>
+            <input type="hidden" id="editTallyEntryId" value="">
+
+            <div style="display:grid; grid-template-columns: 1.2fr 1.1fr 1fr 0.85fr 1fr; gap:8px; margin-bottom:8px;">
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#451a03;">વ્યક્તિ / ટીમ નામ *</label>
+                    <select id="tallyAccountSelect" class="form-control" style="font-size:12.5px; font-weight:700; background:#fff;"></select>
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#451a03;">પ્રકાર (આવક / જાવક) *</label>
+                    <select id="tallyEntryType" class="form-control" style="font-size:12.5px; font-weight:800; background:#fff;">
+                        <option value="INCOME" style="color:#15803d;">📥 આવક / જમા (Cr.)</option>
+                        <option value="EXPENSE" style="color:#b91c1c;">📤 જાવક / ખર્ચ (Dr.)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#451a03;">તારીખ *</label>
+                    <input type="date" id="tallyEntryDate" class="form-control" style="font-size:12px; font-weight:700;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#451a03;">સમય</label>
+                    <input type="time" id="tallyEntryTime" class="form-control" style="font-size:12px;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#451a03;">પેમેન્ટ મોડ *</label>
+                    <select id="tallyPayMode" class="form-control" onchange="onAdminTallyModeChange()" style="font-size:12px; font-weight:700;">
+                        <option value="cash">💵 રોકડ (Cash)</option>
+                        <option value="gpay">📱 GPay / UPI</option>
+                        <option value="cheque">🏦 ચેક (Cheque)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1.1fr 1.5fr 1fr 1.1fr auto; gap:8px; align-items:end;">
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#15803d;">રકમ (₹) *</label>
+                    <input type="number" id="tallyEntryAmount" class="form-control" placeholder="રકમ લખો" style="font-size:15px; font-weight:800; color:#0f172a; background:#fff; border:1.5px solid #f59e0b;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#451a03;">વિગત / ખાતાનું નામ (Particulars) *</label>
+                    <input type="text" id="tallyEntryParticulars" class="form-control" placeholder="દા.ત. કેશ મળ્યા, સામાન ખરીદી, ભાડું" style="font-size:12.5px; font-weight:600;">
+                </div>
+                <div id="tallyRefGroup" style="display:none;">
+                    <label id="tallyRefLabel" style="font-size:11px; font-weight:700; color:#1d4ed8;">ચેક નં / GPay ID *</label>
+                    <input type="text" id="tallyEntryRef" class="form-control" placeholder="નંબર / ID લખો" style="font-size:12px; font-weight:700;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#451a03;">વધારાની નોંધ</label>
+                    <input type="text" id="tallyEntryNote" class="form-control" placeholder="નોંધ (વૈકલ્પિક)" style="font-size:12px;">
+                </div>
+                <div>
+                    <button type="button" id="btnSaveTallyEntry" class="btn btn-success" onclick="saveAdminTallyEntry()" style="padding:9px 16px; font-weight:800; white-space:nowrap;">💾 એન્ટ્રી સેવ કરો</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🔍 ૩. ફિલ્ટર, Master WhatsApp નંબર સેટિંગ & પ્રિન્ટ/Excel બાર -->
+        <div style="background:#f1f5f9; border:1.5px solid #cbd5e1; border-radius:10px; padding:10px; margin-bottom:12px;">
+            <div style="display:grid; grid-template-columns: 1.1fr 0.9fr 0.9fr 1.1fr auto; gap:6px; align-items:end; margin-bottom:8px;">
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#475569;">વ્યક્તિ / ટીમ ફિલ્ટર:</label>
+                    <select id="tallyFilterAccount" class="form-control" onchange="renderAdminTallyAll()" style="font-size:12px; font-weight:700;">
+                        <option value="ALL">👥 બધા વ્યક્તિ / ટીમ</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#475569;">શરૂઆત તારીખ:</label>
+                    <input type="date" id="tallyFilterStart" class="form-control" onchange="renderAdminTallyAll()" style="font-size:12px;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#475569;">અંતિમ તારીખ:</label>
+                    <input type="date" id="tallyFilterEnd" class="form-control" onchange="renderAdminTallyAll()" style="font-size:12px;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#475569;">શોધો (વિગત / ચેક નં / ID):</label>
+                    <input type="text" id="tallyFilterSearch" class="form-control" onkeyup="renderAdminTallyAll()" placeholder="સર્ચ..." style="font-size:12px;">
+                </div>
+                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-outline" onclick="resetAdminTallyFilters()" style="padding:7px 10px; font-size:11.5px;" title="રીસેટ">🔄</button>
+                    <button type="button" class="btn btn-primary" onclick="printAdminTallyStatement()" style="padding:7px 12px; font-size:12px; font-weight:700;">🖨️ Tally પ્રિન્ટ</button>
+                    <button type="button" class="btn btn-success" onclick="exportAdminTallyExcel()" style="padding:7px 12px; font-size:12px; font-weight:700;">📑 Excel</button>
+                </div>
+            </div>
+
+            <!-- 📲 Master WhatsApp Numbers Row -->
+            <div style="border-top:1px dashed #cbd5e1; padding-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <b style="font-size:12px; color:#047857;">📲 Master WhatsApp નંબરો:</b>
+                <input type="text" id="tallyMasterPhonesInput" class="form-control" placeholder="૧ કે ૨ નંબર લખો (દા.ત. 9876543210, 9825012345)" style="flex:1; min-width:220px; font-size:12.5px; font-weight:700; background:#fff;">
+                <button type="button" class="btn btn-outline" onclick="saveAdminTallyMasterPhones()" style="padding:7px 12px; font-size:12px; font-weight:700; background:#fff;">💾 નંબર સેવ</button>
+                <button type="button" class="btn" onclick="sendAdminTallyWhatsApp()" style="background:#25D366; color:white; padding:7px 14px; font-size:12px; font-weight:800;">📲 WhatsApp પર મોકલો</button>
+            </div>
+            <div id="tallyQuickWaButtonsArea" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"></div>
+        </div>
+
+        <!-- 📊 ૪. લાઈવ સરવાળો કાર્ડ્સ -->
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-bottom:12px; text-align:center;">
+            <div style="background:#ecfdf5; border:1.5px solid #86efac; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#065f46; font-weight:700; display:block;">કુલ આવક (Income / Cr.)</span>
+                <b id="tallySumIncome" style="font-size:17px; color:#047857;">₹0.00</b>
+            </div>
+            <div style="background:#fef2f2; border:1.5px solid #fca5a5; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#991b1b; font-weight:700; display:block;">કુલ જાવક (Expense / Dr.)</span>
+                <b id="tallySumExpense" style="font-size:17px; color:#b91c1c;">₹0.00</b>
+            </div>
+            <div id="tallyNetCardBox" style="background:#f8fafc; border:1.5px solid #cbd5e1; padding:8px; border-radius:8px;">
+                <span id="tallyNetCardLabel" style="font-size:11px; font-weight:700; display:block;">ચોખ્ખો નફો / ખોટ</span>
+                <b id="tallySumNet" style="font-size:17px;">₹0.00</b>
+            </div>
+            <div style="background:#fefce8; border:1.5px solid #f59e0b; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#92400e; font-weight:700; display:block;">બંને બાજુનું સરખું ટોટલ (Tally Total)</span>
+                <b id="tallySumEqualTotal" style="font-size:17px; color:#b45309;">₹0.00</b>
+            </div>
+        </div>
+
+        <!-- 📋 ૫. Tally Two-Column T-Account Live Statement -->
+        <div style="overflow-x:auto; border:2px solid #334155; border-radius:6px; background:#fff; margin-bottom:10px;">
+            <table id="tallyLiveStatementTable" style="width:100%; min-width:760px; border-collapse:collapse; font-size:12.5px; color:#0f172a;">
+                <thead>
+                    <tr style="background:#f8fafc; border-bottom:2px solid #334155;">
+                        <th style="padding:7px 8px; text-align:left; width:26%;">Particulars (જાવક / ખર્ચ બાજુ)</th>
+                        <th colspan="2" id="tallyLiveLeftDateHead" style="padding:7px 8px; text-align:right; width:24%; border-right:2px solid #334155; font-size:11.5px; color:#475569;">બધી તારીખો</th>
+                        <th style="padding:7px 8px; text-align:left; width:26%;">Particulars (આવક / જમા બાજુ)</th>
+                        <th colspan="2" id="tallyLiveRightDateHead" style="padding:7px 8px; text-align:right; width:24%; font-size:11.5px; color:#475569;">બધી તારીખો</th>
+                    </tr>
+                </thead>
+                <tbody id="tallyLiveStatementBody">
+                    <tr><td colspan="6" style="text-align:center; padding:18px; color:#94a3b8;">હજુ કોઈ એન્ટ્રી ઉમેરેલ નથી.</td></tr>
+                </tbody>
+                <tfoot>
+                    <tr style="border-top:2px solid #334155; border-bottom:2px solid #334155; background:#fefce8; font-weight:900; font-size:13.5px;">
+                        <td style="padding:8px;">Total</td>
+                        <td colspan="2" id="tallyLiveLeftTotal" style="padding:8px; text-align:right; border-right:2px solid #334155;">0.00</td>
+                        <td style="padding:8px;">Total</td>
+                        <td colspan="2" id="tallyLiveRightTotal" style="padding:8px; text-align:right;">0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 🚀 Admin Personal Team Tally Standalone Engine -->
+<script>
+    const adminTallyAccountsRef = firebase.database().ref("admin_tally_accounts");
+    const adminTallyEntriesRef = firebase.database().ref("admin_tally_entries");
+    const adminTallyConfigRef = firebase.database().ref("admin_tally_config");
+
+    var cloudTallyAccounts = JSON.parse(localStorage.getItem("cached_admin_tally_accounts") || "{}");
+    var cloudTallyEntries = JSON.parse(localStorage.getItem("cached_admin_tally_entries") || "{}");
+    var cloudTallyConfig = JSON.parse(localStorage.getItem("cached_admin_tally_config") || '{"whatsappNumbers":""}');
+
+    function getTallySafeRole() {
+        return window.currentUserRole || sessionStorage.getItem("loggedUserRole") || localStorage.getItem("persistentLoggedUserRole") || "";
+    }
+
+    function formatTallyAmt(n) {
+        return Number(parseFloat(n || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function escapeTallyHtml(str) {
+        return String(str || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function mergePendingOfflineTally() {
+        try {
+            let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
+            let changed = false;
+            queue.forEach(item => {
+                if (!item || !item.path) return;
+                if (item.path.indexOf("admin_tally_accounts/") === 0) {
+                    let id = item.path.split("/")[1];
+                    if (id) {
+                        if (item.action === "set" && item.data) { cloudTallyAccounts[id] = item.data; changed = true; }
+                        else if (item.action === "remove" && cloudTallyAccounts[id]) { delete cloudTallyAccounts[id]; changed = true; }
+                    }
+                } else if (item.path.indexOf("admin_tally_entries/") === 0) {
+                    let id = item.path.split("/")[1];
+                    if (id) {
+                        if (item.action === "set" && item.data) { cloudTallyEntries[id] = item.data; changed = true; }
+                        else if (item.action === "remove" && cloudTallyEntries[id]) { delete cloudTallyEntries[id]; changed = true; }
+                    }
+                } else if (item.path === "admin_tally_config" && item.action === "set" && item.data) {
+                    cloudTallyConfig = item.data;
+                    changed = true;
+                }
+            });
+            if (changed) {
+                localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
+                localStorage.setItem("cached_admin_tally_entries", JSON.stringify(cloudTallyEntries));
+                localStorage.setItem("cached_admin_tally_config", JSON.stringify(cloudTallyConfig));
+            }
+        } catch(e) { console.log("Merge Offline Tally Error:", e); }
+    }
+    mergePendingOfflineTally();
+
+    adminTallyAccountsRef.on('value', (snap) => {
+        let val = snap.val();
+        cloudTallyAccounts = (val && typeof val === "object") ? val : {};
+        mergePendingOfflineTally();
+        localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
+        if (document.getElementById("adminTallyModal")?.style.display === "flex") renderAdminTallyAll();
+    });
+
+    adminTallyEntriesRef.on('value', (snap) => {
+        let val = snap.val();
+        cloudTallyEntries = (val && typeof val === "object") ? val : {};
+        mergePendingOfflineTally();
+        localStorage.setItem("cached_admin_tally_entries", JSON.stringify(cloudTallyEntries));
+        if (document.getElementById("adminTallyModal")?.style.display === "flex") renderAdminTallyAll();
+    });
+
+    adminTallyConfigRef.on('value', (snap) => {
+        let val = snap.val();
+        if (val && typeof val === "object") {
+            cloudTallyConfig = val;
+            mergePendingOfflineTally();
+            localStorage.setItem("cached_admin_tally_config", JSON.stringify(cloudTallyConfig));
+            let inp = document.getElementById("tallyMasterPhonesInput");
+            if (inp && document.activeElement !== inp) {
+                inp.value = cloudTallyConfig.whatsappNumbers || "";
+            }
+            renderQuickMasterWaButtons();
+        }
+    });
+
+    setInterval(() => {
+        let btn = document.getElementById("btnAdminTallyTop");
+        if (btn) btn.style.display = (getTallySafeRole() === "admin") ? "inline-flex" : "none";
+        let syncBadge = document.getElementById("adminTallySyncBadge");
+        if (syncBadge) {
+            if (navigator.onLine) {
+                syncBadge.innerText = "🟢 ઓનલાઇન લાઈવ સિંક";
+                syncBadge.style.background = "#dcfce7";
+                syncBadge.style.color = "#15803d";
+            } else {
+                syncBadge.innerText = "🔴 ઑફલાઇન (ઓટો સિંક બાકી)";
+                syncBadge.style.background = "#fee2e2";
+                syncBadge.style.color = "#b91c1c";
+            }
+        }
+    }, 1000);
+
+    function openAdminTallyModal() {
+        if (getTallySafeRole() !== "admin") {
+            alert("❌ આ ખાતાવહી ફક્ત Admin (માલિક) માટે જ છે!");
+            return;
+        }
+        cancelEditAdminTallyEntry();
+        let now = new Date();
+        let todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        document.getElementById("tallyEntryDate").value = todayISO;
+        document.getElementById("tallyEntryTime").value = now.toTimeString().slice(0, 5);
+        document.getElementById("tallyMasterPhonesInput").value = cloudTallyConfig.whatsappNumbers || "";
+
+        renderAdminTallyAll();
+        document.getElementById("adminTallyModal").style.display = "flex";
+    }
+
+    function closeAdminTallyModal() {
+        cancelEditAdminTallyEntry();
+        document.getElementById("adminTallyModal").style.display = "none";
+    }
+
+    function addAdminTallyAccount() {
+        if (getTallySafeRole() !== "admin") return;
+        let inp = document.getElementById("tallyNewAccountName");
+        let name = (inp.value || "").trim();
+        if (!name) { alert("કૃપા કરીને વ્યક્તિ કે ટીમનું નામ દાખલ કરો (દા.ત. Men 1)!"); return; }
+
+        let duplicate = Object.values(cloudTallyAccounts).some(a => a && (a.name || "").trim().toLowerCase() === name.toLowerCase());
+        if (duplicate) { alert(`"${name}" નામનું ખાતું પહેલેથી જ ઉમેરેલું છે!`); return; }
+
+        let id = "tacc_" + Date.now();
+        let accData = { id: id, name: name, createdAt: Date.now() };
+        cloudTallyAccounts[id] = accData;
+        localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        if (navigator.onLine) {
+            adminTallyAccountsRef.child(id).set(accData);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: `admin_tally_accounts/${id}`, action: "set", data: accData });
+        }
+
+        inp.value = "";
+        renderAdminTallyAll();
+        let sel = document.getElementById("tallyAccountSelect");
+        if (sel) sel.value = id;
+    }
+
+    function editAdminTallyAccount(accId) {
+        if (getTallySafeRole() !== "admin") return;
+        let acc = cloudTallyAccounts[accId];
+        if (!acc) return;
+        let newName = prompt("વ્યક્તિ / ટીમનું નવું નામ લખો:", acc.name);
+        if (!newName || !newName.trim() || newName.trim() === acc.name) return;
+        newName = newName.trim();
+
+        acc.name = newName;
+        cloudTallyAccounts[accId] = acc;
+        localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
+
+        Object.keys(cloudTallyEntries).forEach(eId => {
+            if (cloudTallyEntries[eId] && cloudTallyEntries[eId].accountId === accId) {
+                cloudTallyEntries[eId].accountName = newName;
+                if (navigator.onLine) {
+                    adminTallyEntriesRef.child(eId).update({ accountName: newName });
+                } else if (typeof addToSyncQueue === "function") {
+                    addToSyncQueue({ path: `admin_tally_entries/${eId}`, action: "set", data: cloudTallyEntries[eId] });
+                }
+            }
+        });
+        localStorage.setItem("cached_admin_tally_entries", JSON.stringify(cloudTallyEntries));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        if (navigator.onLine) {
+            adminTallyAccountsRef.child(accId).set(acc);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: `admin_tally_accounts/${accId}`, action: "set", data: acc });
+        }
+        renderAdminTallyAll();
+    }
+
+    function deleteAdminTallyAccount(accId) {
+        if (getTallySafeRole() !== "admin") return;
+        let acc = cloudTallyAccounts[accId];
+        if (!acc) return;
+        if (!confirm(`શું તમે "${acc.name}" ખાતું લિસ્ટમાંથી દૂર કરવા માંગો છો? (તેની જૂની એન્ટ્રીઓ નામ સાથે સુરક્ષિત રહેશે)`)) return;
+
+        delete cloudTallyAccounts[accId];
+        localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        if (navigator.onLine) {
+            adminTallyAccountsRef.child(accId).remove();
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: `admin_tally_accounts/${accId}`, action: "remove" });
+        }
+        renderAdminTallyAll();
+    }
+
+    function onAdminTallyModeChange() {
+        let m = document.getElementById("tallyPayMode").value;
+        let grp = document.getElementById("tallyRefGroup");
+        let lbl = document.getElementById("tallyRefLabel");
+        let inp = document.getElementById("tallyEntryRef");
+        if (m === "cheque") {
+            grp.style.display = "block";
+            lbl.innerText = "ચેક નંબર (Cheque No.) *";
+            inp.placeholder = "દા.ત. CHQ-445511";
+        } else if (m === "gpay") {
+            grp.style.display = "block";
+            lbl.innerText = "GPay / UPI ID અથવા નંબર *";
+            inp.placeholder = "દા.ત. UPI-Ref / મોબાઈલ";
+        } else {
+            grp.style.display = "none";
+            inp.value = "";
+        }
+    }
+
+    function saveAdminTallyEntry() {
+        if (getTallySafeRole() !== "admin") return;
+        let accSel = document.getElementById("tallyAccountSelect");
+        let accId = accSel ? accSel.value : "";
+        let accName = (accSel && accSel.selectedIndex >= 0) ? accSel.options[accSel.selectedIndex].text : "";
+        if (!accId) {
+            alert("કૃપા કરીને પહેલાં ઉપરથી વ્યક્તિ / ટીમનું નામ (દા.ત. Men 1) ઉમેરો!");
+            document.getElementById("tallyNewAccountName")?.focus();
+            return;
+        }
+
+        let type = document.getElementById("tallyEntryType").value;
+        let dateVal = document.getElementById("tallyEntryDate").value;
+        let timeVal = document.getElementById("tallyEntryTime").value;
+        let mode = document.getElementById("tallyPayMode").value;
+        let refNo = document.getElementById("tallyEntryRef").value.trim();
+        let amt = parseFloat(document.getElementById("tallyEntryAmount").value) || 0;
+        let particulars = document.getElementById("tallyEntryParticulars").value.trim();
+        let note = document.getElementById("tallyEntryNote").value.trim();
+
+        if (!dateVal || amt <= 0 || !particulars) {
+            alert("કૃપા કરીને તારીખ, માન્ય રકમ અને વિગત (Particulars) દાખલ કરો!");
+            return;
+        }
+        if ((mode === "cheque" || mode === "gpay") && !refNo) {
+            alert(`કૃપા કરીને ${mode === "cheque" ? "ચેક નંબર" : "GPay / UPI ID"} દાખલ કરો!`);
+            return;
+        }
+
+        let editId = document.getElementById("editTallyEntryId").value.trim();
+        let eId = editId || ("te_" + Date.now());
+        let prev = editId ? cloudTallyEntries[editId] : null;
+
+        let entryData = {
+            id: eId,
+            accountId: accId,
+            accountName: accName,
+            type: type,
+            date: dateVal,
+            time: timeVal || "",
+            mode: mode,
+            refNumber: refNo,
+            amount: amt,
+            particulars: particulars,
+            note: note,
+            timestamp: prev && prev.timestamp ? prev.timestamp : Date.now(),
+            updatedAt: Date.now()
+        };
+
+        cloudTallyEntries[eId] = entryData;
+        localStorage.setItem("cached_admin_tally_entries", JSON.stringify(cloudTallyEntries));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        if (navigator.onLine) {
+            adminTallyEntriesRef.child(eId).set(entryData);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: `admin_tally_entries/${eId}`, action: "set", data: entryData });
+        }
+
+        cancelEditAdminTallyEntry();
+        renderAdminTallyAll();
+        alert(editId ? "✅ એન્ટ્રી સફળતાપૂર્વક સુધારાઈ ગઈ!" : "✅ એન્ટ્રી સફળતાપૂર્વક સેવ થઈ ગઈ!");
+    }
+
+    function editAdminTallyEntry(eId) {
+        if (getTallySafeRole() !== "admin") return;
+        let e = cloudTallyEntries[eId];
+        if (!e) return;
+
+        document.getElementById("editTallyEntryId").value = eId;
+        let sel = document.getElementById("tallyAccountSelect");
+        if (sel && e.accountId && Array.from(sel.options).some(o => o.value === e.accountId)) {
+            sel.value = e.accountId;
+        }
+        document.getElementById("tallyEntryType").value = e.type || "INCOME";
+        document.getElementById("tallyEntryDate").value = e.date || "";
+        document.getElementById("tallyEntryTime").value = e.time || "";
+        document.getElementById("tallyPayMode").value = e.mode || "cash";
+        onAdminTallyModeChange();
+        document.getElementById("tallyEntryRef").value = e.refNumber || "";
+        document.getElementById("tallyEntryAmount").value = e.amount || "";
+        document.getElementById("tallyEntryParticulars").value = e.particulars || "";
+        document.getElementById("tallyEntryNote").value = e.note || "";
+
+        document.getElementById("tallyEntryFormTitle").innerText = "✏️ એન્ટ્રી સુધારો (Edit Tally Entry):";
+        document.getElementById("btnSaveTallyEntry").innerText = "💾 સુધારો સેવ કરો";
+        document.getElementById("btnCancelTallyEdit").style.display = "inline-flex";
+        document.getElementById("tallyEntryAmount").focus();
+    }
+
+    function cancelEditAdminTallyEntry() {
+        if (!document.getElementById("editTallyEntryId")) return;
+        document.getElementById("editTallyEntryId").value = "";
+        document.getElementById("tallyEntryAmount").value = "";
+        document.getElementById("tallyEntryParticulars").value = "";
+        document.getElementById("tallyEntryNote").value = "";
+        document.getElementById("tallyPayMode").value = "cash";
+        document.getElementById("tallyRefGroup").style.display = "none";
+        document.getElementById("tallyEntryRef").value = "";
+        document.getElementById("tallyEntryFormTitle").innerText = "➕ નવી આવક / જાવક એન્ટ્રી કરો:";
+        document.getElementById("btnSaveTallyEntry").innerText = "💾 એન્ટ્રી સેવ કરો";
+        document.getElementById("btnCancelTallyEdit").style.display = "none";
+    }
+
+    function deleteAdminTallyEntry(eId) {
+        if (getTallySafeRole() !== "admin") return;
+        let e = cloudTallyEntries[eId];
+        if (!e) return;
+        if (!confirm(`શું તમે "${e.accountName} - ${e.particulars} (₹${e.amount})" એન્ટ્રી ડિલીટ કરવા માંગો છો?`)) return;
+
+        delete cloudTallyEntries[eId];
+        localStorage.setItem("cached_admin_tally_entries", JSON.stringify(cloudTallyEntries));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+        if (document.getElementById("editTallyEntryId").value === eId) cancelEditAdminTallyEntry();
+
+        if (navigator.onLine) {
+            adminTallyEntriesRef.child(eId).remove();
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: `admin_tally_entries/${eId}`, action: "remove" });
+        }
+        renderAdminTallyAll();
+    }
+
+    function resetAdminTallyFilters() {
+        document.getElementById("tallyFilterAccount").value = "ALL";
+        document.getElementById("tallyFilterStart").value = "";
+        document.getElementById("tallyFilterEnd").value = "";
+        document.getElementById("tallyFilterSearch").value = "";
+        renderAdminTallyAll();
+    }
+
+    function getAdminTallyComputedData() {
+        let fAcc = document.getElementById("tallyFilterAccount")?.value || "ALL";
+        let sDate = document.getElementById("tallyFilterStart")?.value || "";
+        let eDate = document.getElementById("tallyFilterEnd")?.value || "";
+        let search = (document.getElementById("tallyFilterSearch")?.value || "").toLowerCase().trim();
+
+        let allList = Object.values(cloudTallyEntries || {}).filter(e => e && typeof e === "object");
+        allList.sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.timestamp || 0) - (b.timestamp || 0));
+
+        // 1. Account-wise live totals (using date/search filter if applied, or all dates when none)
+        let personTotals = {};
+        Object.values(cloudTallyAccounts || {}).forEach(a => {
+            if (a && a.id) personTotals[a.id] = { id: a.id, name: a.name, income: 0, expense: 0, balance: 0 };
+        });
+
+        let filtered = [];
+        allList.forEach(e => {
+            if (sDate && e.date && e.date < sDate) return;
+            if (eDate && e.date && e.date > eDate) return;
+            if (search) {
+                let hay = `${e.accountName || ''} ${e.particulars || ''} ${e.refNumber || ''} ${e.note || ''} ${e.mode || ''}`.toLowerCase();
+                if (!hay.includes(search)) return;
+            }
+
+            let pid = e.accountId || ("legacy_" + (e.accountName || "Other"));
+            if (!personTotals[pid]) {
+                personTotals[pid] = { id: pid, name: e.accountName || "અન્ય", income: 0, expense: 0, balance: 0 };
+            }
+            let amt = parseFloat(e.amount || 0);
+            if (e.type === "INCOME") personTotals[pid].income += amt;
+            else personTotals[pid].expense += amt;
+            personTotals[pid].balance = personTotals[pid].income - personTotals[pid].expense;
+
+            if (fAcc !== "ALL" && e.accountId !== fAcc) return;
+            filtered.push(e);
+        });
+
+        // 2. Group Left (EXPENSE) & Right (INCOME) by Person/Account just like Tally
+        let leftGroups = {};
+        let rightGroups = {};
+        let totalExpense = 0;
+        let totalIncome = 0;
+
+        filtered.forEach(e => {
+            let amt = parseFloat(e.amount || 0);
+            let grpKey = e.accountName || "અન્ય";
+            if (e.type === "EXPENSE") {
+                totalExpense += amt;
+                if (!leftGroups[grpKey]) leftGroups[grpKey] = { name: grpKey, total: 0, items: [] };
+                leftGroups[grpKey].total += amt;
+                leftGroups[grpKey].items.push(e);
+            } else {
+                totalIncome += amt;
+                if (!rightGroups[grpKey]) rightGroups[grpKey] = { name: grpKey, total: 0, items: [] };
+                rightGroups[grpKey].total += amt;
+                rightGroups[grpKey].items.push(e);
+            }
+        });
+
+        let netDiff = totalIncome - totalExpense;
+        let equalTotal = Math.max(totalIncome, totalExpense);
+        let dateLabel = (sDate || eDate)
+            ? `${sDate ? formatToDMY(sDate) : 'શરૂઆત'} to ${eDate ? formatToDMY(eDate) : 'આજ સુધી'}`
+            : "બધી તારીખો (All Dates)";
+
+        return {
+            personTotals: Object.values(personTotals),
+            filtered,
+            leftGroups: Object.values(leftGroups),
+            rightGroups: Object.values(rightGroups),
+            totalExpense,
+            totalIncome,
+            netDiff,
+            equalTotal,
+            dateLabel
+        };
+    }
+
+    function buildTallySideRows(groups, netDiff, side) {
+        let rows = [];
+        groups.forEach((g, idx) => {
+            rows.push({
+                kind: "group",
+                highlight: (idx === 0),
+                name: g.name,
+                total: g.total
+            });
+            g.items.forEach(item => {
+                let mTxt = item.mode === "cheque" ? `ચેક:${item.refNumber || '-'}` : (item.mode === "gpay" ? `GPay:${item.refNumber || '-'}` : "રોકડ");
+                rows.push({
+                    kind: "item",
+                    entry: item,
+                    label: `${formatToDMY(item.date)} - ${item.particulars} [${mTxt}]${item.note ? ' (' + item.note + ')' : ''}`,
+                    amount: parseFloat(item.amount || 0)
+                });
+            });
+        });
+
+        if (side === "LEFT" && netDiff > 0) {
+            rows.push({ kind: "balance", name: "Nett Profit (બચત / ચોખ્ખો નફો)", amount: netDiff, isProfit: true });
+        } else if (side === "RIGHT" && netDiff < 0) {
+            rows.push({ kind: "balance", name: "Nett Loss (ચોખ્ખી ખોટ / Loss)", amount: Math.abs(netDiff), isProfit: false });
+        }
+        return rows;
+    }
+
+    function renderAdminTallyAll() {
+        let accList = Object.values(cloudTallyAccounts || {});
+        accList.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+        // Update dropdowns preserving selection
+        let accSel = document.getElementById("tallyAccountSelect");
+        let filterSel = document.getElementById("tallyFilterAccount");
+        if (accSel) {
+            let prev = accSel.value;
+            accSel.innerHTML = accList.length === 0
+                ? `<option value="">(પહેલાં ઉપર ખાતું ઉમેરો)</option>`
+                : accList.map(a => `<option value="${a.id}">${escapeTallyHtml(a.name)}</option>`).join("");
+            if (prev && accList.some(a => a.id === prev)) accSel.value = prev;
+        }
+        if (filterSel) {
+            let prevF = filterSel.value || "ALL";
+            filterSel.innerHTML = `<option value="ALL">👥 બધા વ્યક્તિ / ટીમ</option>` +
+                accList.map(a => `<option value="${a.id}">${escapeTallyHtml(a.name)}</option>`).join("");
+            filterSel.value = Array.from(filterSel.options).some(o => o.value === prevF) ? prevF : "ALL";
+        }
+
+        let data = getAdminTallyComputedData();
+
+        // Render Person Cards Strip
+        let strip = document.getElementById("tallyAccountsStrip");
+        if (strip) {
+            if (data.personTotals.length === 0) {
+                strip.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:#64748b; font-size:12px; padding:8px;">ઉપરથી પહેલું વ્યક્તિ / ટીમ ખાતું (દા.ત. Men 1, Men 2) ઉમેરો.</div>`;
+            } else {
+                strip.innerHTML = data.personTotals.map(p => {
+                    let isRealAcc = !!cloudTallyAccounts[p.id];
+                    let balColor = p.balance >= 0 ? "#15803d" : "#b91c1c";
+                    let balBg = p.balance >= 0 ? "#ecfdf5" : "#fef2f2";
+                    let activeFilter = document.getElementById("tallyFilterAccount")?.value === p.id;
+                    return `<div style="background:${balBg}; border:${activeFilter ? '2px solid #4f46e5' : '1.5px solid #cbd5e1'}; border-radius:8px; padding:8px 10px; font-size:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <b style="color:#0f172a; font-size:13px; cursor:pointer;" onclick="document.getElementById('tallyFilterAccount').value='${isRealAcc ? p.id : 'ALL'}'; renderAdminTallyAll();" title="ફિલ્ટર કરવા ક્લિક કરો">👤 ${escapeTallyHtml(p.name)}</b>
+                            ${isRealAcc ? `<span style="white-space:nowrap;">
+                                <button type="button" onclick="editAdminTallyAccount('${p.id}')" style="background:none; border:none; cursor:pointer; font-size:12px;" title="નામ સુધારો">✏️</button>
+                                <button type="button" onclick="deleteAdminTallyAccount('${p.id}')" style="background:none; border:none; cursor:pointer; font-size:12px; color:#ef4444;" title="દૂર કરો">🗑️</button>
+                            </span>` : ''}
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:11px; color:#475569;">
+                            <span>આવક: <b style="color:#047857;">₹${p.income.toLocaleString('en-IN')}</b></span>
+                            <span>જાવક: <b style="color:#b91c1c;">₹${p.expense.toLocaleString('en-IN')}</b></span>
+                        </div>
+                        <div style="margin-top:4px; padding-top:4px; border-top:1px dashed #cbd5e1; display:flex; justify-content:space-between; font-weight:800; color:${balColor};">
+                            <span>${p.balance >= 0 ? 'બાકી સિલક:' : 'વધુ ખર્ચ / ખાધ:'}</span>
+                            <span>₹${Math.abs(p.balance).toLocaleString('en-IN')}</span>
+                        </div>
+                    </div>`;
+                }).join("");
+            }
+        }
+
+        // Render Summary Cards
+        document.getElementById("tallySumIncome").innerText = "₹" + formatTallyAmt(data.totalIncome);
+        document.getElementById("tallySumExpense").innerText = "₹" + formatTallyAmt(data.totalExpense);
+        document.getElementById("tallySumEqualTotal").innerText = "₹" + formatTallyAmt(data.equalTotal);
+
+        let netBox = document.getElementById("tallyNetCardBox");
+        let netLbl = document.getElementById("tallyNetCardLabel");
+        let netVal = document.getElementById("tallySumNet");
+        if (data.netDiff >= 0) {
+            netBox.style.background = "#dcfce7";
+            netBox.style.borderColor = "#22c55e";
+            netLbl.innerText = "🟢 ચોખ્ખો નફો / બચત (Nett Profit)";
+            netLbl.style.color = "#14532d";
+            netVal.style.color = "#15803d";
+            netVal.innerText = "₹" + formatTallyAmt(data.netDiff);
+        } else {
+            netBox.style.background = "#fee2e2";
+            netBox.style.borderColor = "#ef4444";
+            netLbl.innerText = "🔴 ચોખ્ખી ખોટ (Nett Loss)";
+            netLbl.style.color = "#991b1b";
+            netVal.style.color = "#b91c1c";
+            netVal.innerText = "₹" + formatTallyAmt(Math.abs(data.netDiff));
+        }
+
+        document.getElementById("tallyLiveLeftDateHead").innerText = data.dateLabel;
+        document.getElementById("tallyLiveRightDateHead").innerText = data.dateLabel;
+        document.getElementById("tallyLiveLeftTotal").innerText = formatTallyAmt(data.equalTotal);
+        document.getElementById("tallyLiveRightTotal").innerText = formatTallyAmt(data.equalTotal);
+
+        let leftRows = buildTallySideRows(data.leftGroups, data.netDiff, "LEFT");
+        let rightRows = buildTallySideRows(data.rightGroups, data.netDiff, "RIGHT");
+        let maxLen = Math.max(leftRows.length, rightRows.length);
+
+        let tbody = document.getElementById("tallyLiveStatementBody");
+        if (maxLen === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:18px; color:#94a3b8;">હજુ કોઈ એન્ટ્રી ઉમેરેલ નથી.</td></tr>`;
+            return;
+        }
+
+        function cellHTML(rowObj, isLeftSide) {
+            let borderRight = isLeftSide ? "border-right:2px solid #334155;" : "";
+            if (!rowObj) {
+                return `<td style="padding:4px 8px;"></td><td style="padding:4px 6px;"></td><td style="padding:4px 8px; ${borderRight}"></td>`;
+            }
+            if (rowObj.kind === "group") {
+                let bg = rowObj.highlight ? "background:#fbbf24;" : "background:#f8fafc;";
+                return `<td style="padding:5px 8px; font-weight:800; ${bg}">👤 ${escapeTallyHtml(rowObj.name)}</td>
+                        <td style="padding:5px 6px; ${bg}"></td>
+                        <td style="padding:5px 8px; text-align:right; font-weight:800; ${bg} ${borderRight}">${formatTallyAmt(rowObj.total)}</td>`;
+            }
+            if (rowObj.kind === "balance") {
+                let clr = rowObj.isProfit ? "#15803d" : "#b91c1c";
+                let bg = rowObj.isProfit ? "#f0fdf4" : "#fef2f2";
+                return `<td style="padding:6px 8px; font-weight:800; color:${clr}; background:${bg};">${rowObj.name}</td>
+                        <td style="padding:6px 6px; background:${bg};"></td>
+                        <td style="padding:6px 8px; text-align:right; font-weight:900; color:${clr}; background:${bg}; ${borderRight}">${formatTallyAmt(rowObj.amount)}</td>`;
+            }
+            let e = rowObj.entry;
+            return `<td style="padding:4px 8px 4px 20px; font-style:italic; color:#334155;">
+                        ${escapeTallyHtml(rowObj.label)}
+                        <span style="margin-left:6px; font-style:normal; white-space:nowrap;">
+                            <button type="button" onclick="editAdminTallyEntry('${e.id}')" style="background:none; border:none; cursor:pointer; font-size:11px;" title="સુધારો">✏️</button>
+                            <button type="button" onclick="deleteAdminTallyEntry('${e.id}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:11px;" title="ડિલીટ">❌</button>
+                        </span>
+                    </td>
+                    <td style="padding:4px 6px; text-align:right; font-style:italic; color:#1e293b; border-bottom:1px solid #e2e8f0;">${formatTallyAmt(rowObj.amount)}</td>
+                    <td style="padding:4px 8px; ${borderRight}"></td>`;
+        }
+
+        let html = "";
+        for (let i = 0; i < maxLen; i++) {
+            html += `<tr style="border-bottom:1px solid #f1f5f9;">${cellHTML(leftRows[i], true)}${cellHTML(rightRows[i], false)}</tr>`;
+        }
+        tbody.innerHTML = html;
+        renderQuickMasterWaButtons();
+    }
+
+    function parseMasterPhoneNumbers() {
+        let raw = (document.getElementById("tallyMasterPhonesInput")?.value || cloudTallyConfig.whatsappNumbers || "").trim();
+        if (!raw) return [];
+        return raw.split(/[,\n;]+/).map(s => s.replace(/[^0-9]/g, '')).filter(s => s.length >= 10);
+    }
+
+    function saveAdminTallyMasterPhones() {
+        if (getTallySafeRole() !== "admin") return;
+        let val = document.getElementById("tallyMasterPhonesInput").value.trim();
+        cloudTallyConfig = { whatsappNumbers: val, updatedAt: Date.now() };
+        localStorage.setItem("cached_admin_tally_config", JSON.stringify(cloudTallyConfig));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        if (navigator.onLine) {
+            adminTallyConfigRef.set(cloudTallyConfig);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: "admin_tally_config", action: "set", data: cloudTallyConfig });
+        }
+        renderQuickMasterWaButtons();
+        alert("✅ Master WhatsApp નંબરો સેવ થઈ ગયા છે!");
+    }
+
+    function renderQuickMasterWaButtons() {
+        let area = document.getElementById("tallyQuickWaButtonsArea");
+        if (!area) return;
+        let nums = parseMasterPhoneNumbers();
+        if (nums.length <= 1) { area.innerHTML = ""; return; }
+        area.innerHTML = `<span style="font-size:11px; color:#475569; font-weight:700; align-self:center;">અલગ-અલગ નંબર પર મોકલવા:</span>` +
+            nums.map((num, idx) => `<button type="button" class="btn btn-outline" onclick="sendAdminTallyWhatsAppToSingle('${num}')" style="padding:3px 9px; font-size:11px; border-color:#25D366; color:#15803d; font-weight:700;">📲 નંબર ${idx + 1}: ${num}</button>`).join("");
+    }
+
+    function buildAdminTallyWhatsAppMessage() {
+        let data = getAdminTallyComputedData();
+        let msg = `*📒 પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Report)*\n`;
+        msg += `📅 *સમયગાળો:* ${data.dateLabel}\n`;
+        msg += `----------------------------------\n`;
+
+        if (data.personTotals.length > 0) {
+            msg += `*👥 વ્યક્તિ / ટીમ મુજબ બેલેન્સ:*\n`;
+            data.personTotals.forEach(p => {
+                msg += `• *${p.name}*: આવક ₹${p.income.toLocaleString('en-IN')} | જાવક ₹${p.expense.toLocaleString('en-IN')} | *${p.balance >= 0 ? 'બાકી સિલક' : 'ખાધ'}: ₹${Math.abs(p.balance).toLocaleString('en-IN')}*\n`;
+            });
+            msg += `----------------------------------\n`;
+        }
+
+        if (data.rightGroups.length > 0) {
+            msg += `*📥 આવક બાજુ (Income): ₹${formatTallyAmt(data.totalIncome)}*\n`;
+            data.rightGroups.forEach(g => {
+                msg += `▸ *${g.name}* (₹${formatTallyAmt(g.total)})\n`;
+                g.items.forEach(it => {
+                    let m = it.mode === "cheque" ? `ચેક:${it.refNumber}` : (it.mode === "gpay" ? `GPay:${it.refNumber}` : "રોકડ");
+                    msg += `   - ${formatToDMY(it.date)} ${it.particulars} [${m}]: ₹${formatTallyAmt(it.amount)}\n`;
+                });
+            });
+        }
+
+        if (data.leftGroups.length > 0) {
+            msg += `\n*📤 જાવક બાજુ (Expense): ₹${formatTallyAmt(data.totalExpense)}*\n`;
+            data.leftGroups.forEach(g => {
+                msg += `▸ *${g.name}* (₹${formatTallyAmt(g.total)})\n`;
+                g.items.forEach(it => {
+                    let m = it.mode === "cheque" ? `ચેક:${it.refNumber}` : (it.mode === "gpay" ? `GPay:${it.refNumber}` : "રોકડ");
+                    msg += `   - ${formatToDMY(it.date)} ${it.particulars} [${m}]: ₹${formatTallyAmt(it.amount)}\n`;
+                });
+            });
+        }
+
+        msg += `==================================\n`;
+        msg += `💰 કુલ આવક: ₹${formatTallyAmt(data.totalIncome)}\n`;
+        msg += `💸 કુલ જાવક: ₹${formatTallyAmt(data.totalExpense)}\n`;
+        if (data.netDiff >= 0) {
+            msg += `🟢 *Nett Profit (ચોખ્ખો નફો / બચત): ₹${formatTallyAmt(data.netDiff)}*\n`;
+        } else {
+            msg += `🔴 *Nett Loss (ચોખ્ખી ખોટ): ₹${formatTallyAmt(Math.abs(data.netDiff))}*\n`;
+        }
+        msg += `⚖️ *Tally Grand Total (બંને બાજુ): ₹${formatTallyAmt(data.equalTotal)}*`;
+        return msg;
+    }
+
+    function sendAdminTallyWhatsAppToSingle(rawNum) {
+        if (getTallySafeRole() !== "admin") return;
+        let clean = String(rawNum || "").replace(/[^0-9]/g, '');
+        if (clean.length === 10) clean = "91" + clean;
+        if (clean.length < 10) { alert("માન્ય 10 આંકડાનો WhatsApp નંબર નથી!"); return; }
+        let msg = buildAdminTallyWhatsAppMessage();
+        window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, "_blank");
+    }
+
+    function sendAdminTallyWhatsApp() {
+        if (getTallySafeRole() !== "admin") return;
+        let nums = parseMasterPhoneNumbers();
+        if (nums.length === 0) {
+            alert("કૃપા કરીને Master WhatsApp નંબર બોક્સમાં ૧ કે ૨ નંબર દાખલ કરીને સેવ કરો!");
+            document.getElementById("tallyMasterPhonesInput")?.focus();
+            return;
+        }
+        let msg = buildAdminTallyWhatsAppMessage();
+        nums.forEach((n, idx) => {
+            let clean = n.length === 10 ? ("91" + n) : n;
+            if (idx === 0) {
+                window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, "_blank");
+            } else {
+                setTimeout(() => {
+                    window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, "_blank");
+                }, idx * 700);
+            }
+        });
+    }
+
+    function printAdminTallyStatement() {
+        if (getTallySafeRole() !== "admin") return;
+        let data = getAdminTallyComputedData();
+        let leftRows = buildTallySideRows(data.leftGroups, data.netDiff, "LEFT");
+        let rightRows = buildTallySideRows(data.rightGroups, data.netDiff, "RIGHT");
+        let maxLen = Math.max(leftRows.length, rightRows.length, 1);
+
+        function printCell(rowObj, isLeft) {
+            let br = isLeft ? "border-right:1.5px solid #000;" : "";
+            if (!rowObj) return `<td></td><td></td><td style="${br}"></td>`;
+            if (rowObj.kind === "group") {
+                let bg = rowObj.highlight ? "background:#fbbf24;" : "";
+                return `<td style="font-weight:bold; ${bg}">${escapeTallyHtml(rowObj.name)}</td><td style="${bg}"></td><td style="text-align:right; font-weight:bold; ${bg} ${br}">${formatTallyAmt(rowObj.total)}</td>`;
+            }
+            if (rowObj.kind === "balance") {
+                let clr = rowObj.isProfit ? "#15803d" : "#b91c1c";
+                return `<td style="font-weight:bold; color:${clr};">${rowObj.name}</td><td></td><td style="text-align:right; font-weight:bold; color:${clr}; ${br}">${formatTallyAmt(rowObj.amount)}</td>`;
+            }
+            return `<td style="padding-left:18px; font-style:italic;">${escapeTallyHtml(rowObj.label)}</td>
+                    <td style="text-align:right; font-style:italic; border-bottom:1px solid #cbd5e1;">${formatTallyAmt(rowObj.amount)}</td>
+                    <td style="${br}"></td>`;
+        }
+
+        let bodyRows = "";
+        for (let i = 0; i < maxLen; i++) {
+            bodyRows += `<tr>${printCell(leftRows[i], true)}${printCell(rightRows[i], false)}</tr>`;
+        }
+
+        let personSummaryRows = data.personTotals.map(p => `
+            <tr>
+                <td><b>${escapeTallyHtml(p.name)}</b></td>
+                <td style="text-align:right; color:#047857;">₹${formatTallyAmt(p.income)}</td>
+                <td style="text-align:right; color:#b91c1c;">₹${formatTallyAmt(p.expense)}</td>
+                <td style="text-align:right; font-weight:bold; color:${p.balance >= 0 ? '#15803d' : '#b91c1c'};">₹${formatTallyAmt(Math.abs(p.balance))} ${p.balance >= 0 ? '(બાકી સિલક)' : '(ખાધ)'}</td>
+            </tr>
+        `).join("");
+
+        let win = window.open('', '_blank', 'width=980,height=720');
+        if (!win) { alert("કૃપા કરીને બ્રાઉઝરમાં પોપ-અપ (Pop-up) Allow કરો!"); return; }
+
+        win.document.write(`
+            <html>
+            <head>
+                <title>પર્સનલ ટીમ આવક-જાવક (Tally Statement)</title>
+                <style>
+                    body { font-family: 'Noto Sans Gujarati', Arial, sans-serif; padding: 18px; color: #000; font-size: 12px; }
+                    .hdr { text-align: center; margin-bottom: 10px; }
+                    .tally-tbl { width: 100%; border-collapse: collapse; border: 1.5px solid #000; }
+                    .tally-tbl th, .tally-tbl td { padding: 4px 7px; vertical-align: top; }
+                    .tally-tbl thead th { border-bottom: 1.5px solid #000; background: #f8fafc; font-size: 12px; }
+                    .tally-tbl tfoot td { border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; font-weight: bold; font-size: 13px; background: #fefce8; }
+                    .sum-tbl { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11.5px; }
+                    .sum-tbl th, .sum-tbl td { border: 1px solid #94a3b8; padding: 5px 8px; text-align: left; }
+                    .sum-tbl th { background: #f1f5f9; }
+                </style>
+            </head>
+            <body>
+                <div class="hdr">
+                    <h2 style="margin:0;">પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Format)</h2>
+                    <div style="color:#475569; margin-top:2px;">સમયગાળો: <b>${data.dateLabel}</b></div>
+                </div>
+                <table class="tally-tbl">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; width:27%;">Particulars (જાવક / ખર્ચ)</th>
+                            <th colspan="2" style="text-align:right; width:23%; border-right:1.5px solid #000;">${data.dateLabel}</th>
+                            <th style="text-align:left; width:27%;">Particulars (આવક / જમા)</th>
+                            <th colspan="2" style="text-align:right; width:23%;">${data.dateLabel}</th>
+                        </tr>
+                    </thead>
+                    <tbody>${bodyRows}</tbody>
+                    <tfoot>
+                        <tr>
+                            <td>Total</td>
+                            <td colspan="2" style="text-align:right; border-right:1.5px solid #000;">${formatTallyAmt(data.equalTotal)}</td>
+                            <td>Total</td>
+                            <td colspan="2" style="text-align:right;">${formatTallyAmt(data.equalTotal)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                ${personSummaryRows ? `
+                <table class="sum-tbl">
+                    <thead><tr><th>વ્યક્તિ / ટીમ નામ</th><th style="text-align:right;">કુલ આવક (₹)</th><th style="text-align:right;">કુલ જાવક (₹)</th><th style="text-align:right;">ચોખ્ખું બેલેન્સ (₹)</th></tr></thead>
+                    <tbody>${personSummaryRows}</tbody>
+                </table>` : ''}
+            </body>
+            </html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    }
+
+    function exportAdminTallyExcel() {
+        if (getTallySafeRole() !== "admin") return;
+        let data = getAdminTallyComputedData();
+        if (data.filtered.length === 0) { alert("એક્સપોર્ટ કરવા માટે કોઈ એન્ટ્રી નથી!"); return; }
+
+        let csv = `\uFEFF# ,તારીખ,સમય,વ્યક્તિ / ટીમ નામ,પ્રકાર,પેમેન્ટ મોડ,ચેક નં / GPay ID,વિગત (Particulars),નોંધ,આવક (₹),જાવક (₹)\n`;
+        data.filtered.forEach((e, idx) => {
+            let m = e.mode === "cheque" ? "ચેક" : (e.mode === "gpay" ? "GPay/UPI" : "રોકડ");
+            let inc = e.type === "INCOME" ? e.amount : 0;
+            let exp = e.type === "EXPENSE" ? e.amount : 0;
+            csv += `"${idx + 1}","${formatToDMY(e.date)}","${e.time || '-'}","${(e.accountName || '').replace(/"/g, '""')}","${e.type === 'INCOME' ? 'આવક' : 'જાવક'}","${m}","${(e.refNumber || '-').replace(/"/g, '""')}","${(e.particulars || '').replace(/"/g, '""')}","${(e.note || '-').replace(/"/g, '""')}","${inc}","${exp}"\n`;
+        });
+        csv += `\n,,,,,,,,કુલ આવક,${data.totalIncome},કુલ જાવક,${data.totalExpense}\n`;
+        csv += `,,,,,,,,${data.netDiff >= 0 ? 'Nett Profit (નફો/બચત)' : 'Nett Loss (ખોટ)'},${Math.abs(data.netDiff)}\n`;
+        csv += `,,,,,,,,Tally Equal Total (બંને બાજુ),${data.equalTotal}\n`;
+
+        let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        let link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Admin_Personal_Tally_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 </script>
 </body> 
 </html>
