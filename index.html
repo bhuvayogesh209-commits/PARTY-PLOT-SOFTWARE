@@ -9,6 +9,7 @@
     <!-- Firebase Cloud Database Scripts -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -12876,11 +12877,12 @@
                 <div>
                     <label style="font-size:11px; font-weight:700; color:#475569;">શોધો (વિગત / ચેક નં / ID):</label>
                     <input type="text" id="tallyFilterSearch" class="form-control" onkeyup="renderAdminTallyAll()" placeholder="સર્ચ..." style="font-size:12px;">
-                </div>
-                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                </div>   
+                 <div style="display:flex; gap:5px; flex-wrap:wrap;">
                     <button type="button" class="btn btn-outline" onclick="resetAdminTallyFilters()" style="padding:7px 10px; font-size:11.5px;" title="રીસેટ">🔄</button>
-                    <button type="button" class="btn btn-primary" onclick="printAdminTallyStatement()" style="padding:7px 12px; font-size:12px; font-weight:700;">🖨️ Tally પ્રિન્ટ</button>
-                    <button type="button" class="btn btn-success" onclick="exportAdminTallyExcel()" style="padding:7px 12px; font-size:12px; font-weight:700;">📑 Excel</button>
+                    <button type="button" class="btn btn-primary" onclick="printAdminTallyStatement()" style="padding:7px 10px; font-size:12px; font-weight:700;">🖨️ Tally પ્રિન્ટ</button>
+                    <button type="button" class="btn" onclick="downloadAdminTallyPDF()" style="background:#dc2626; color:white; padding:7px 10px; font-size:12px; font-weight:700;">📄 PDF સેવ</button>
+                    <button type="button" class="btn btn-success" onclick="exportAdminTallyExcel()" style="padding:7px 10px; font-size:12px; font-weight:700;">📑 Excel</button>
                 </div>
             </div>
 
@@ -12889,7 +12891,8 @@
                 <b style="font-size:12px; color:#047857;">📲 Master WhatsApp નંબરો:</b>
                 <input type="text" id="tallyMasterPhonesInput" class="form-control" placeholder="૧ કે ૨ નંબર લખો (દા.ત. 9876543210, 9825012345)" style="flex:1; min-width:220px; font-size:12.5px; font-weight:700; background:#fff;">
                 <button type="button" class="btn btn-outline" onclick="saveAdminTallyMasterPhones()" style="padding:7px 12px; font-size:12px; font-weight:700; background:#fff;">💾 નંબર સેવ</button>
-                <button type="button" class="btn" onclick="sendAdminTallyWhatsApp()" style="background:#25D366; color:white; padding:7px 14px; font-size:12px; font-weight:800;">📲 WhatsApp પર મોકલો</button>
+                <button type="button" class="btn" onclick="sendAdminTallyPdfWhatsApp()" style="background:#0f172a; color:#fde047; border:1.5px solid #f59e0b; padding:7px 12px; font-size:12px; font-weight:800;">📄 PDF સેવ & 📲 WhatsApp</button>
+                <button type="button" class="btn" onclick="sendAdminTallyWhatsApp()" style="background:#25D366; color:white; padding:7px 12px; font-size:12px; font-weight:800;">📲 ટેક્સ્ટ WhatsApp</button>
             </div>
             <div id="tallyQuickWaButtonsArea" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"></div>
         </div>
@@ -13643,27 +13646,25 @@
         });
     }
 
-    function printAdminTallyStatement() {
-        if (getTallySafeRole() !== "admin") return;
-        let data = getAdminTallyComputedData();
+    function buildAdminTallyPrintContentHTML(data) {
         let leftRows = buildTallySideRows(data.leftGroups, data.netDiff, "LEFT");
         let rightRows = buildTallySideRows(data.rightGroups, data.netDiff, "RIGHT");
         let maxLen = Math.max(leftRows.length, rightRows.length, 1);
 
         function printCell(rowObj, isLeft) {
             let br = isLeft ? "border-right:1.5px solid #000;" : "";
-            if (!rowObj) return `<td></td><td></td><td style="${br}"></td>`;
+            if (!rowObj) return `<td style="padding:4px 7px;"></td><td style="padding:4px 7px;"></td><td style="padding:4px 7px; ${br}"></td>`;
             if (rowObj.kind === "group") {
                 let bg = rowObj.highlight ? "background:#fbbf24;" : "";
-                return `<td style="font-weight:bold; ${bg}">${escapeTallyHtml(rowObj.name)}</td><td style="${bg}"></td><td style="text-align:right; font-weight:bold; ${bg} ${br}">${formatTallyAmt(rowObj.total)}</td>`;
+                return `<td style="padding:5px 7px; font-weight:bold; ${bg}">${escapeTallyHtml(rowObj.name)}</td><td style="padding:5px 7px; ${bg}"></td><td style="padding:5px 7px; text-align:right; font-weight:bold; ${bg} ${br}">${formatTallyAmt(rowObj.total)}</td>`;
             }
             if (rowObj.kind === "balance") {
                 let clr = rowObj.isProfit ? "#15803d" : "#b91c1c";
-                return `<td style="font-weight:bold; color:${clr};">${rowObj.name}</td><td></td><td style="text-align:right; font-weight:bold; color:${clr}; ${br}">${formatTallyAmt(rowObj.amount)}</td>`;
+                return `<td style="padding:5px 7px; font-weight:bold; color:${clr};">${rowObj.name}</td><td style="padding:5px 7px;"></td><td style="padding:5px 7px; text-align:right; font-weight:bold; color:${clr}; ${br}">${formatTallyAmt(rowObj.amount)}</td>`;
             }
-            return `<td style="padding-left:18px; font-style:italic;">${escapeTallyHtml(rowObj.label)}</td>
-                    <td style="text-align:right; font-style:italic; border-bottom:1px solid #cbd5e1;">${formatTallyAmt(rowObj.amount)}</td>
-                    <td style="${br}"></td>`;
+            return `<td style="padding:4px 7px 4px 18px; font-style:italic;">${escapeTallyHtml(rowObj.label)}</td>
+                    <td style="padding:4px 7px; text-align:right; font-style:italic; border-bottom:1px solid #cbd5e1;">${formatTallyAmt(rowObj.amount)}</td>
+                    <td style="padding:4px 7px; ${br}"></td>`;
         }
 
         let bodyRows = "";
@@ -13673,12 +13674,171 @@
 
         let personSummaryRows = data.personTotals.map(p => `
             <tr>
-                <td><b>${escapeTallyHtml(p.name)}</b></td>
-                <td style="text-align:right; color:#047857;">₹${formatTallyAmt(p.income)}</td>
-                <td style="text-align:right; color:#b91c1c;">₹${formatTallyAmt(p.expense)}</td>
-                <td style="text-align:right; font-weight:bold; color:${p.balance >= 0 ? '#15803d' : '#b91c1c'};">₹${formatTallyAmt(Math.abs(p.balance))} ${p.balance >= 0 ? '(બાકી સિલક)' : '(ખાધ)'}</td>
+                <td style="border:1px solid #94a3b8; padding:5px 8px;"><b>${escapeTallyHtml(p.name)}</b></td>
+                <td style="border:1px solid #94a3b8; padding:5px 8px; text-align:right; color:#047857;">₹${formatTallyAmt(p.income)}</td>
+                <td style="border:1px solid #94a3b8; padding:5px 8px; text-align:right; color:#b91c1c;">₹${formatTallyAmt(p.expense)}</td>
+                <td style="border:1px solid #94a3b8; padding:5px 8px; text-align:right; font-weight:bold; color:${p.balance >= 0 ? '#15803d' : '#b91c1c'};">₹${formatTallyAmt(Math.abs(p.balance))} ${p.balance >= 0 ? '(બાકી સિલક)' : '(ખાધ)'}</td>
             </tr>
         `).join("");
+
+        let bodyHTML = `
+            <div style="font-family:'Noto Sans Gujarati', Arial, sans-serif; color:#000; font-size:12px; background:#fff;">
+                <div style="text-align:center; margin-bottom:10px;">
+                    <h2 style="margin:0; font-size:18px; color:#0f172a;">પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Format)</h2>
+                    <div style="color:#475569; margin-top:2px;">સમયગાળો: <b>${data.dateLabel}</b></div>
+                </div>
+                <table class="tally-tbl" style="width:100%; border-collapse:collapse; border:1.5px solid #000; font-size:11.5px;">
+                    <thead>
+                        <tr>
+                            <th style="padding:6px 7px; text-align:left; width:27%; border-bottom:1.5px solid #000; background:#f8fafc;">Particulars (જાવક / ખર્ચ)</th>
+                            <th colspan="2" style="padding:6px 7px; text-align:right; width:23%; border-right:1.5px solid #000; border-bottom:1.5px solid #000; background:#f8fafc;">${data.dateLabel}</th>
+                            <th style="padding:6px 7px; text-align:left; width:27%; border-bottom:1.5px solid #000; background:#f8fafc;">Particulars (આવક / જમા)</th>
+                            <th colspan="2" style="padding:6px 7px; text-align:right; width:23%; border-bottom:1.5px solid #000; background:#f8fafc;">${data.dateLabel}</th>
+                        </tr>
+                    </thead>
+                    <tbody>${bodyRows}</tbody>
+                    <tfoot>
+                        <tr style="background:#fefce8; font-weight:bold; font-size:12.5px;">
+                            <td style="padding:6px 7px; border-top:1.5px solid #000; border-bottom:1.5px solid #000;">Total</td>
+                            <td colspan="2" style="padding:6px 7px; text-align:right; border-right:1.5px solid #000; border-top:1.5px solid #000; border-bottom:1.5px solid #000;">${formatTallyAmt(data.equalTotal)}</td>
+                            <td style="padding:6px 7px; border-top:1.5px solid #000; border-bottom:1.5px solid #000;">Total</td>
+                            <td colspan="2" style="padding:6px 7px; text-align:right; border-top:1.5px solid #000; border-bottom:1.5px solid #000;">${formatTallyAmt(data.equalTotal)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                ${personSummaryRows ? `
+                <table class="sum-tbl" style="width:100%; border-collapse:collapse; margin-top:12px; font-size:11.5px;">
+                    <thead>
+                        <tr style="background:#f1f5f9;">
+                            <th style="border:1px solid #94a3b8; padding:5px 8px; text-align:left;">વ્યક્તિ / ટીમ નામ</th>
+                            <th style="border:1px solid #94a3b8; padding:5px 8px; text-align:right;">કુલ આવક (₹)</th>
+                            <th style="border:1px solid #94a3b8; padding:5px 8px; text-align:right;">કુલ જાવક (₹)</th>
+                            <th style="border:1px solid #94a3b8; padding:5px 8px; text-align:right;">ચોખ્ખું બેલેન્સ (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${personSummaryRows}</tbody>
+                </table>` : ''}
+            </div>
+        `;
+
+        let fname = `Tally_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+        return { bodyHTML, filename: fname };
+    }
+
+    async function generateAdminTallyPdfBlob() {
+        let data = getAdminTallyComputedData();
+        let built = buildAdminTallyPrintContentHTML(data);
+
+        if (typeof html2pdf === "undefined") {
+            return { fallbackPrint: true, filename: built.filename, data };
+        }
+
+        let tempDiv = document.createElement("div");
+        tempDiv.id = "tallyPdfTempRender";
+        tempDiv.style.cssText = "position:fixed; top:0; left:0; width:780px; background:#ffffff; color:#000000; padding:14px; z-index:1075; pointer-events:none;";
+        tempDiv.innerHTML = built.bodyHTML;
+        document.body.appendChild(tempDiv);
+
+        try {
+            let opt = {
+                margin: [8, 8, 8, 8],
+                filename: built.filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            let blob = await html2pdf().set(opt).from(tempDiv).outputPdf('blob');
+            return { blob, filename: built.filename, data };
+        } finally {
+            if (tempDiv && tempDiv.parentNode) tempDiv.parentNode.removeChild(tempDiv);
+        }
+    }
+
+    function triggerPdfBlobDownload(blob, filename) {
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    async function downloadAdminTallyPDF() {
+        if (getTallySafeRole() !== "admin") return;
+        try {
+            let res = await generateAdminTallyPdfBlob();
+            if (res.fallbackPrint) {
+                alert("⚠️ ઑફલાઇન મોડમાં પ્રિન્ટ વિન્ડો ખુલે છે — ત્યાંથી 'Save as PDF' પસંદ કરીને PDF સેવ કરો!");
+                printAdminTallyStatement();
+                return;
+            }
+            triggerPdfBlobDownload(res.blob, res.filename);
+            alert(`✅ Tally PDF ફાઇલ (${res.filename}) સફળતાપૂર્વક સેવ/ડાઉનલોડ થઈ ગઈ છે!`);
+        } catch (err) {
+            alert("❌ PDF બનાવવામાં ભૂલ: " + (err && err.message ? err.message : err) + "\nપ્રિન્ટ દ્વારા Save as PDF નો ઉપયોગ કરો.");
+            printAdminTallyStatement();
+        }
+    }
+
+    async function sendAdminTallyPdfWhatsApp() {
+        if (getTallySafeRole() !== "admin") return;
+        let nums = parseMasterPhoneNumbers();
+
+        try {
+            let res = await generateAdminTallyPdfBlob();
+            if (res.fallbackPrint) {
+                alert("⚠️ ઑફલાઇન મોડમાં ડાયરેક્ટ PDF લાઇબ્રેરી ઉપલબ્ધ નથી. ટેક્સ્ટ WhatsApp મોકલી શકો છો અથવા નેટ ચાલુ કરી PDF સેવ કરો.");
+                if (nums.length > 0) sendAdminTallyWhatsApp();
+                return;
+            }
+
+            // ૧. પહેલાં PDF ફાઇલ ડિવાઇસમાં સેવ/ડાઉનલોડ કરી લો
+            triggerPdfBlobDownload(res.blob, res.filename);
+
+            // ૨. મોબાઈલમાં Web Share API દ્વારા સીધી PDF ફાઇલ WhatsApp પર મોકલવાનો પ્રયાસ
+            let pdfFile = new File([res.blob], res.filename, { type: "application/pdf" });
+            let canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [pdfFile] }));
+
+            if (canShareFiles) {
+                try {
+                    await navigator.share({
+                        files: [pdfFile],
+                        title: "પર્સનલ ટીમ આવક-જાવક (Tally PDF)",
+                        text: `📒 Tally PDF રિપોર્ટ (${res.data.dateLabel})${nums.length > 0 ? '\nMaster નંબર: ' + nums.join(', ') : ''}`
+                    });
+                    return;
+                } catch (shareErr) {
+                    if (shareErr && shareErr.name === "AbortError") return;
+                }
+            }
+
+            // ૩. PC / ડેસ્કટોપમાં PDF ડાઉનલોડ થઈ ગઈ છે, હવે Master WhatsApp નંબર પર ચેટ ખોલો
+            if (nums.length === 0) {
+                alert(`✅ PDF ફાઇલ (${res.filename}) ડાઉનલોડ થઈ ગઈ છે!\nહવે Master WhatsApp નંબર લખીને સેવ કરો એટલે સીધી WhatsApp વિન્ડો પણ ખુલશે.`);
+                document.getElementById("tallyMasterPhonesInput")?.focus();
+                return;
+            }
+
+            let shortNote = `📄 *Tally Print PDF (${res.filename})*\n📅 સમયગાળો: ${res.data.dateLabel}\n💰 કુલ આવક: ₹${formatTallyAmt(res.data.totalIncome)} | 💸 કુલ જાવક: ₹${formatTallyAmt(res.data.totalExpense)}\n⚖️ Tally Total: ₹${formatTallyAmt(res.data.equalTotal)}\n\n(નોંધ: ડાઉનલોડ થયેલી PDF ફાઇલ નીચે 📎 Attach કરીને મોકલેલ છે.)`;
+
+            nums.forEach((n, idx) => {
+                let clean = n.length === 10 ? ("91" + n) : n;
+                setTimeout(() => {
+                    window.open(`https://wa.me/${clean}?text=${encodeURIComponent(shortNote)}`, "_blank");
+                }, idx * 700);
+            });
+            alert(`✅ Tally PDF (${res.filename}) ડાઉનલોડ થઈ ગઈ છે!\nહવે ખુલેલી WhatsApp વિન્ડોમાં 📎 (Attach) બટન દબાવીને આ ડાઉનલોડ થયેલી PDF મોકલી દો.`);
+        } catch (err) {
+            alert("❌ PDF WhatsApp કરવામાં ભૂલ: " + (err && err.message ? err.message : err));
+        }
+    }
+
+    function printAdminTallyStatement() {
+        if (getTallySafeRole() !== "admin") return;
+        let data = getAdminTallyComputedData();
+        let built = buildAdminTallyPrintContentHTML(data);
 
         let win = window.open('', '_blank', 'width=980,height=720');
         if (!win) { alert("કૃપા કરીને બ્રાઉઝરમાં પોપ-અપ (Pop-up) Allow કરો!"); return; }
@@ -13689,46 +13849,9 @@
                 <title>પર્સનલ ટીમ આવક-જાવક (Tally Statement)</title>
                 <style>
                     body { font-family: 'Noto Sans Gujarati', Arial, sans-serif; padding: 18px; color: #000; font-size: 12px; }
-                    .hdr { text-align: center; margin-bottom: 10px; }
-                    .tally-tbl { width: 100%; border-collapse: collapse; border: 1.5px solid #000; }
-                    .tally-tbl th, .tally-tbl td { padding: 4px 7px; vertical-align: top; }
-                    .tally-tbl thead th { border-bottom: 1.5px solid #000; background: #f8fafc; font-size: 12px; }
-                    .tally-tbl tfoot td { border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; font-weight: bold; font-size: 13px; background: #fefce8; }
-                    .sum-tbl { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11.5px; }
-                    .sum-tbl th, .sum-tbl td { border: 1px solid #94a3b8; padding: 5px 8px; text-align: left; }
-                    .sum-tbl th { background: #f1f5f9; }
                 </style>
             </head>
-            <body>
-                <div class="hdr">
-                    <h2 style="margin:0;">પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Format)</h2>
-                    <div style="color:#475569; margin-top:2px;">સમયગાળો: <b>${data.dateLabel}</b></div>
-                </div>
-                <table class="tally-tbl">
-                    <thead>
-                        <tr>
-                            <th style="text-align:left; width:27%;">Particulars (જાવક / ખર્ચ)</th>
-                            <th colspan="2" style="text-align:right; width:23%; border-right:1.5px solid #000;">${data.dateLabel}</th>
-                            <th style="text-align:left; width:27%;">Particulars (આવક / જમા)</th>
-                            <th colspan="2" style="text-align:right; width:23%;">${data.dateLabel}</th>
-                        </tr>
-                    </thead>
-                    <tbody>${bodyRows}</tbody>
-                    <tfoot>
-                        <tr>
-                            <td>Total</td>
-                            <td colspan="2" style="text-align:right; border-right:1.5px solid #000;">${formatTallyAmt(data.equalTotal)}</td>
-                            <td>Total</td>
-                            <td colspan="2" style="text-align:right;">${formatTallyAmt(data.equalTotal)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-                ${personSummaryRows ? `
-                <table class="sum-tbl">
-                    <thead><tr><th>વ્યક્તિ / ટીમ નામ</th><th style="text-align:right;">કુલ આવક (₹)</th><th style="text-align:right;">કુલ જાવક (₹)</th><th style="text-align:right;">ચોખ્ખું બેલેન્સ (₹)</th></tr></thead>
-                    <tbody>${personSummaryRows}</tbody>
-                </table>` : ''}
-            </body>
+            <body>${built.bodyHTML}</body>
             </html>
         `);
         win.document.close();
