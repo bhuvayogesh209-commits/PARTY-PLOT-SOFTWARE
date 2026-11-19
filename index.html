@@ -13370,8 +13370,20 @@
             ? `${sDate ? formatToDMY(sDate) : 'શરૂઆત'} to ${eDate ? formatToDMY(eDate) : 'આજ સુધી'}`
             : "બધી તારીખો (All Dates)";
 
+        let allPersonTotalsList = Object.values(personTotals);
+        let filteredPersonTotals = (fAcc === "ALL")
+            ? allPersonTotalsList
+            : allPersonTotalsList.filter(p => p.id === fAcc);
+        let fSelEl = document.getElementById("tallyFilterAccount");
+        let selectedAccountLabel = (fAcc === "ALL")
+            ? "બધા વ્યક્તિ / ટીમ (All)"
+            : ((cloudTallyAccounts[fAcc] && cloudTallyAccounts[fAcc].name) || (fSelEl && fSelEl.selectedIndex >= 0 ? fSelEl.options[fSelEl.selectedIndex].text : "પસંદ કરેલ ખાતું"));
+
         return {
-            personTotals: Object.values(personTotals),
+            allPersonTotals: allPersonTotalsList,
+            personTotals: filteredPersonTotals,
+            selectedAccountId: fAcc,
+            selectedAccountLabel,
             filtered,
             leftGroups: Object.values(leftGroups),
             rightGroups: Object.values(rightGroups),
@@ -13436,11 +13448,12 @@
 
         // Render Person Cards Strip
         let strip = document.getElementById("tallyAccountsStrip");
-        if (strip) {
-            if (data.personTotals.length === 0) {
+        if (strip) {  
+             let stripList = data.allPersonTotals || data.personTotals;
+            if (stripList.length === 0) {
                 strip.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:#64748b; font-size:12px; padding:8px;">ઉપરથી પહેલું વ્યક્તિ / ટીમ ખાતું (દા.ત. Men 1, Men 2) ઉમેરો.</div>`;
             } else {
-                strip.innerHTML = data.personTotals.map(p => {
+                strip.innerHTML = stripList.map(p => {
                     let isRealAcc = !!cloudTallyAccounts[p.id];
                     let balColor = p.balance >= 0 ? "#15803d" : "#b91c1c";
                     let balBg = p.balance >= 0 ? "#ecfdf5" : "#fef2f2";
@@ -13579,6 +13592,7 @@
         let msg = `*📒 પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Report)*\n`;
         msg += `📅 *સમયગાળો:* ${data.dateLabel}\n`;
         msg += `----------------------------------\n`;
+        msg += `👤 *વ્યક્તિ / ટીમ:* ${data.selectedAccountLabel}\n`;
 
         if (data.personTotals.length > 0) {
             msg += `*👥 વ્યક્તિ / ટીમ મુજબ બેલેન્સ:*\n`;
@@ -13690,8 +13704,8 @@
         let bodyHTML = `
             <div style="font-family:'Noto Sans Gujarati', Arial, sans-serif; color:#000; font-size:12px; background:#fff;">
                 <div style="text-align:center; margin-bottom:10px;">
-                    <h2 style="margin:0; font-size:18px; color:#0f172a;">પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Format)</h2>
-                    <div style="color:#475569; margin-top:2px;">સમયગાળો: <b>${data.dateLabel}</b></div>
+                    <h2 style="margin:0; font-size:18px; color:#0f172a;">પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Format)</h2>  
+                    <div style="color:#475569; margin-top:2px;">વ્યક્તિ / ટીમ: <b>${escapeTallyHtml(data.selectedAccountLabel)}</b> | સમયગાળો: <b>${data.dateLabel}</b></div>
                 </div>
                 <table class="tally-tbl" style="width:100%; border-collapse:collapse; border:1.5px solid #000; font-size:11.5px;">
                     <thead>
@@ -13727,7 +13741,10 @@
             </div>
         `;
 
-        let fname = `Tally_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+          let safeAccSlug = data.selectedAccountId === "ALL"
+            ? "All"
+            : String(data.selectedAccountLabel || "Account").replace(/[^a-zA-Z0-9_\u0A80-\u0AFF]/g, '_');
+        let fname = `Tally_${safeAccSlug}_${new Date().toISOString().slice(0, 10)}.pdf`;
         return { bodyHTML, filename: fname };
     }
 
