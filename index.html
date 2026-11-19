@@ -219,6 +219,56 @@
         }
           #workerSectionCard .section-header { flex-wrap: wrap; gap: 10px; }
         #workerSectionCard .section-header > div { flex-wrap: wrap; }
+         html, body { max-width: 100%; overflow-x: hidden; }
+        .container { width: 100%; max-width: 1280px; margin: 0 auto; }
+        .login-box { width: 94%; max-width: 390px; }
+        .section-header { flex-wrap: wrap; gap: 10px; }
+        .section-header > div { flex-wrap: wrap; }
+        .modal { padding: 10px; }
+        .modal-content { max-width: 96vw !important; max-height: 92vh; overflow-y: auto; }
+        #bookingModal .modal-content { width: 620px; }
+        .modal-content div[style*="overflow-y:auto"],
+        .modal-content div[style*="overflow-y: auto"] {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+        .table-responsive { -webkit-overflow-scrolling: touch; }
+        .day-box { overflow: hidden; min-width: 0; }
+
+        /* 💻 Laptop / Desktop Screen Fit (1024px થી 1366px) */
+        @media (min-width: 769px) and (max-width: 1366px) {
+            body { padding: 14px; }
+            .card { padding: 18px; }
+            .day-box { min-height: 58px; }
+            .modal-content { padding: 18px; }
+        }
+
+        /* 📱 Mobile Screen Full Responsive Fit */
+        @media (max-width: 768px) {
+            body { padding: 6px !important; }
+            .login-box { padding: 22px 16px !important; width: 95% !important; }
+            .role-bar { padding: 10px 12px !important; }
+            .role-bar > div { width: 100%; display: flex; flex-wrap: wrap; gap: 6px !important; }
+            #farmSelect { width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
+            .section-header { flex-direction: column; align-items: stretch !important; gap: 8px; }
+            .section-header > div { width: 100%; display: flex; flex-wrap: wrap; gap: 6px !important; }
+            .section-header > div .btn { flex: 1 1 calc(50% - 6px); justify-content: center; font-size: 11.5px !important; padding: 7px 8px !important; }
+            .nav-btns .btn { flex: 1; justify-content: center; }
+            .summary-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+            .controls-row .btn,
+            .controls-row #expFilteredTotalBadge { width: 100%; justify-content: center; text-align: center; }
+            .day-box { min-height: 48px !important; font-size: 11px !important; padding: 2px 1px !important; }
+            .modal { padding: 6px !important; }
+            .modal-content {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 14px 10px !important;
+                max-height: 92vh !important;
+                border-radius: 12px !important;
+                margin: 0 auto 40px auto !important;
+            }
+            .modal-content .att-chk-grid { grid-template-columns: 1fr 1fr !important; }
+        }
     </style>
      </head>
 <body>
@@ -7076,6 +7126,7 @@
             let { worker: w } = getWorkerById(wId);
             if (!w) return;
 
+            if (typeof cancelEditWorkerUpad === "function") cancelEditWorkerUpad();
             let now = new Date();
             document.getElementById("upadWorkerNameDisplay").innerText = w.name;
             document.getElementById("newUpadDate").value = now.toISOString().slice(0, 10);
@@ -7091,8 +7142,9 @@
         }
 
         function closeWorkerUpadModal() {
+            if (typeof cancelEditWorkerUpad === "function") cancelEditWorkerUpad();
             document.getElementById("workerUpadModal").style.display = "none";
-        }   
+        }
 
         function renderUpadModalDetails() {
             let { worker: w } = getWorkerById(selectedWorkerIdForUpad);
@@ -7115,8 +7167,9 @@
             }
 
             upads.forEach((u, idx) => {
+                let editBtn = canUserAddUpad ? `<button type="button" onclick="editWorkerUpad(${idx})" style="background:none; border:none; cursor:pointer; margin-right:4px;" title="ઉપાડ સુધારો">✏️</button>` : '';
                 let delBtn = canUserDeleteUpad ? `<button type="button" onclick="deleteWorkerUpad(${idx})" style="background:none; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" title="ઉપાડ રદ કરો">❌</button>` : `<span style="color:#94a3b8;" title="અધિકાર નથી">🔒</span>`;
-                
+
                 let modeBadge = `<span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">${u.mode === 'cheque' ? 'ચેક' : (u.mode === 'gpay' ? 'GPay' : 'રોકડ')}</span>`;
                 let refText = u.refNumber ? ` <small style="color:#475569;">(${u.refNumber})</small>` : '';
                 let noteText = u.note ? ` - ${u.note}` : '';
@@ -7125,9 +7178,42 @@
                     <td style="padding:6px;">${u.date} <small style="color:#64748b;">${u.time || ''}</small></td>
                     <td style="padding:6px;">${modeBadge}${refText}${noteText}</td>
                     <td style="padding:6px; text-align:right; font-weight:700; color:#ef4444;">₹${parseFloat(u.amount).toLocaleString('en-IN')}</td>
-                    <td style="padding:6px; text-align:center;">${delBtn}</td>
+                    <td style="padding:6px; text-align:center; white-space:nowrap;">${editBtn}${delBtn}</td>
                 </tr>`;
             });
+        }
+
+        function editWorkerUpad(index) {
+            if (!canUserAddUpad) {
+                alert("❌ તમારી પાસે ઉપાડ સુધારવાની પરવાનગી નથી!");
+                return;
+            }
+            let { worker: w } = getWorkerById(selectedWorkerIdForUpad);
+            if (!w || !w.upads || !w.upads[index]) return;
+            let u = w.upads[index];
+
+            let dVal = u.date || "";
+            if (dVal.includes("/")) {
+                let p = dVal.split("/");
+                if (p.length === 3) dVal = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+            }
+
+            document.getElementById("editUpadIndex").value = index;
+            document.getElementById("newUpadAmount").value = u.amount || "";
+            document.getElementById("newUpadDate").value = dVal;
+            document.getElementById("newUpadTime").value = u.time || "";
+            document.getElementById("newUpadMode").value = u.mode || "cash";
+            onUpadPaymentModeChange();
+            document.getElementById("newUpadRefInput").value = u.refNumber || "";
+            document.getElementById("newUpadNote").value = u.note || "";
+
+            let titleEl = document.getElementById("upadFormTitle");
+            if (titleEl) titleEl.innerText = "✏️ ઉપાડ સુધારો (Edit Upad):";
+            let cancelBtn = document.getElementById("btnCancelUpadEdit");
+            if (cancelBtn) cancelBtn.style.display = "inline-flex";
+
+            let amtEl = document.getElementById("newUpadAmount");
+            if (amtEl) amtEl.focus();
         }
 
         function addWorkerUpad(action = 'save') {
@@ -7153,6 +7239,11 @@
             if (!w) return;
             if (!w.upads) w.upads = [];
 
+            let editIdxEl = document.getElementById("editUpadIndex");
+            let editIdx = editIdxEl ? parseInt(editIdxEl.value, 10) : -1;
+            let isEditing = (!isNaN(editIdx) && editIdx >= 0 && w.upads[editIdx]);
+            let entryTimestamp = isEditing ? (w.upads[editIdx].timestamp || Date.now()) : Date.now();
+
             let upadEntry = {
                 amount: amt,
                 date: formattedDate,
@@ -7160,10 +7251,15 @@
                 mode: mode,
                 refNumber: refNo,
                 note: note,
-                timestamp: Date.now()
+                timestamp: entryTimestamp,
+                updatedAt: Date.now()
             };
 
-            w.upads.push(upadEntry);
+            if (isEditing) {
+                w.upads[editIdx] = upadEntry;
+            } else {
+                w.upads.push(upadEntry);
+            }
 
             if (targetFId === currentFarmId) {
                 cloudWorkers[selectedWorkerIdForUpad] = w;
@@ -7186,15 +7282,15 @@
                 addToSyncQueue({ path: `farm_workers/${targetFId}/${selectedWorkerIdForUpad}`, action: "set", data: w });
             }
 
-           if (typeof upsertAutoRojmelEntry === "function") {
+            if (typeof upsertAutoRojmelEntry === "function") {
                 let uModeTxt = mode === "cheque" ? `ચેક:${refNo}` : (mode === "gpay" ? `GPay:${refNo}` : "રોકડ");
                 let uDesc = `કારીગર ઉપાડ: ${w.name} - ${uModeTxt}${note ? ' | ' + note : ''}`;
                 upsertAutoRojmelEntry(`auto_upad_${selectedWorkerIdForUpad}_${upadEntry.timestamp}`, dateVal, "UDHAR", amt, uDesc, "ઉપાડ");
             }
 
-            document.getElementById("newUpadAmount").value = "";
-            document.getElementById("newUpadNote").value = "";
-            document.getElementById("newUpadRefInput").value = "";
+            if (typeof cancelEditWorkerUpad === "function") cancelEditWorkerUpad();
+            document.getElementById("newUpadMode").value = "cash";
+            document.getElementById("upadRefGroup").style.display = "none";
             renderUpadModalDetails();
             renderWorkersTable();
 
@@ -7204,7 +7300,7 @@
             let modeText = mode === 'cheque' ? `ચેક (${refNo})` : (mode === 'gpay' ? `GPay (${refNo})` : 'રોકડ (Cash)');
 
             if (action === 'save') {
-                alert(`✅ ${w.name} ને ₹${amt.toLocaleString('en-IN')} નો ઉપાડ સફળતાપૂર્વક સેવ થઈ ગયો!`);
+                alert(isEditing ? `✅ ${w.name} નો ₹${amt.toLocaleString('en-IN')} નો ઉપાડ સફળતાપૂર્વક સુધારાઈ ગયો!` : `✅ ${w.name} ને ₹${amt.toLocaleString('en-IN')} નો ઉપાડ સફળતાપૂર્વક સેવ થઈ ગયો!`);
             } else if (action === 'print') {
                 printInstantUpadReceipt(w, upadEntry, balance, modeText);
             } else if (action === 'whatsapp') {
@@ -7306,6 +7402,7 @@
             } else {
                 addToSyncQueue({ path: `farm_workers/${targetFId}/${selectedWorkerIdForUpad}`, action: "set", data: w });
             }
+            if (typeof cancelEditWorkerUpad === "function") cancelEditWorkerUpad();
             renderUpadModalDetails();
             renderWorkersTable();
         }
