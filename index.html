@@ -11451,13 +11451,21 @@
             ? staffListObj
             : JSON.parse(localStorage.getItem("cached_staff_list") || "{}");
 
-        let masterAdminPass = (typeof currentAdminPass !== "undefined" && currentAdminPass)
-            ? currentAdminPass
-            : (localStorage.getItem("cached_admin_pass") || "1234");
+        let masterTallyAcc = (typeof cloudTallyAccounts !== "undefined" && Object.keys(cloudTallyAccounts).length > 0)
+            ? cloudTallyAccounts
+            : JSON.parse(localStorage.getItem("cached_admin_tally_accounts") || "{}");
+
+        let masterTallyEnt = (typeof cloudTallyEntries !== "undefined" && Object.keys(cloudTallyEntries).length > 0)
+            ? cloudTallyEntries
+            : JSON.parse(localStorage.getItem("cached_admin_tally_entries") || "{}");
+
+        let masterTallyCfg = (typeof cloudTallyConfig !== "undefined")
+            ? cloudTallyConfig
+            : JSON.parse(localStorage.getItem("cached_admin_tally_config") || '{"whatsappNumbers":""}');
 
         return {
             softwareTitle: "બુકિંગ અને પેમેન્ટ મેનેજમેન્ટ સિસ્ટમ (CEO Edition)",
-            backupVersion: "3.5_ATOZ_AUTO_SYNC",
+            backupVersion: "3.6_ATOZ_AUTO_SYNC_TALLY",
             exportDateFormatted: formattedDateTime,
             backupTimestamp: now.getTime(),
             currentFarmId: (typeof currentFarmId !== "undefined" ? currentFarmId : "ALL"),
@@ -11473,13 +11481,13 @@
             vendors: masterVendors,
             inventory: masterInventory,
             outwardInventory: masterOutward,
-            expenseCategories: masterCategories
-            ,workerAttendance: (typeof cloudWorkerAttendance !== "undefined" && Object.keys(cloudWorkerAttendance).length > 0 ? cloudWorkerAttendance : JSON.parse(localStorage.getItem("cached_worker_attendance") || "{}"))
-            ,workerShiftConfig: (typeof cloudShiftConfig !== "undefined" ? cloudShiftConfig : JSON.parse(localStorage.getItem("cached_worker_shift_config") || "{}"))
-             ,workerNightOvertime: (typeof cloudWorkerNightOT !== "undefined" && Object.keys(cloudWorkerNightOT).length > 0 ? cloudWorkerNightOT : JSON.parse(localStorage.getItem("cached_worker_night_overtime") || "{}"))
-             ,adminTallyAccounts: (typeof cloudTallyAccounts !== "undefined" && Object.keys(cloudTallyAccounts).length > 0 ? cloudTallyAccounts : JSON.parse(localStorage.getItem("cached_admin_tally_accounts") || "{}"))
-            ,adminTallyEntries: (typeof cloudTallyEntries !== "undefined" && Object.keys(cloudTallyEntries).length > 0 ? cloudTallyEntries : JSON.parse(localStorage.getItem("cached_admin_tally_entries") || "{}"))
-            ,adminTallyConfig: (typeof cloudTallyConfig !== "undefined" ? cloudTallyConfig : JSON.parse(localStorage.getItem("cached_admin_tally_config") || "{}"))
+            expenseCategories: masterCategories,
+            workerAttendance: (typeof cloudWorkerAttendance !== "undefined" && Object.keys(cloudWorkerAttendance).length > 0 ? cloudWorkerAttendance : JSON.parse(localStorage.getItem("cached_worker_attendance") || "{}")),
+            workerShiftConfig: (typeof cloudShiftConfig !== "undefined" ? cloudShiftConfig : JSON.parse(localStorage.getItem("cached_worker_shift_config") || "{}")),
+            workerNightOvertime: (typeof cloudWorkerNightOT !== "undefined" && Object.keys(cloudWorkerNightOT).length > 0 ? cloudWorkerNightOT : JSON.parse(localStorage.getItem("cached_worker_night_overtime") || "{}")),
+            adminTallyAccounts: masterTallyAcc,
+            adminTallyEntries: masterTallyEnt,
+            adminTallyConfig: masterTallyCfg
         };
     }
 
@@ -11881,9 +11889,22 @@
         }
         if (typeof renderAdminTallyAll === "function") renderAdminTallyAll();
 
-        if (typeof loadShiftSettingsToInputs === "function") loadShiftSettingsToInputs();
-        if (typeof renderAttendanceCalendarAndReport === "function") renderAttendanceCalendarAndReport();
-        if (typeof renderNightTabView === "function") renderNightTabView();
+        if (data.adminTallyAccounts) {
+            cloudTallyAccounts = data.adminTallyAccounts;
+            localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
+            if (isOnline) firebase.database().ref("admin_tally_accounts").set(cloudTallyAccounts);
+        }
+        if (data.adminTallyEntries) {
+            cloudTallyEntries = data.adminTallyEntries;
+            localStorage.setItem("cached_admin_tally_entries", JSON.stringify(cloudTallyEntries));
+            if (isOnline) firebase.database().ref("admin_tally_entries").set(cloudTallyEntries);
+        }
+        if (data.adminTallyConfig) {
+            cloudTallyConfig = data.adminTallyConfig;
+            localStorage.setItem("cached_admin_tally_config", JSON.stringify(cloudTallyConfig));
+            if (isOnline) firebase.database().ref("admin_tally_config").set(cloudTallyConfig);
+        }
+        if (typeof renderAdminTallyAll === "function") renderAdminTallyAll();
         if (typeof generateCalendar === "function") generateCalendar();
         if (typeof renderWorkersTable === "function") renderWorkersTable();
         if (typeof filterData === "function") filterData();
@@ -13649,7 +13670,7 @@
         if (getTallySafeRole() !== "admin") return;
         let nums = parseMasterPhoneNumbers();
         if (nums.length === 0) {
-            alert("કૃપા કરીને Master WhatsApp નંબર બોક્સમાં ૧ કે ૨ નંબર દાખલ કરીને સેવ કરો!");
+            alert("કૃપા કરીને Master WhatsApp નંબર બોક્સમાં ૧ કે ૨ નંબર દાખલ કરીને સેવ કરો!");  
             document.getElementById("tallyMasterPhonesInput")?.focus();
             return;
         }
@@ -13666,7 +13687,7 @@
         });
     }
 
-    function buildAdminTallyPrintContentHTML(data) {
+     function buildAdminTallyPrintContentHTML(data) {
         let leftRows = buildTallySideRows(data.leftGroups, data.netDiff, "LEFT");
         let rightRows = buildTallySideRows(data.rightGroups, data.netDiff, "RIGHT");
         let maxLen = Math.max(leftRows.length, rightRows.length, 1);
@@ -13702,7 +13723,7 @@
         `).join("");
 
         let bodyHTML = `
-            <div style="font-family:'Noto Sans Gujarati', Arial, sans-serif; color:#000; font-size:12px; background:#fff;">
+            <div style="font-family:'Noto Sans Gujarati', Arial, sans-serif; color:#000; font-size:12px; background:#fff; width:100%; box-sizing:border-box; padding:10px;">
                 <div style="text-align:center; margin-bottom:10px;">
                     <h2 style="margin:0; font-size:18px; color:#0f172a;">પર્સનલ ટીમ આવક-જાવક ખાતાવહી (Tally Format)</h2>  
                     <div style="color:#475569; margin-top:2px;">વ્યક્તિ / ટીમ: <b>${escapeTallyHtml(data.selectedAccountLabel)}</b> | સમયગાળો: <b>${data.dateLabel}</b></div>
@@ -13741,8 +13762,8 @@
             </div>
         `;
 
-          let safeAccSlug = data.selectedAccountId === "ALL"
-            ? "All"
+        let safeAccSlug = data.selectedAccountId === "ALL"
+            ? "All_Team"
             : String(data.selectedAccountLabel || "Account").replace(/[^a-zA-Z0-9_\u0A80-\u0AFF]/g, '_');
         let fname = `Tally_${safeAccSlug}_${new Date().toISOString().slice(0, 10)}.pdf`;
         return { bodyHTML, filename: fname };
@@ -13775,8 +13796,15 @@
 
         let captureBox = document.createElement("div");    
         captureBox.id = "tallyPdfCaptureBox";
-        captureBox.style.cssText = "width:760px; min-width:760px; background:#ffffff; color:#000000; padding:16px; border-radius:6px; box-shadow:0 10px 25px rgba(0,0,0,0.4);";
-        captureBox.innerHTML = built.bodyHTML;
+        // 🛠️ સુધારો: વિડ્થ ફિક્સ કરી અને ટેબલ રો કટ ન થાય તે માટે CSS ઉમેર્યું
+        captureBox.style.cssText = "width:760px; min-width:760px; background:#ffffff; color:#000000; padding:16px; border-radius:6px;";
+        captureBox.innerHTML = `
+            <style>
+                tr, td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
+                table { page-break-inside: auto !important; }
+            </style>
+            ${built.bodyHTML}
+        `;
         backdrop.appendChild(captureBox);
 
         document.body.appendChild(backdrop);
@@ -13784,11 +13812,12 @@
         try {
             await new Promise(resolve => setTimeout(resolve, 400));
             let opt = {
-                margin: [8, 8, 8, 8],
+                margin: [5, 5, 5, 5],
                 filename: built.filename,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] } // 🛠️ પંક્તિઓ અધૂરી કપાઈને બીજા પેજ પર જતી અટકાવશે
             };
             let blob = await html2pdf().set(opt).from(captureBox).outputPdf('blob');
             return { blob, filename: built.filename, data };
