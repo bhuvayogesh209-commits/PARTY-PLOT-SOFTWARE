@@ -384,12 +384,16 @@
         <div class="days-grid" id="daysGrid"></div>
     </div>
 
-    <!-- Step 2: Bookings & Financial Summary -->
-    <div class="card">
+   <!-- Step 2: Bookings & Financial Summary -->
+    <div class="card" id="bookingSectionCard">
         <div class="section-header">
-            <div class="section-title">📊 નાણાકીય વિગત અને બુકિંગ રિપોર્ટ</div>
-            <div style="display:flex; gap:8px;">   
-            <button id="btnAdminTallyTop" class="btn" onclick="openAdminTallyModal()" style="display:none; background:#0f172a; color:#fde047; border:1.5px solid #f59e0b; font-weight:800;">📒 પર્સનલ ટીમ આવક-જાવક (Tally)</button>
+            <div class="section-title">
+                📊 નાણાકીય વિગત અને બુકિંગ રિપોર્ટ
+                <button type="button" id="btnToggleBookingSection" class="btn btn-primary" onclick="toggleBookingSection()" style="margin-left:12px; font-size:12px; padding:5px 12px; font-weight:800; background:#4f46e5;">👁️ બુકિંગ બતાવો (Show)</button>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">   
+                <button type="button" class="btn" onclick="printBookingReportA4()" style="background:#0f172a; color:#fde047; border:1.5px solid #f59e0b; font-weight:800; font-size:12px; padding:6px 12px;">🖨️ A4 બુકિંગ પ્રિન્ટ</button>
+                <button id="btnAdminTallyTop" class="btn" onclick="openAdminTallyModal()" style="display:none; background:#0f172a; color:#fde047; border:1.5px solid #f59e0b; font-weight:800;">📒 પર્સનલ ટીમ આવક-જાવક (Tally)</button>
                 <!-- ૧. હાલના ફાર્મ (જેમ કે સીતારામ વાડી) નું અલગ બેકઅપ -->
                 <button class="btn btn-outline" onclick="downloadFarmBackupJSON()" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd; font-weight:700;">💾 હાલનું ફાર્મ બેકઅપ</button>
 
@@ -404,136 +408,146 @@
             </div>
         </div>
 
-        <div class="summary-grid">
-            <div class="stat-card">
-                <span class="stat-title">કુલ સક્રિય બુકિંગ</span>
-                <span class="stat-value" id="totalBookingCount">0</span>
+        <!-- 📦 બાય-ડિફોલ્ટ આખું બુકિંગ કન્ટેન્ટ છુપાયેલું (Hide) રહેશે -->
+        <div id="bookingSectionContent" style="display:none; margin-top:14px;">
+            <div class="summary-grid">
+                <div class="stat-card">
+                    <span class="stat-title">કુલ સક્રિય બુકિંગ</span>
+                    <span class="stat-value" id="totalBookingCount">0</span>
+                </div>
+                <div class="stat-card green">
+                    <span class="stat-title">કુલ બિલિંગ રકમ</span>
+                    <span class="stat-value" id="totalAmountSum">₹0</span>
+                </div>
+                <div class="stat-card red">
+                    <span class="stat-title">કુલ બાકી રકમ (Dues)</span>
+                    <span class="stat-value" id="totalBalanceSum">₹0</span>
+                </div>
+                <div class="stat-card yellow">
+                    <span class="stat-title">સૌથી વધુ બુકિંગ મહિનો</span>
+                    <span class="stat-value" id="peakMonthDisplay" style="font-size:16px;">-</span>
+                </div>
             </div>
-            <div class="stat-card green">
-                <span class="stat-title">કુલ બિલિંગ રકમ</span>
-                <span class="stat-value" id="totalAmountSum">₹0</span>
-            </div>
-            <div class="stat-card red">
-                <span class="stat-title">કુલ બાકી રકમ (Dues)</span>
-                <span class="stat-value" id="totalBalanceSum">₹0</span>
-            </div>
-            <div class="stat-card yellow">
-                <span class="stat-title">સૌથી વધુ બુકિંગ મહિનો</span>
-                <span class="stat-value" id="peakMonthDisplay" style="font-size:16px;">-</span>
-            </div>
-        </div>
 
-        <!-- Filter Bar -->
-        <div class="controls-row" style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:15px;">
-            <select id="filterYear" class="form-control" style="width:130px;" onchange="filterData()">
-                <option value="">બધા વર્ષ</option>
-            </select>
-            <select id="filterMonth" class="form-control" style="width:140px;" onchange="filterData()">
-                <option value="">બધા મહિના</option>
-                <option value="0">જાન્યુઆરી</option>
-                <option value="1">ફેબ્રુઆરી</option>
-                <option value="2">માર્ચ</option>
-                <option value="3">એપ્રિલ</option>
-                <option value="4">મે</option>
-                <option value="5">જૂન</option>
-                <option value="6">જુલાઈ</option>
-                <option value="7">ઓગસ્ટ</option>
-                <option value="8">સપ્ટેમ્બર</option>
-                <option value="9">ઓક્ટોબર</option>
-                <option value="10">નવેમ્બર</option>
-                <option value="11">ડિસેમ્બર</option>
-            </select>
-            <select id="filterStatus" class="form-control" style="width:150px;" onchange="filterData()">
-                <option value="">બધા સ્ટેટસ</option>
-                <option value="pending">બાકી (Pending - લાલ)</option>
-                <option value="partial">અડધું પેમેન્ટ (Partial - પીળો)</option>
-                <option value="paid">પૂર્ણ (Paid - વાદળી)</option>
-                <option value="ok">ઓકે / બરાબર (OK - ઘાટો લાલ)</option>
-            </select>  
-            <input type="text" id="searchInput" class="form-control" onkeyup="filterData()" placeholder="કસ્ટમરનું નામ અથવા મોબાઈલ શોધો..." style="flex:1; min-width:200px;">
-        </div>
+            <!-- Filter Bar -->
+            <div class="controls-row" style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <select id="filterYear" class="form-control" style="width:130px;" onchange="filterData()">
+                    <option value="">બધા વર્ષ</option>
+                </select>
+                <select id="filterMonth" class="form-control" style="width:140px;" onchange="filterData()">
+                    <option value="">બધા મહિના</option>
+                    <option value="0">જાન્યુઆરી</option>
+                    <option value="1">ફેબ્રુઆરી</option>
+                    <option value="2">માર્ચ</option>
+                    <option value="3">એપ્રિલ</option>
+                    <option value="4">મે</option>
+                    <option value="5">જૂન</option>
+                    <option value="6">જુલાઈ</option>
+                    <option value="7">ઓગસ્ટ</option>
+                    <option value="8">સપ્ટેમ્બર</option>
+                    <option value="9">ઓક્ટોબર</option>
+                    <option value="10">નવેમ્બર</option>
+                    <option value="11">ડિસેમ્બર</option>
+                </select>
+                <select id="filterStatus" class="form-control" style="width:150px;" onchange="filterData()">
+                    <option value="">બધા સ્ટેટસ</option>
+                    <option value="pending">બાકી (Pending - લાલ)</option>
+                    <option value="partial">અડધું પેમેન્ટ (Partial - પીળો)</option>
+                    <option value="paid">પૂર્ણ (Paid - વાદળી)</option>
+                    <option value="ok">ઓકે / બરાબર (OK - ઘાટો લાલ)</option>
+                </select>  
+                <input type="text" id="searchInput" class="form-control" onkeyup="filterData()" placeholder="કસ્ટમરનું નામ અથવા મોબાઈલ શોધો..." style="flex:1; min-width:200px;">
+                <button type="button" class="btn btn-primary" onclick="printBookingReportA4()" style="padding:8px 14px; font-weight:800; font-size:12.5px; white-space:nowrap;">🖨️ પ્રિન્ટ રિપોર્ટ</button>
+            </div>
 
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>તારીખ</th>
-                        <th>શિફ્ટ</th>
-                        <th>કસ્ટમર</th>
-                        <th>મોબાઈલ</th>
-                        <th>ઇવેન્ટ પ્રકાર</th>
-                        <th>મહેમાનો</th>
-                        <th>કુલ રકમ</th>
-                        <th>એડવાન્સ</th>
-                        <th>બાકી રકમ</th>
-                        <th>સ્ટેટસ</th>
-                        <th>ક્રિયા</th>
-                    </tr>
-                </thead>
-                <tbody id="bookingTableBody">
-                    <tr><td colspan="12" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ બુકિંગ મળ્યું નથી.</td></tr>
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>તારીખ</th>
+                            <th>શિફ્ટ</th>
+                            <th>કસ્ટમર</th>
+                            <th>મોબાઈલ</th>
+                            <th>ઇવેન્ટ પ્રકાર</th>
+                            <th>મહેમાનો</th>
+                            <th>કુલ રકમ</th>
+                            <th>એડવાન્સ</th>
+                            <th>બાકી રકમ</th>
+                            <th>સ્ટેટસ</th>
+                            <th>ક્રિયા</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bookingTableBody">
+                        <tr><td colspan="12" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ બુકિંગ મળ્યું નથી.</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-<!-- Step 3: Worker & Salary Management Card -->
+ <!-- Step 3: Worker & Salary Management Card -->
     <div class="card" id="workerSectionCard">
         <div class="section-header">
-            <div class="section-title">👷‍♂️ Step 3: વર્કર (કારીગર) પગાર અને ઉપાડ ખાતાવહી</div>
-            <div style="display:flex; gap:8px;"> 
-             <button class="btn" id="workerAttendanceTopBtn" onclick="openWorkerAttendanceModal()" style="background:#7c3aed; color:white; font-weight:700;">📅 વર્કર હાજરી & પગાર</button>
+            <div class="section-title">
+                👷‍♂️ Step 3: વર્કર (કારીગર) પગાર અને ઉપાડ ખાતાવહી
+                <button type="button" id="btnToggleWorkerSection" class="btn btn-primary" onclick="toggleWorkerSection()" style="margin-left:12px; font-size:12px; padding:5px 12px; font-weight:800; background:#7c3aed;">👁️ કારીગરો બતાવો (Show)</button>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;"> 
+                <button class="btn" id="workerAttendanceTopBtn" onclick="openWorkerAttendanceModal()" style="background:#7c3aed; color:white; font-weight:700;">📅 વર્કર હાજરી & પગાર</button>
                 <button class="btn" id="workerNightTopBtn" onclick="openWorkerNightTabDirect()" style="background:#312e81; color:white; font-weight:700;">🌙 નાઇટ / ઓવરટાઇમ</button>
                 <button class="btn btn-outline" onclick="openWorkerReportModal()" style="background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; font-weight:700;">📑 તારીખ મુજબ સ્ટેટમેન્ટ (Report)</button>
                 <button class="btn btn-primary" id="addWorkerTopBtn" onclick="openAddWorkerModal()">➕ નવો વર્કર ઉમેરો</button>
             </div>
         </div>
 
-        <!-- Worker Financial Summary -->
-        <div class="summary-grid">
-            <div class="stat-card">
-                <span class="stat-title">કુલ સક્રિય વર્કર્સ</span>
-                <span class="stat-value" id="workerTotalCount">0</span>
+        <!-- 📦 બાય-ડિફોલ્ટ કારીગર કન્ટેન્ટ છુપાયેલું (Hide) રહેશે -->
+        <div id="workerSectionContent" style="display:none; margin-top:14px;">
+            <!-- Worker Financial Summary -->
+            <div class="summary-grid">
+                <div class="stat-card">
+                    <span class="stat-title">કુલ સક્રિય વર્કર્સ</span>
+                    <span class="stat-value" id="workerTotalCount">0</span>
+                </div>
+                <div class="stat-card green">
+                    <span class="stat-title">કુલ પગાર (Total Salary)</span>
+                    <span class="stat-value" id="workerTotalSalarySum">₹0</span>
+                </div>
+                <div class="stat-card red">
+                    <span class="stat-title">કુલ ચૂકવેલ ઉપાડ (Total Upad)</span>
+                    <span class="stat-value" id="workerTotalUpadSum">₹0</span>
+                </div>
+                <div class="stat-card yellow">
+                    <span class="stat-title">ચૂકવવાપાત્ર ચોખ્ખો પગાર (Net Balance)</span>
+                    <span class="stat-value" id="workerTotalNetSum">₹0</span>
+                </div>
             </div>
-            <div class="stat-card green">
-                <span class="stat-title">કુલ પગાર (Total Salary)</span>
-                <span class="stat-value" id="workerTotalSalarySum">₹0</span>
-            </div>
-            <div class="stat-card red">
-                <span class="stat-title">કુલ ચૂકવેલ ઉપાડ (Total Upad)</span>
-                <span class="stat-value" id="workerTotalUpadSum">₹0</span>
-            </div>
-            <div class="stat-card yellow">
-                <span class="stat-title">ચૂકવવાપાત્ર ચોખ્ખો પગાર (Net Balance)</span>
-                <span class="stat-value" id="workerTotalNetSum">₹0</span>
-            </div>
-        </div>
 
-        <!-- Worker Search Bar -->
-        <div class="controls-row" style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:15px;">
-            <input type="text" id="workerSearchInput" class="form-control" onkeyup="renderWorkersTable()" placeholder="વર્કરનું નામ અથવા મોબાઈલ શોધો..." style="flex:1; min-width:220px;">
-        </div>
+            <!-- Worker Search Bar -->
+            <div class="controls-row" style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <input type="text" id="workerSearchInput" class="form-control" onkeyup="renderWorkersTable()" placeholder="વર્કરનું નામ અથવા મોબાઈલ શોધો..." style="flex:1; min-width:220px;">
+            </div>
 
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>વર્કરનું નામ</th>
-                        <th>મોબાઈલ</th>
-                        <th>કામ / હોદ્દો</th>  
-                       <th>પગાર (₹)</th>
-                        <th>કુલ ઉપાડ (₹)</th>
-                        <th>ચોખ્ખો બાકી (₹)</th>
-                        <th>ચાલુ મહિનો પગાર</th>
-                        <th>ક્રિયા</th>
-                    </tr>
-                </thead>
-                <tbody id="workerTableBody">
-                    <tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી. ઉપરથી નવો વર્કર ઉમેરો.</td></tr>
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>વર્કરનું નામ</th>
+                            <th>મોબાઈલ</th>
+                            <th>કામ / હોદ્દો</th>  
+                            <th>પગાર (₹)</th>
+                            <th>કુલ ઉપાડ (₹)</th>
+                            <th>ચોખ્ખો બાકી (₹)</th>
+                            <th>ચાલુ મહિનો પગાર</th>
+                            <th>ક્રિયા</th>
+                        </tr>
+                    </thead>
+                    <tbody id="workerTableBody">
+                        <tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">કોઈ વર્કર મળ્યા નથી. ઉપરથી નવો વર્કર ઉમેરો.</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -6181,6 +6195,7 @@
     }
 
     function scrollToWorkerSection() {
+        if (typeof toggleWorkerSection === "function") toggleWorkerSection(true);
         let el = document.getElementById("workerSectionCard");
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
@@ -9470,6 +9485,207 @@
         document.body.removeChild(link);
     }
 
+    // 👁️ ૧. બુકિંગ સેક્શન Show / Hide ટોગલ ફંક્શન
+    function toggleBookingSection(forceState) {
+        let content = document.getElementById("bookingSectionContent");
+        let btn = document.getElementById("btnToggleBookingSection");
+        if (!content || !btn) return;
+        let isCurrentlyHidden = (content.style.display === "none" || content.style.display === "");
+        let shouldShow = (typeof forceState === "boolean") ? forceState : isCurrentlyHidden;
+
+        content.style.display = shouldShow ? "block" : "none";
+        btn.innerText = shouldShow ? "🙈 બુકિંગ છુપાવો (Hide)" : "👁️ બુકિંગ બતાવો (Show)";
+        btn.style.background = shouldShow ? "#64748b" : "#4f46e5";
+        if (shouldShow) filterData();
+    }
+    window.toggleBookingSection = toggleBookingSection;
+
+    // 👁️ ૨. વર્કર સેક્શન Show / Hide ટોગલ ફંક્શન
+    function toggleWorkerSection(forceState) {
+        let content = document.getElementById("workerSectionContent");
+        let btn = document.getElementById("btnToggleWorkerSection");
+        if (!content || !btn) return;
+        let isCurrentlyHidden = (content.style.display === "none" || content.style.display === "");
+        let shouldShow = (typeof forceState === "boolean") ? forceState : isCurrentlyHidden;
+
+        content.style.display = shouldShow ? "block" : "none";
+        btn.innerText = shouldShow ? "🙈 કારીગરો છુપાવો (Hide)" : "👁️ કારીગરો બતાવો (Show)";
+        btn.style.background = shouldShow ? "#64748b" : "#7c3aed";
+        if (shouldShow) renderWorkersTable();
+    }
+    window.toggleWorkerSection = toggleWorkerSection;
+
+    // 🖨️ ૩. બધા ફાર્મ અથવા સિલેક્ટ કરેલ ફાર્મ માટે A4 પ્રિન્ટ રિપોર્ટ (કુલ બિલિંગ, જમા અને બાકી રકમ સાથે)
+    function printBookingReportA4() {
+        let fYear = document.getElementById("filterYear") ? document.getElementById("filterYear").value : "";
+        let fMonth = document.getElementById("filterMonth") ? document.getElementById("filterMonth").value : "";
+        let fStatus = document.getElementById("filterStatus") ? document.getElementById("filterStatus").value : "";
+        let search = (document.getElementById("searchInput") ? document.getElementById("searchInput").value : "").toLowerCase().trim();
+
+        let all = (typeof getAllBookings === "function") ? getAllBookings() : [];
+        let filtered = [];
+
+        all.forEach((item) => {
+            if (!item || !item.customerName || item.status === 'available') return;
+            let parts = (item.dateKey || "").replace(STORAGE_PREFIX, "").split("_");
+            let y = parts[0];
+            let m = String(parseInt(parts[1]) - 1);
+
+            if (fYear && y !== fYear) return;
+            if (fMonth !== "" && m !== fMonth) return;
+            if (fStatus && item.status !== fStatus) return;   
+            if (search && !(item.customerName || '').toLowerCase().includes(search) && 
+                !(item.mobile || "").includes(search) && 
+                !(item.receiptNo || "").toLowerCase().includes(search) && 
+                !(item.farmName || "").toLowerCase().includes(search) && 
+                !(item.jamnvarNote || "").toLowerCase().includes(search)) return;
+
+            filtered.push(item);
+        });
+
+        if (filtered.length === 0) {
+            alert("⚠️ પસંદ કરેલા ફિલ્ટરમાં પ્રિન્ટ કરવા માટે કોઈ બુકિંગ મળ્યું નથી!");
+            return;
+        }
+
+        // ફાર્મનું શીર્ષક
+        let activeFarmTitle = (currentFarmId === "ALL") ? "🏰 બધા ફાર્મ (All Farms - કમ્બાઈન્ડ રિપોર્ટ)" : (currentFarmName || "પાર્ટી પ્લોટ");
+        let monthNames = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+        let filterMeta = [];
+        if (fYear) filterMeta.push(`વર્ષ: ${fYear}`);
+        if (fMonth !== "") filterMeta.push(`મહિનો: ${monthNames[parseInt(fMonth)]}`);
+        if (fStatus) {
+            let stText = fStatus === 'paid' ? 'પૂર્ણ ચૂકવાયેલ' : (fStatus === 'partial' ? 'અડધું પેમેન્ટ' : (fStatus === 'ok' ? 'ઓકે' : 'બાકી'));
+            filterMeta.push(`સ્ટેટસ: ${stText}`);
+        }
+        if (search) filterMeta.push(`સર્ચ: "${search}"`);
+        let metaString = filterMeta.length > 0 ? filterMeta.join(" | ") : "બધા રેકોર્ડ્સ";
+
+        let totalBillingSum = 0;
+        let totalAdvanceSum = 0;
+        let totalBalanceSum = 0;
+
+        let rowsHTML = "";
+        filtered.forEach((b, idx) => {
+            let parts = (b.dateKey || "").replace(STORAGE_PREFIX, "").split("_");
+            let dStr = parts.length >= 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : "-";
+            let slotName = (b.slot === 'fullday') ? 'આખો દિવસ' : ((b.slot === 'evening') ? 'સાંજ' : 'સવાર');
+
+            let defTiming = (typeof getShiftDefaultTimings === "function") ? getShiftDefaultTimings(b.slot || 'morning') : { timeText: '' };
+            let tText = b.slotTimeText || defTiming.timeText || "";
+            let vText = b.slotVacateText || "";
+
+            let bill = parseFloat(b.totalAmount || 0);
+            let adv = parseFloat(b.advanceAmount || 0);
+            let bal = parseFloat(b.balanceAmount || 0);
+
+            totalBillingSum += bill;
+            totalAdvanceSum += adv;
+            totalBalanceSum += bal;
+
+            let stBadge = b.status === 'paid' 
+                ? '<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-weight:bold;">પૂર્ણ (Paid)</span>'
+                : (b.status === 'partial' 
+                    ? '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-weight:bold;">અડધું (Partial)</span>'
+                    : (b.status === 'ok' 
+                        ? '<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-weight:bold;">ઓકે (OK)</span>'
+                        : '<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-weight:bold;">બાકી (Pending)</span>'));
+
+            rowsHTML += `
+                <tr>
+                    <td style="text-align:center;">${idx + 1}</td>
+                    <td style="white-space:nowrap;"><b>${dStr}</b><br><small style="color:#4f46e5; font-weight:bold;">${slotName}</small></td>
+                    ${currentFarmId === "ALL" ? `<td><span style="background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:11px;">${b.farmName || '-'}</span></td>` : ''}
+                    <td>
+                        <b>${b.customerName || '-'}</b>
+                        ${b.receiptNo ? `<br><small style="color:#0369a1; font-weight:bold;">🧾 રસીદ: ${b.receiptNo}</small>` : ''}
+                        ${b.hastakName ? `<br><small style="color:#64748b;">↳ હસ્તક: ${b.hastakName}</small>` : ''}
+                    </td>
+                    <td><b>${b.mobile || '-'}</b></td>
+                    <td>${b.event || '-'}</td>
+                    <td style="font-size:11px; color:#475569;">${tText}${vText ? `<br><small style="color:#b91c1c;">${vText}</small>` : ''}</td>
+                    <td style="text-align:right; font-weight:bold;">₹${bill.toLocaleString('en-IN')}</td>
+                    <td style="text-align:right; color:#15803d; font-weight:bold;">₹${adv.toLocaleString('en-IN')}</td>
+                    <td style="text-align:right; color:${bal > 0 ? '#b91c1c' : '#15803d'}; font-weight:900;">₹${bal.toLocaleString('en-IN')}</td>
+                    <td style="text-align:center;">${stBadge}</td>
+                </tr>
+            `;
+        });
+
+        let win = window.open('', '_blank', 'width=1050,height=750');
+        if (!win) {
+            alert("કૃપા કરીને બ્રાઉઝરમાં પોપ-અપ (Pop-up) Allow કરો!");
+            return;
+        }
+
+        win.document.write(`
+            <html>
+            <head>
+                <title>બુકિંગ & પેમેન્ટ રિપોર્ટ - ${activeFarmTitle}</title>
+                <style>
+                    body { font-family: 'Noto Sans Gujarati', Arial, sans-serif; padding: 18px; color: #0f172a; font-size: 12px; }
+                    .header { text-align: center; border-bottom: 2px solid #334155; padding-bottom: 8px; margin-bottom: 10px; }
+                    .meta-bar { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 11.5px; font-weight: bold; color: #334155; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+                    th, td { border: 1px solid #cbd5e1; padding: 6px 7px; text-align: left; }
+                    th { background: #f1f5f9; font-weight: bold; }
+                    @media print {
+                        body { padding: 0; }
+                        @page { size: A4 landscape; margin: 10mm; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2 style="margin:0; color:#4f46e5;">${activeFarmTitle}</h2>
+                    <h3 style="margin:4px 0 0 0; color:#334155;">સંપૂર્ણ બુકિંગ, બિલિંગ & બાકી પેમેન્ટ રિપોર્ટ</h3>
+                </div>
+                <div class="meta-bar">
+                    <span>ફિલ્ટર: ${metaString}</span>
+                    <span>કુલ બુકિંગ: ${filtered.length}</span>
+                    <span>પ્રિન્ટ તારીખ: ${new Date().toLocaleDateString('gu-IN')}</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:30px; text-align:center;">#</th>
+                            <th>તારીખ & શિફ્ટ</th>
+                            ${currentFarmId === "ALL" ? '<th>ફાર્મ</th>' : ''}
+                            <th>ગ્રાહકનું નામ</th>
+                            <th>મોબાઈલ</th>
+                            <th>ઇવેન્ટ</th>
+                            <th>કાર્યક્રમ સમય</th>
+                            <th style="text-align:right;">કુલ બિલિંગ (₹)</th>
+                            <th style="text-align:right;">જમા એડવાન્સ (₹)</th>
+                            <th style="text-align:right;">બાકી રકમ (₹)</th>
+                            <th style="text-align:center;">સ્ટેટસ</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHTML}</tbody>
+                    <tfoot>
+                        <tr style="background:#fefce8; font-weight:bold; font-size:13px;">
+                            <td colspan="${currentFarmId === 'ALL' ? '7' : '6'}" style="text-align:right; color:#1e1b4b;">કુલ સરવાળો (Grand Total):</td>
+                            <td style="text-align:right; color:#1e1b4b;">₹${totalBillingSum.toLocaleString('en-IN')}</td>
+                            <td style="text-align:right; color:#15803d;">₹${totalAdvanceSum.toLocaleString('en-IN')}</td>
+                            <td style="text-align:right; color:#b91c1c; font-size:14px;">₹${totalBalanceSum.toLocaleString('en-IN')}</td>
+                            <td style="text-align:center; color:#b91c1c;">${totalBalanceSum > 0 ? 'બાકી છે' : 'ક્લિયર'}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:12px;">
+                    <div>તૈયાર કરનાર મેનેજર: ____________</div>
+                    <div>CEO / માલિક સહી: ____________</div>
+                </div>
+            </body>
+            </html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
+    }
+    window.printBookingReportA4 = printBookingReportA4;
+
     // 🔒 Admin Password Modal
     function openAdminSettingsModal() {
         document.getElementById("adminVerifyPass").value = "";
@@ -11468,10 +11684,10 @@
             backupVersion: "3.6_ATOZ_AUTO_SYNC_TALLY",
             exportDateFormatted: formattedDateTime,
             backupTimestamp: now.getTime(),
-            currentFarmId: (typeof currentFarmId !== "undefined" ? currentFarmId : "ALL"),
+            currentFarmId: (typeof currentFarmId !== "undefined" ? currentFarmId : "ALL"),  
             currentFarmName: (typeof currentFarmName !== "undefined" ? currentFarmName : "તમામ ફાર્મ"),
             farms: allFarms,
-            adminConfig: { password: masterAdminPass },
+            adminConfig: { password: (typeof currentAdminPass !== "undefined" ? currentAdminPass : "1234") },
             staffPermissions: masterStaff,
             allFarmBookings: masterBookings,
             allFarmWorkers: masterWorkers,
@@ -11873,23 +12089,6 @@
         }
 
          if (data.adminTallyAccounts) {
-            cloudTallyAccounts = data.adminTallyAccounts;
-            localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
-            if (isOnline) firebase.database().ref("admin_tally_accounts").set(cloudTallyAccounts);
-        }
-        if (data.adminTallyEntries) {
-            cloudTallyEntries = data.adminTallyEntries;
-            localStorage.setItem("cached_admin_tally_entries", JSON.stringify(cloudTallyEntries));
-            if (isOnline) firebase.database().ref("admin_tally_entries").set(cloudTallyEntries);
-        }
-        if (data.adminTallyConfig) {
-            cloudTallyConfig = data.adminTallyConfig;
-            localStorage.setItem("cached_admin_tally_config", JSON.stringify(cloudTallyConfig));
-            if (isOnline) firebase.database().ref("admin_tally_config").set(cloudTallyConfig);
-        }
-        if (typeof renderAdminTallyAll === "function") renderAdminTallyAll();
-
-        if (data.adminTallyAccounts) {
             cloudTallyAccounts = data.adminTallyAccounts;
             localStorage.setItem("cached_admin_tally_accounts", JSON.stringify(cloudTallyAccounts));
             if (isOnline) firebase.database().ref("admin_tally_accounts").set(cloudTallyAccounts);
