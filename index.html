@@ -7962,7 +7962,7 @@
         let m = document.getElementById("monthSelect");
         let y = document.getElementById("yearSelect");
         if (y && y.options.length === 0) populateYears();
-        let currentM = parseInt(m.value) || 0;
+        let currentM = parseInt(m.value) || 0;  
         let currentY = parseInt(y.value) || new Date().getFullYear();
         if (currentM < 11) {  
             m.value = currentM + 1;
@@ -7978,9 +7978,44 @@
             y.value = newY;
         }
         generateCalendar();
-    }  
+    }    
       let currentPaymentsList = [];
     let currentExtraItemsList = []; // 🪑 એક્સ્ટ્રા વસ્તુઓનું લિસ્ટ (ખુરશી, ગાદલા, સ્ટેજ વગેરે)
+
+    // સુધારેલું openModal અને switchSlot ફંક્શન (શિફ્ટ બદલતી વખતે સમય અને ડેટા બરાબર અપડેટ થશે)
+    function openModal(year, month, day, slot = "morning") {
+        if (currentFarmId === "ALL") {
+            alert("⚠️ તમે હાલ 'બધા ફાર્મ' મોડમાં છો!\nનવું બુકિંગ ઉમેરવા માટે કૃપા કરીને પહેલા ઉપરથી ચોક્કસ ફાર્મ (જેમ કે સીતારામ વાડી) પસંદ કરો.");
+            return;
+        }
+        selectedDateBaseKey = `${STORAGE_PREFIX}${year}_${String(month).padStart(2, '0')}_${String(day).padStart(2, '0')}`;
+        selectedSlot = slot;
+        
+        let slotSelect = document.getElementById("bookingSlot");
+        if (slotSelect) slotSelect.value = selectedSlot;
+        
+        document.getElementById("modalDateDisplay").innerText = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+
+        loadSlotData();
+        document.getElementById("bookingModal").style.display = "flex";
+        applyLockSystemToModal();
+    }
+
+    function switchSlot() {
+        let slotSelect = document.getElementById("bookingSlot");
+        if (slotSelect) {
+            selectedSlot = slotSelect.value;
+        }
+        
+        let isCustom = document.getElementById("customJamnvarToggle") ? document.getElementById("customJamnvarToggle").checked : false;
+        if (!isCustom) {
+            updateSlotDefaultTimingDisplay();
+        } else {
+            updateCustomTimingPreview();
+        }
+
+        loadSlotData();
+    }
 
     // 📅 મલ્ટીપલ તારીખ ટોગલ ફંક્શન
     function toggleMultiDateView() {
@@ -8666,15 +8701,40 @@
         if (currentFarmId === "ALL") {
             alert("⚠️ તમે હાલ 'બધા ફાર્મ' મોડમાં છો!\nનવું બુકિંગ ઉમેરવા માટે કૃપા કરીને પહેલા ઉપરથી ચોક્કસ ફાર્મ (જેમ કે સીતારામ વાડી) પસંદ કરો.");
             return;
+        }   
+         // સુધારેલું openModal અને switchSlot ફંક્શન (શિફ્ટ બદલતી વખતે સમય અને ડેટા બરાબર અપડેટ થશે)
+    function openModal(year, month, day, slot = "morning") {
+        if (currentFarmId === "ALL") {
+            alert("⚠️ તમે હાલ 'બધા ફાર્મ' મોડમાં છો!\nનવું બુકિંગ ઉમેરવા માટે કૃપા કરીને પહેલા ઉપરથી ચોક્કસ ફાર્મ (જેમ કે સીતારામ વાડી) પસંદ કરો.");
+            return;
         }
         selectedDateBaseKey = `${STORAGE_PREFIX}${year}_${String(month).padStart(2, '0')}_${String(day).padStart(2, '0')}`;
         selectedSlot = slot;
-        document.getElementById("bookingSlot").value = selectedSlot;
+        
+        let slotSelect = document.getElementById("bookingSlot");
+        if (slotSelect) slotSelect.value = selectedSlot;
+        
         document.getElementById("modalDateDisplay").innerText = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
 
         loadSlotData();
         document.getElementById("bookingModal").style.display = "flex";
         applyLockSystemToModal();
+    }
+
+    function switchSlot() {
+        let slotSelect = document.getElementById("bookingSlot");
+        if (slotSelect) {
+            selectedSlot = slotSelect.value;
+        }
+        
+        let isCustom = document.getElementById("customJamnvarToggle") ? document.getElementById("customJamnvarToggle").checked : false;
+        if (!isCustom) {
+            updateSlotDefaultTimingDisplay();
+        } else {
+            updateCustomTimingPreview();
+        }
+
+        loadSlotData();
     }
  
     function applyLockSystemToModal() {
