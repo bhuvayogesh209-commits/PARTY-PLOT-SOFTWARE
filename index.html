@@ -6101,6 +6101,31 @@
         listenToFarmBookings();
     }
 
+     function applyPendingOfflineBookingQueue(farmId, bookingsObj) {
+        if (!bookingsObj || typeof bookingsObj !== "object") bookingsObj = {};
+        try {
+            let queue = JSON.parse(localStorage.getItem("offline_sync_queue") || "[]");
+            queue.forEach(item => {
+                if (!item) return;
+                let path = item.path || (item.farmId && item.dateKey ? `farm_bookings/${item.farmId}/${item.dateKey}` : "");
+                if (path === "farm_bookings" && item.action === "set" && item.data && item.data[farmId]) {
+                    Object.keys(bookingsObj).forEach(k => delete bookingsObj[k]);
+                    Object.assign(bookingsObj, item.data[farmId]);
+                } else if (path === `farm_bookings/${farmId}` && item.action === "set" && item.data) {
+                    Object.keys(bookingsObj).forEach(k => delete bookingsObj[k]);
+                    Object.assign(bookingsObj, item.data);
+                } else if (path.indexOf(`farm_bookings/${farmId}/`) === 0) {
+                    let bKey = path.split("/")[2];
+                    if (bKey) {
+                        if (item.action === "remove") delete bookingsObj[bKey];
+                        else if (item.action === "set" && item.data) bookingsObj[bKey] = item.data;
+                    }
+                }
+            });
+        } catch(e) { console.log("Pending Booking Queue Error:", e); }
+        return bookingsObj;
+    }
+
     // ૨. પસંદ કરેલા ફાર્મ મુજબ ડેટા ફિલ્ટર અને લાઈવ ક્લાઉડ લિસનર (૧૦૦% અલગ-અલગ ફાર્મ લોડિંગ)
     function listenToFarmBookings() {
         if (!currentFarmId) return;
@@ -6117,7 +6142,7 @@
             let combinedBookings = {};
             if (cachedAllFarmBookings && typeof cachedAllFarmBookings === "object") {
                 for (let fId in cachedAllFarmBookings) {
-                    let farmB = cachedAllFarmBookings[fId] || {};
+                    let farmB = applyPendingOfflineBookingQueue(fId, Object.assign({}, cachedAllFarmBookings[fId] || {}));
                     for (let bKey in farmB) {
                         if (farmB[bKey] && farmB[bKey].customerName && farmB[bKey].status !== 'available') {
                             combinedBookings[bKey] = farmB[bKey];
@@ -6133,6 +6158,9 @@
             currentBookingCallback = (snapshot) => {
                 if (currentFarmId !== "ALL") return;
                 let allFarmsData = snapshot.val() || {};
+                for (let fId in allFarmsData) {
+                    allFarmsData[fId] = applyPendingOfflineBookingQueue(fId, allFarmsData[fId] || {});
+                }
                 cachedAllFarmBookings = allFarmsData;
                 localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
 
@@ -6155,10 +6183,11 @@
         } else {
             let cachedSpecific = {};
             if (cachedAllFarmBookings && cachedAllFarmBookings[activeFarmId]) {
-                cachedSpecific = cachedAllFarmBookings[activeFarmId];
+                cachedSpecific = Object.assign({}, cachedAllFarmBookings[activeFarmId]);
             } else {
                 try { cachedSpecific = JSON.parse(localStorage.getItem("cached_bookings_" + activeFarmId) || "{}") || {}; } catch(e){}
             }
+            cachedSpecific = applyPendingOfflineBookingQueue(activeFarmId, cachedSpecific);
 
             let clean = {};
             for (let bKey in cachedSpecific) {
@@ -6175,7 +6204,7 @@
             currentBookingRef = firebase.database().ref("farm_bookings").child(activeFarmId);
             currentBookingCallback = (snapshot) => {
                 if (currentFarmId !== activeFarmId) return;
-                let specificData = snapshot.val() || {};
+                let specificData = applyPendingOfflineBookingQueue(activeFarmId, snapshot.val() || {});
                 let cleanBookings = {};
                 for (let bKey in specificData) {
                     let b = specificData[bKey];
@@ -7962,7 +7991,7 @@
         let m = document.getElementById("monthSelect");
         let y = document.getElementById("yearSelect");
         if (y && y.options.length === 0) populateYears();
-        let currentM = parseInt(m.value) || 0;
+        let currentM = parseInt(m.value) || 0;  
         let currentY = parseInt(y.value) || new Date().getFullYear();
         if (currentM < 11) {  
             m.value = currentM + 1;
@@ -7978,10 +8007,10 @@
             y.value = newY;
         }
         generateCalendar();
-    }  
+    }    
       let currentPaymentsList = [];
     let currentExtraItemsList = []; // 🪑 એક્સ્ટ્રા વસ્તુઓનું લિસ્ટ (ખુરશી, ગાદલા, સ્ટેજ વગેરે)
-
+   
     // 📅 મલ્ટીપલ તારીખ ટોગલ ફંક્શન
     function toggleMultiDateView() {
         let isChecked = document.getElementById("multiDateToggle").checked;
@@ -8483,6 +8512,9 @@
         if (document.getElementById("dispSlotVacateText")) document.getElementById("dispSlotVacateText").innerText = def.vacateText;
     }
 
+    var editingOrigBookingSlot = "";
+    var editingOrigBookingKey = "";
+
     function switchSlot() {
         selectedSlot = document.getElementById("bookingSlot").value;
         let isCustom = document.getElementById("customJamnvarToggle") ? document.getElementById("customJamnvarToggle").checked : false;
@@ -8505,7 +8537,7 @@
                 calculateTotalWithExtraItems();
             }
         }
-    } 
+    }
 
     function clearBookingFormFields() {
         if (document.getElementById("receiptNo")) document.getElementById("receiptNo").value = "";
@@ -8553,31 +8585,44 @@
         calculateTotalWithExtraItems();
     }
 
-    // ✏️ મંડપના ૩ ખાના, શિફ્ટ ટાઈમ, ખાલી કરવાનો સમય, વોચમેન ખાતું, રસીદ નંબર & તમામ ડેટા લોડ કરવો
+    // ✏️ મંડપના ૩ ખાના, શિફ્ટ ટાઈમ, ખાલી કરવાનો સમય, વોચમેન ખાતું, રસીદ નંબર & તમામ ડેટા લોડ કરવો   
     function loadSlotData() {
         let fullKey = `${selectedDateBaseKey}_${selectedSlot}`;
         let data = cloudBookings[fullKey];
+        let matchedKey = fullKey;
 
         if (!data || !data.customerName) {
             if (cloudBookings[`${selectedDateBaseKey}_fullday`] && cloudBookings[`${selectedDateBaseKey}_fullday`].customerName) {
-                data = cloudBookings[`${selectedDateBaseKey}_fullday`];
+                matchedKey = `${selectedDateBaseKey}_fullday`;
+                data = cloudBookings[matchedKey];
                 selectedSlot = 'fullday';
                 document.getElementById("bookingSlot").value = 'fullday';
             } else if (cloudBookings[`${selectedDateBaseKey}_morning`] && cloudBookings[`${selectedDateBaseKey}_morning`].customerName) {
-                data = cloudBookings[`${selectedDateBaseKey}_morning`];
+                matchedKey = `${selectedDateBaseKey}_morning`;
+                data = cloudBookings[matchedKey];
                 selectedSlot = 'morning';
                 document.getElementById("bookingSlot").value = 'morning';
             } else if (cloudBookings[`${selectedDateBaseKey}_evening`] && cloudBookings[`${selectedDateBaseKey}_evening`].customerName) {
-                data = cloudBookings[`${selectedDateBaseKey}_evening`];
+                matchedKey = `${selectedDateBaseKey}_evening`;
+                data = cloudBookings[matchedKey];
                 selectedSlot = 'evening';
                 document.getElementById("bookingSlot").value = 'evening';
             } else if (cloudBookings[selectedDateBaseKey] && cloudBookings[selectedDateBaseKey].customerName) {
-                data = cloudBookings[selectedDateBaseKey];
+                matchedKey = selectedDateBaseKey;
+                data = cloudBookings[matchedKey];
                 if (data.slot) {
                     selectedSlot = data.slot;
                     document.getElementById("bookingSlot").value = data.slot;
                 }
             }
+        }
+
+        if (data && data.customerName) {
+            editingOrigBookingSlot = data.slot || selectedSlot;
+            editingOrigBookingKey = data.dateKey || matchedKey;
+        } else {
+            editingOrigBookingSlot = "";
+            editingOrigBookingKey = "";
         }
 
         let now = new Date();
@@ -8669,7 +8714,10 @@
         }
         selectedDateBaseKey = `${STORAGE_PREFIX}${year}_${String(month).padStart(2, '0')}_${String(day).padStart(2, '0')}`;
         selectedSlot = slot;
-        document.getElementById("bookingSlot").value = selectedSlot;
+
+        let slotSelect = document.getElementById("bookingSlot");
+        if (slotSelect) slotSelect.value = selectedSlot;
+
         document.getElementById("modalDateDisplay").innerText = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
 
         loadSlotData();
@@ -8903,6 +8951,9 @@
             }
         }
 
+        selectedSlot = activeSlot;
+        let allOldKeysRemovedForRojmel = [];
+
         targetBaseKeys.forEach(baseKey => {
             let fullKey = `${baseKey}_${selectedSlot}`;
             let bookingData = { 
@@ -8946,51 +8997,55 @@
                 status: status
             };
 
+            let keysToRemove = [baseKey];
             if (selectedSlot === 'fullday') {
-                delete cloudBookings[`${baseKey}_morning`];
-                delete cloudBookings[`${baseKey}_evening`];
-                delete cloudBookings[baseKey];
+                keysToRemove.push(`${baseKey}_morning`, `${baseKey}_evening`);
             } else if (selectedSlot === 'morning' || selectedSlot === 'evening') {
-                delete cloudBookings[`${baseKey}_fullday`];
-                delete cloudBookings[baseKey];
+                keysToRemove.push(`${baseKey}_fullday`);
             }
+            if (editingOrigBookingSlot && editingOrigBookingSlot !== selectedSlot) {
+                keysToRemove.push(`${baseKey}_${editingOrigBookingSlot}`);
+            }
+            if (editingOrigBookingKey && editingOrigBookingKey !== fullKey && baseKey === selectedDateBaseKey) {
+                keysToRemove.push(editingOrigBookingKey);
+            }
+            keysToRemove = [...new Set(keysToRemove)].filter(k => k && k !== fullKey);
+
+            if (!cachedAllFarmBookings[targetFarmId]) cachedAllFarmBookings[targetFarmId] = {};
+
+            keysToRemove.forEach(oldK => {
+                delete cloudBookings[oldK];
+                delete cachedAllFarmBookings[targetFarmId][oldK];
+                allOldKeysRemovedForRojmel.push(oldK);
+            });
 
             if (currentFarmId === targetFarmId || currentFarmId === "ALL") {
                 cloudBookings[fullKey] = bookingData;
             }
-
-            if (!cachedAllFarmBookings[targetFarmId]) cachedAllFarmBookings[targetFarmId] = {};
             cachedAllFarmBookings[targetFarmId][fullKey] = bookingData;
 
             if (navigator.onLine) {   
                 let targetRef = firebase.database().ref("farm_bookings").child(targetFarmId);
-                if (selectedSlot === 'fullday') {
-                    targetRef.child(`${baseKey}_morning`).remove();
-                    targetRef.child(`${baseKey}_evening`).remove();
-                    targetRef.child(baseKey).remove();
-                } else {
-                    targetRef.child(`${baseKey}_fullday`).remove();
-                    targetRef.child(baseKey).remove();
-                }
+                keysToRemove.forEach(oldK => targetRef.child(oldK).remove());
                 targetRef.child(fullKey).set(bookingData);
             } else {
+                keysToRemove.forEach(oldK => addToSyncQueue({ action: "remove", farmId: targetFarmId, dateKey: oldK }));
                 addToSyncQueue({ action: "set", farmId: targetFarmId, dateKey: fullKey, data: bookingData });
             }
         });
 
         localStorage.setItem("cached_bookings_" + targetFarmId, JSON.stringify(cachedAllFarmBookings[targetFarmId] || {}));
-        localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));    
+        localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
         generateCalendar();
         filterData();
         if (typeof removeAutoRojmelByPrefix === "function" && typeof upsertAutoRojmelEntry === "function") {
             let primaryBaseKey = targetBaseKeys[0];
             let primaryFullKey = `${primaryBaseKey}_${selectedSlot}`;
-            if (selectedSlot === 'fullday') {
-                removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${primaryBaseKey}_morning_`);
-                removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${primaryBaseKey}_evening_`);
-            } else {
-                removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${primaryBaseKey}_fullday_`);
-            }
+            allOldKeysRemovedForRojmel.forEach(oldK => {
+                removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${oldK}_`);
+                removeAutoRojmelByPrefix(`auto_bk_${oldK}_`);
+            });
             removeAutoRojmelByPrefix(`auto_bk_${targetFarmId}_${primaryFullKey}_`);
             removeAutoRojmelByPrefix(`auto_bk_${primaryFullKey}_`);
             let slotGuj = selectedSlot === 'fullday' ? 'આખો દિવસ' : (selectedSlot === 'evening' ? 'સાંજ' : 'સવાર');
@@ -11814,8 +11869,8 @@
 
         let masterBookings = JSON.parse(localStorage.getItem("cached_all_farm_bookings") || "{}");
         if (typeof currentFarmId !== "undefined" && currentFarmId && currentFarmId !== "ALL") {
-            if (typeof cloudBookings !== "undefined" && Object.keys(cloudBookings).length > 0) {
-                masterBookings[currentFarmId] = Object.assign({}, masterBookings[currentFarmId] || {}, cloudBookings);
+            if (typeof cloudBookings !== "undefined") {
+                masterBookings[currentFarmId] = Object.assign({}, cloudBookings);
             }
         }
 
@@ -12095,8 +12150,13 @@
             let targetFId = data.farmId;
             if (!cachedAllFarmBookings) cachedAllFarmBookings = {};
             cachedAllFarmBookings[targetFId] = data.bookings || {};
-            localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings));
-            if (isOnline) firebase.database().ref("farm_bookings").child(targetFId).set(data.bookings || {});
+            localStorage.setItem("cached_all_farm_bookings", JSON.stringify(cachedAllFarmBookings)); 
+             localStorage.setItem("cached_bookings_" + targetFId, JSON.stringify(data.bookings || {}));
+            if (isOnline) {
+                firebase.database().ref("farm_bookings").child(targetFId).set(data.bookings || {});
+            } else if (typeof addToSyncQueue === "function") {
+                addToSyncQueue({ path: "farm_bookings/" + targetFId, action: "set", data: data.bookings || {} });
+            }
 
             if (!cachedAllFarmWorkers) cachedAllFarmWorkers = {};
             cachedAllFarmWorkers[targetFId] = data.workers || {};
@@ -12182,12 +12242,26 @@
         if (Object.keys(bookingsToRestore).length > 0) {
             if (typeof cachedAllFarmBookings !== "undefined") cachedAllFarmBookings = bookingsToRestore;
             localStorage.setItem("cached_all_farm_bookings", JSON.stringify(bookingsToRestore));
-            if (isOnline) firebase.database().ref("farm_bookings").set(bookingsToRestore);
+            for (let fId in bookingsToRestore) {
+                localStorage.setItem("cached_bookings_" + fId, JSON.stringify(bookingsToRestore[fId] || {}));
+            }
+            if (isOnline) {
+                firebase.database().ref("farm_bookings").set(bookingsToRestore);
+            } else if (typeof addToSyncQueue === "function") {
+                addToSyncQueue({ path: "farm_bookings", action: "set", data: bookingsToRestore });
+            }
 
-            let curFId = (typeof currentFarmId !== "undefined" && currentFarmId !== "ALL") ? currentFarmId : Object.keys(bookingsToRestore)[0];
-            if (curFId && bookingsToRestore[curFId]) {
-                if (typeof cloudBookings !== "undefined") cloudBookings = bookingsToRestore[curFId];
-                localStorage.setItem("cached_bookings_" + curFId, JSON.stringify(bookingsToRestore[curFId]));
+            if (typeof currentFarmId !== "undefined" && currentFarmId === "ALL") {
+                let mergedAll = {};
+                for (let fId in bookingsToRestore) {
+                    Object.assign(mergedAll, bookingsToRestore[fId] || {});
+                }
+                if (typeof cloudBookings !== "undefined") cloudBookings = mergedAll;
+            } else {
+                let curFId = (typeof currentFarmId !== "undefined" && currentFarmId) ? currentFarmId : Object.keys(bookingsToRestore)[0];
+                if (typeof cloudBookings !== "undefined") {
+                    cloudBookings = (curFId && bookingsToRestore[curFId]) ? bookingsToRestore[curFId] : {};
+                }
             }
         }
 
