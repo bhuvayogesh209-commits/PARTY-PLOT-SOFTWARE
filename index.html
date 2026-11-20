@@ -3576,38 +3576,44 @@
             </div>
         </div>
 
-        <!-- Report Summary Cards -->
-        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:12px; text-align:center;">
-            <div style="background:#fef2f2; border:1px solid #fca5a5; padding:8px; border-radius:8px;">
-                <span style="font-size:11px; color:#991b1b; display:block;">આ સમયગાળાનો ઉપાડ (Upad)</span>
+        <!-- Report Summary Cards (ઉપાડ, ચૂકવેલ પગાર અને ચોખ્ખો બાકી પગાર) -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:12px; text-align:center;">
+            <div style="background:#fef2f2; border:1.5px solid #fca5a5; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#991b1b; display:block; font-weight:700;">આ સમયગાળાનો ઉપાડ (Upad)</span>
                 <b id="rptTotalUpadSum" style="font-size:16px; color:#b91c1c;">₹0</b>
             </div>
-            <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:8px; border-radius:8px;">
-                <span style="font-size:11px; color:#065f46; display:block;">ચૂકવેલો કુલ પગાર (Paid Salary)</span>
+            <div style="background:#ecfdf5; border:1.5px solid #86efac; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#065f46; display:block; font-weight:700;">ચૂકવેલો કુલ પગાર (Salary Paid)</span>
                 <b id="rptTotalSalaryPaidSum" style="font-size:16px; color:#047857;">₹0</b>
             </div>
-            <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:8px; border-radius:8px;">
-                <span style="font-size:11px; color:#1e40af; display:block;">કુલ વ્યવહારો (Transactions)</span>
+            <div id="rptNetBalCard" style="background:#fffbeb; border:1.5px solid #fde047; padding:8px; border-radius:8px;">
+                <span id="rptNetBalTitle" style="font-size:11px; color:#92400e; display:block; font-weight:700;">ચોખ્ખો બાકી પગાર (Net Balance)</span>
+                <b id="rptTotalNetBalSum" style="font-size:16px; color:#b45309;">₹0</b>
+            </div>
+            <div style="background:#eff6ff; border:1.5px solid #bfdbfe; padding:8px; border-radius:8px;">
+                <span style="font-size:11px; color:#1e40af; display:block; font-weight:700;">કુલ વ્યવહારો (Transactions)</span>
                 <b id="rptTotalTxnCount" style="font-size:16px; color:#1d4ed8;">0</b>
             </div>
         </div>
 
         <!-- Report Table -->
         <div style="max-height:280px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
-            <table style="width:100%; font-size:12px;">
-                <thead style="background:#f1f5f9; position:sticky; top:0;">
+            <table style="width:100%; font-size:12px; border-collapse:collapse;">
+                <thead style="background:#f1f5f9; position:sticky; top:0; z-index:2;">
                     <tr>
                         <th style="padding:6px;">તારીખ & સમય</th>
                         <th style="padding:6px;">કારીગર</th>
                         <th style="padding:6px;">પ્રકાર</th>
                         <th style="padding:6px;">પેમેન્ટ મોડ / વિગત</th>
-                        <th style="padding:6px; text-align:right;">ઉપાડ રકમ</th>
-                        <th style="padding:6px; text-align:right;">ચૂકવેલ પગાર</th>
+                        <th style="padding:6px; text-align:right;">ઉપાડ રકમ (₹)</th>
+                        <th style="padding:6px; text-align:right;">ચૂકવેલ પગાર (₹)</th>
                     </tr>
                 </thead>
                 <tbody id="rptTableBody">
                     <tr><td colspan="6" style="text-align:center; padding:15px; color:#94a3b8;">તારીખ પસંદ કરી "શોધો" પર ક્લિક કરો.</td></tr>
                 </tbody>
+                <tfoot id="rptTableFoot" style="background:#f8fafc; font-weight:800; border-top:2px solid #cbd5e1; position:sticky; bottom:0;">
+                </tfoot>
             </table>
         </div>
 
@@ -6856,6 +6862,8 @@
         }
 
         let currentReportData = [];
+        let currentReportWorkerSummaries = [];
+        let currentReportOverall = { totalUpad: 0, totalPaidSal: 0, totalSalary: 0, totalNetBalance: 0 };
 
         function generateWorkerDateReport() {
             let targetWorkerId = document.getElementById("rptWorkerSelect").value;
@@ -6868,8 +6876,11 @@
             let end = new Date(eDate + "T23:59:59");
 
             currentReportData = [];
+            currentReportWorkerSummaries = [];
             let totalUpad = 0;
             let totalPaidSal = 0;
+            let totalBaseSalary = 0;
+            let totalNetBalance = 0;
 
             let sourceList = isShowAllFarmsWorkers ? cachedAllFarmWorkers : { [currentFarmId]: cloudWorkers };
 
@@ -6878,60 +6889,114 @@
                 for (let wId in workers) {
                     if (targetWorkerId !== "ALL" && targetWorkerId !== wId) continue;
                     let w = workers[wId];
-                    if (!w) continue;
+                    if (!w || !w.name) continue;
+
+                    let wSalary = parseFloat(w.salary || 0);
+                    let wTotalAllUpad = (w.upads || []).reduce((s, u) => s + parseFloat(u.amount || 0), 0);
+                    let wTotalAllSalaryPaid = (w.salaryPayments || []).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+                    let wNetBalance = wSalary - wTotalAllUpad;
+
+                    let wPeriodUpad = 0;
+                    let wPeriodSalaryPaid = 0;
 
                     (w.upads || []).forEach(u => {
-                        let parts = u.date.split("/");
-                        let uDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
-                        if (uDate >= start && uDate <= end) {
-                            totalUpad += parseFloat(u.amount || 0); 
-                            let upadModeText = u.mode === 'cheque' ? `ચેક (${u.refNumber || ''})` : (u.mode === 'gpay' ? `GPay (${u.refNumber || ''})` : 'રોકડ (Cash)');
-                            currentReportData.push({
-                                dateObj: uDate,
-                                dateStr: u.date,
-                                timeStr: u.time || "-",
-                                workerName: w.name,
-                                type: "ઉપાડ (Advance)",
-                                mode: upadModeText,
-                                ref: u.note || "-",
-                                upadAmount: parseFloat(u.amount || 0),
-                                salaryAmount: 0
-                            });
+                        let parts = (u.date || "").split("/");
+                        if (parts.length === 3) {
+                            let uDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
+                            if (uDate >= start && uDate <= end) {
+                                let amt = parseFloat(u.amount || 0);
+                                totalUpad += amt;
+                                wPeriodUpad += amt;
+                                let upadModeText = u.mode === 'cheque' ? `ચેક (${u.refNumber || ''})` : (u.mode === 'gpay' ? `GPay (${u.refNumber || ''})` : 'રોકડ');
+                                currentReportData.push({
+                                    dateObj: uDate,
+                                    dateStr: u.date,
+                                    timeStr: u.time || "-",
+                                    workerId: wId,
+                                    workerName: w.name,
+                                    workerRole: w.role || 'કારીગર',
+                                    type: "ઉપાડ (Advance)",
+                                    mode: upadModeText,
+                                    ref: u.note || "-",
+                                    upadAmount: amt,
+                                    salaryAmount: 0
+                                });
+                            }
                         }
                     });
 
                     (w.salaryPayments || []).forEach(p => {
                         let pDate = p.rawDate ? new Date(p.rawDate + "T12:00:00") : new Date(p.timestamp);
                         if (pDate >= start && pDate <= end) {
-                            totalPaidSal += parseFloat(p.amount || 0);
-                            let modeText = p.mode === "cash" ? "રોકડ (Cash)" : (p.mode === "cheque" ? `ચેક (${p.refDetails})` : `GPay (${p.refDetails})`);
+                            let amt = parseFloat(p.amount || 0);
+                            totalPaidSal += amt;
+                            wPeriodSalaryPaid += amt;
+                            let modeText = p.mode === "cash" ? "રોકડ" : (p.mode === "cheque" ? `ચેક (${p.refDetails || ''})` : `GPay (${p.refDetails || ''})`);
                             currentReportData.push({
                                 dateObj: pDate,
                                 dateStr: p.date,
                                 timeStr: p.time || "-",
+                                workerId: wId,
                                 workerName: w.name,
-                                type: `પગાર (${p.month})`,
+                                workerRole: w.role || 'કારીગર',
+                                type: `પગાર (${p.month || '-'})`,
                                 mode: modeText,
                                 ref: p.note || "-",
                                 upadAmount: 0,
-                                salaryAmount: parseFloat(p.amount || 0)
+                                salaryAmount: amt
                             });
                         }
+                    });
+
+                    totalBaseSalary += wSalary;
+                    totalNetBalance += wNetBalance;
+
+                    currentReportWorkerSummaries.push({
+                        id: wId,
+                        name: w.name,
+                        role: w.role || 'કારીગર',
+                        mobile: w.mobile || '-',
+                        salary: wSalary,
+                        totalUpad: wTotalAllUpad,
+                        totalSalaryPaid: wTotalAllSalaryPaid,
+                        netBalance: wNetBalance,
+                        periodUpad: wPeriodUpad,
+                        periodSalaryPaid: wPeriodSalaryPaid
                     });
                 }
             }
 
             currentReportData.sort((a, b) => b.dateObj - a.dateObj);
+            currentReportOverall = { totalUpad, totalPaidSal, totalBaseSalary, totalNetBalance };
 
+            // UI Cards
             document.getElementById("rptTotalUpadSum").innerText = "₹" + totalUpad.toLocaleString('en-IN');
             document.getElementById("rptTotalSalaryPaidSum").innerText = "₹" + totalPaidSal.toLocaleString('en-IN');
             document.getElementById("rptTotalTxnCount").innerText = currentReportData.length;
 
+            let netBalCard = document.getElementById("rptNetBalCard");
+            let netBalTitle = document.getElementById("rptNetBalTitle");
+            let netBalEl = document.getElementById("rptTotalNetBalSum");
+            if (netBalEl) {
+                netBalEl.innerText = (totalNetBalance >= 0 ? "₹" : "- ₹") + Math.abs(totalNetBalance).toLocaleString('en-IN');
+                if (netBalCard) {
+                    netBalCard.style.background = totalNetBalance >= 0 ? "#fffbeb" : "#fef2f2";
+                    netBalCard.style.borderColor = totalNetBalance >= 0 ? "#fde047" : "#fca5a5";
+                }
+                if (netBalTitle) {
+                    netBalTitle.innerText = totalNetBalance >= 0 ? "ચોખ્ખો બાકી પગાર (Net Balance)" : "વધુ ઉપાડ / ખાધ";
+                    netBalTitle.style.color = totalNetBalance >= 0 ? "#92400e" : "#991b1b";
+                }
+                netBalEl.style.color = totalNetBalance >= 0 ? "#b45309" : "#b91c1c";
+            }
+
             let tbody = document.getElementById("rptTableBody");
+            let tfoot = document.getElementById("rptTableFoot");
             tbody.innerHTML = "";
 
             if (currentReportData.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">પસંદ કરેલ સમયગાળામાં કોઈ વ્યવહાર મળ્યો નથી.</td></tr>`;
+                if (tfoot) tfoot.style.display = "none";
                 return;
             }
 
@@ -6946,6 +7011,17 @@
                 </tr>`;
                 tbody.innerHTML += row;
             });
+
+            if (tfoot) {
+                tfoot.style.display = "table-footer-group";
+                tfoot.innerHTML = `
+                    <tr style="background:#f8fafc; font-weight:800; border-top:2px solid #cbd5e1;">
+                        <td colspan="4" style="text-align:right; color:#1e1b4b; padding:8px;">આ સમયગાળાનો કુલ સરવાળો (Period Total):</td>
+                        <td style="text-align:right; color:#ef4444; padding:8px; font-size:13px;">₹${totalUpad.toLocaleString('en-IN')}</td>
+                        <td style="text-align:right; color:#10b981; padding:8px; font-size:13px;">₹${totalPaidSal.toLocaleString('en-IN')}</td>
+                    </tr>
+                `;
+            }
         }
 
         function printWorkerDateReport() {
@@ -6953,55 +7029,170 @@
 
             let sDate = document.getElementById("rptStartDate").value;
             let eDate = document.getElementById("rptEndDate").value;
+            let targetWorkerId = document.getElementById("rptWorkerSelect").value;
             let workerText = document.getElementById("rptWorkerSelect").options[document.getElementById("rptWorkerSelect").selectedIndex].text;
 
-            let win = window.open('', '_blank', 'width=800,height=650');
-            if (!win) { alert("પોપ-અપ ની પરવાનગી આપો!"); return; }
+            let fmt = (d) => (typeof formatToDMY === "function" ? formatToDMY(d) : d);
+            let dateRangeText = `${fmt(sDate)} થી ${fmt(eDate)}`;
 
+            let win = window.open('', '_blank', 'width=880,height=700');
+            if (!win) { alert("કૃપા કરીને બ્રાઉઝરમાં પોપ-અપ (Pop-up) Allow કરો!"); return; }
+
+            // ૧. વ્યવહારોની યાદી
             let rowsHTML = "";
             currentReportData.forEach((item, idx) => {
                 rowsHTML += `<tr>
-                    <td>${idx + 1}</td>
-                    <td>${item.dateStr} ${item.timeStr !== '-' ? item.timeStr : ''}</td>
-                    <td><b>${item.workerName}</b></td>
-                    <td>${item.type}</td>
-                    <td>${item.mode}</td>
-                    <td style="text-align:right; color:#ef4444;">${item.upadAmount > 0 ? '₹' + item.upadAmount.toLocaleString('en-IN') : '-'}</td>
-                    <td style="text-align:right; color:#10b981;">${item.salaryAmount > 0 ? '₹' + item.salaryAmount.toLocaleString('en-IN') : '-'}</td>
+                    <td style="text-align:center;">${idx + 1}</td>
+                    <td style="white-space:nowrap;"><b>${item.dateStr}</b> ${item.timeStr !== '-' ? '<br><small style="color:#64748b;">' + item.timeStr + '</small>' : ''}</td>
+                    <td><b>${item.workerName}</b> <small style="color:#64748b;">(${item.workerRole})</small></td>
+                    <td><span style="font-weight:bold; color:${item.upadAmount > 0 ? '#b91c1c' : '#15803d'};">${item.type}</span></td>
+                    <td>${item.mode} ${item.ref !== '-' ? '<br><small style="color:#64748b;">' + item.ref + '</small>' : ''}</td>
+                    <td style="text-align:right; color:#b91c1c; font-weight:bold;">${item.upadAmount > 0 ? '₹' + item.upadAmount.toLocaleString('en-IN') : '-'}</td>
+                    <td style="text-align:right; color:#15803d; font-weight:bold;">${item.salaryAmount > 0 ? '₹' + item.salaryAmount.toLocaleString('en-IN') : '-'}</td>
                 </tr>`;
             });
+
+            // ૨. નીચેનો હિસાબ સારાંશ (Single Worker vs All Workers)
+            let summaryBottomHTML = "";
+            let isSingle = (targetWorkerId !== "ALL" && currentReportWorkerSummaries.length === 1);
+
+            if (isSingle) {
+                let w = currentReportWorkerSummaries[0];
+                let balColor = w.netBalance >= 0 ? "#15803d" : "#b91c1c";
+                let balText = w.netBalance >= 0 ? `ચોખ્ખો બાકી પગાર (Net Balance Due): ₹${w.netBalance.toLocaleString('en-IN')}` : `વધુ ઉપાડ / ખાધ: ₹${Math.abs(w.netBalance).toLocaleString('en-IN')}`;
+
+                summaryBottomHTML = `
+                <div style="margin-top:16px; background:#fffbeb; border:2px solid #f59e0b; border-radius:8px; padding:12px;">
+                    <b style="color:#92400e; font-size:13.5px; display:block; margin-bottom:8px; border-bottom:1px dashed #f59e0b; padding-bottom:4px;">
+                        📊 કારીગર ખાતાવહી સંપૂર્ણ હિસાબ સારાંશ (${w.name} - ${w.role}):
+                    </b>
+                    <table style="margin-top:4px; font-size:12.5px;">
+                        <tr><td style="border:none; padding:4px 8px;"><b>કુલ ફિક્સ પગાર:</b></td><td style="border:none; text-align:right; font-weight:bold; color:#1e1b4b;">₹${w.salary.toLocaleString('en-IN')}</td></tr>
+                        <tr><td style="border:none; padding:4px 8px; color:#b91c1c;"><b>આ સમયગાળામાં લીધેલ ઉપાડ:</b></td><td style="border:none; text-align:right; font-weight:bold; color:#b91c1c;">₹${w.periodUpad.toLocaleString('en-IN')}</td></tr>
+                        <tr><td style="border:none; padding:4px 8px; color:#15803d;"><b>આ સમયગાળામાં ચૂકવેલ પગાર:</b></td><td style="border:none; text-align:right; font-weight:bold; color:#15803d;">₹${w.periodSalaryPaid.toLocaleString('en-IN')}</td></tr>
+                        <tr><td style="border:none; padding:4px 8px; color:#b91c1c;"><b>કુલ લીધેલ તમામ ઉપાડ (All Upad):</b></td><td style="border:none; text-align:right; font-weight:bold; color:#b91c1c;">(-) ₹${w.totalUpad.toLocaleString('en-IN')}</td></tr>
+                        <tr style="border-top:1.5px solid #b45309; background:#fef3c7; font-size:14px; font-weight:bold;">
+                            <td style="padding:6px 8px; color:#92400e;">ચોખ્ખો બાકી પગાર (Net Balance Remaining):</td>
+                            <td style="padding:6px 8px; text-align:right; color:${balColor}; font-size:16px;">₹${w.netBalance.toLocaleString('en-IN')}</td>
+                        </tr>
+                    </table>
+                </div>`;
+            } else {
+                // બધા કારીગરોનો અલગ-અલગ બાકી હિસાબ ટેબલ
+                let sumRows = "";
+                let grandBase = 0, grandUp = 0, grandPaid = 0, grandBal = 0;
+                currentReportWorkerSummaries.forEach((w, i) => {
+                    grandBase += w.salary;
+                    grandUp += w.totalUpad;
+                    grandPaid += w.totalSalaryPaid;
+                    grandBal += w.netBalance;
+                    sumRows += `
+                    <tr>
+                        <td style="text-align:center;">${i + 1}</td>
+                        <td><b>${w.name}</b></td>
+                        <td>${w.role}</td>
+                        <td style="text-align:right;">₹${w.salary.toLocaleString('en-IN')}</td>
+                        <td style="text-align:right; color:#b91c1c; font-weight:bold;">₹${w.totalUpad.toLocaleString('en-IN')}</td>
+                        <td style="text-align:right; color:#15803d; font-weight:bold;">₹${w.totalSalaryPaid.toLocaleString('en-IN')}</td>
+                        <td style="text-align:right; font-weight:900; color:${w.netBalance >= 0 ? '#15803d' : '#b91c1c'};">₹${w.netBalance.toLocaleString('en-IN')}</td>
+                    </tr>`;
+                });
+
+                summaryBottomHTML = `
+                <div style="margin-top:18px;">
+                    <b style="color:#1e1b4b; font-size:13.5px; display:block; margin-bottom:6px;">
+                        👥 તમામ કારીગરોનો પગાર, ઉપાડ & બાકી હિસાબ સારાંશ (Worker-wise Balance Summary):
+                    </b>
+                    <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+                        <thead>
+                            <tr style="background:#eef2ff;">
+                                <th style="width:30px; text-align:center;">#</th>
+                                <th>કારીગરનું નામ</th>
+                                <th>હોદ્દો</th>
+                                <th style="text-align:right;">કુલ પગાર (₹)</th>
+                                <th style="text-align:right;">કુલ ઉપાડ (₹)</th>
+                                <th style="text-align:right;">ચૂકવેલ પગાર (₹)</th>
+                                <th style="text-align:right;">ચોખ્ખો બાકી પગાર (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>${sumRows}</tbody>
+                        <tfoot>
+                            <tr style="background:#fefce8; font-weight:bold; font-size:13px; border-top:2px solid #334155;">
+                                <td colspan="3" style="text-align:right; color:#1e1b4b;">કુલ સરવાળો (Grand Total):</td>
+                                <td style="text-align:right; color:#1e1b4b;">₹${grandBase.toLocaleString('en-IN')}</td>
+                                <td style="text-align:right; color:#b91c1c;">₹${grandUp.toLocaleString('en-IN')}</td>
+                                <td style="text-align:right; color:#15803d;">₹${grandPaid.toLocaleString('en-IN')}</td>
+                                <td style="text-align:right; color:${grandBal >= 0 ? '#15803d' : '#b91c1c'}; font-size:14px;">₹${grandBal.toLocaleString('en-IN')}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>`;
+            }
 
             win.document.write(`
                 <html>
                 <head>
-                    <title>વર્કર સ્ટેટમેન્ટ રિપોર્ટ</title>
+                    <title>વર્કર સ્ટેટમેન્ટ રિપોર્ટ - ${currentFarmName || 'પાર્ટી પ્લોટ'}</title>
                     <style>
-                        body { font-family: Arial, sans-serif; padding: 25px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
-                        th, td { border: 1px solid #cbd5e1; padding: 7px; text-align: left; }
-                        th { background: #f1f5f9; }
+                        body { font-family: 'Noto Sans Gujarati', Arial, sans-serif; padding: 20px; color: #1e293b; font-size: 12.5px; }
+                        .header { text-align: center; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-bottom: 12px; }
+                        .meta-bar { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; font-weight: bold; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+                        th { background: #f1f5f9; font-weight: 700; }
+                        @media print {
+                            body { padding: 0; }
+                            @page { size: A4 portrait; margin: 10mm; }
+                        }
                     </style>
                 </head>
                 <body>
-                    <h2 style="margin:0; color:#4f46e5; text-align:center;">${currentFarmName}</h2>
-                    <h4 style="margin:5px 0 15px 0; text-align:center; color:#475569;">વર્કર પગાર & ઉપાડ ખાતાવહી રિપોર્ટ</h4>
-                    <p><b>કારીગર:</b> ${workerText} | <b>સમયગાળો:</b> ${sDate} થી ${eDate}</p>
+                    <div class="header">
+                        <h2 style="margin:0; color:#4f46e5;">${currentFarmName || 'પાર્ટી પ્લોટ મેનેજમેન્ટ'}</h2>
+                        <h3 style="margin:4px 0 0 0; color:#334155;">👷‍♂️ કારીગર પગાર & ઉપાડ ખાતાવહી સ્ટેટમેન્ટ રિપોર્ટ</h3>
+                    </div>
+                    <div class="meta-bar">
+                        <span>કારીગર: <b>${workerText}</b></span>
+                        <span>સમયગાળો: <b>${dateRangeText}</b></span>
+                        <span>કુલ વ્યવહારો: <b>${currentReportData.length}</b></span>
+                        <span>તારીખ: <b>${new Date().toLocaleDateString('gu-IN')}</b></span>
+                    </div>
+
+                    <b style="font-size:13px; color:#1e1b4b; display:block; margin-bottom:4px;">📋 દૈનિક વ્યવહારોની વિગત (Daily Transactions):</b>
                     <table>
                         <thead>
-                            <tr><th>#</th><th>તારીખ & સમય</th><th>કારીગરનું નામ</th><th>પ્રકાર</th><th>પેમેન્ટ મોડ</th><th style="text-align:right;">ઉપાડ</th><th style="text-align:right;">ચૂકવેલ પગાર</th></tr>
+                            <tr>
+                                <th style="width:30px; text-align:center;">#</th>
+                                <th>તારીખ & સમય</th>
+                                <th>કારીગરનું નામ</th>
+                                <th>પ્રકાર</th>
+                                <th>પેમેન્ટ મોડ / વિગત</th>
+                                <th style="text-align:right;">ઉપાડ રકમ (₹)</th>
+                                <th style="text-align:right;">ચૂકવેલ પગાર (₹)</th>
+                            </tr>
                         </thead>
                         <tbody>${rowsHTML}</tbody>
+                        <tfoot>
+                            <tr style="background:#fefce8; font-weight:bold; font-size:13px; border-top:2px solid #334155;">
+                                <td colspan="5" style="text-align:right; color:#1e1b4b;">આ સમયગાળાનો કુલ સરવાળો (Period Total):</td>
+                                <td style="text-align:right; color:#b91c1c; font-size:13.5px;">₹${currentReportOverall.totalUpad.toLocaleString('en-IN')}</td>
+                                <td style="text-align:right; color:#15803d; font-size:13.5px;">₹${currentReportOverall.totalPaidSal.toLocaleString('en-IN')}</td>
+                            </tr>
+                        </tfoot>
                     </table>
-                    <div style="margin-top:35px; display:flex; justify-content:space-between;">
-                        <div>તપાસનાર સહી: ____________</div>
-                        <div>ઓફિસ / માલિક સહી: ____________</div>
+
+                    ${summaryBottomHTML}
+
+                    <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:12px;">
+                        <div>તપાસનાર મેનેજર સહી: ____________</div>
+                        <div>ઓફિસ / માલિક (CEO) સહી: ____________</div>
                     </div>
                 </body>
                 </html>
             `);
             win.document.close();
             win.focus();
-            win.print();
+            setTimeout(() => { win.print(); }, 250);
         }
 
         function openAddWorkerModal() {   
