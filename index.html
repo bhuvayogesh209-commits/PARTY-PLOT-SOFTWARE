@@ -9565,9 +9565,9 @@
                 : `<span style="color:#94a3b8; font-size:12px;">🔒</span>`;
 
             // જૂના અને નવા બંને બુકિંગ માટે સમયનું સલામત ડિસ્પ્લે
-            let defaultTiming = getShiftDefaultTimings(itemSlot);
-            let displayTimeText = item.slotTimeText || defaultTiming.timeText;
-            let displayVacateText = item.slotVacateText || defaultTiming.vacateText;
+            let defaultTiming = getShiftDefaultTimings(itemSlot);  
+            let displayTimeText = item.isCustomJamnvar ? (item.slotTimeText || defaultTiming.timeText) : defaultTiming.timeText;
+            let displayVacateText = item.isCustomJamnvar ? (item.slotVacateText || defaultTiming.vacateText) : defaultTiming.vacateText;
 
             let timingStr = `<br><small style="color:#1e40af; font-weight:700;">⏱️ ${displayTimeText}</small>`;
             let vacateStr = `<br><small style="color:#b91c1c; font-weight:700;">🚪 ${displayVacateText}</small>`;
@@ -9714,9 +9714,9 @@
 
             let statusText = b.status === 'ok' ? 'ઓકે (OK)' : (b.status === 'paid' ? 'પૂર્ણ (Paid)' : (b.status === 'partial' ? 'અડધું પેમેન્ટ (Partial)' : 'બાકી (Pending)'));
 
-            let defaultTiming = getShiftDefaultTimings(b.slot || 'morning');
-            let exportTimeText = b.slotTimeText || defaultTiming.timeText;
-            let exportVacateText = b.slotVacateText || defaultTiming.vacateText;
+            let defaultTiming = getShiftDefaultTimings(b.slot || 'morning');    
+             let exportTimeText = b.isCustomJamnvar ? (b.slotTimeText || defaultTiming.timeText) : defaultTiming.timeText;
+            let exportVacateText = b.isCustomJamnvar ? (b.slotVacateText || defaultTiming.vacateText) : defaultTiming.vacateText;
 
             csv += `"${(b.receiptNo || '-').replace(/"/g, '""')}","${formattedDate}","${slotName}","${(exportTimeText || '-').replace(/"/g, '""')}","${(exportVacateText || '-').replace(/"/g, '""')}","${(b.jamnvarNote || '-').replace(/"/g, '""')}","${b.mandapSavar || '-'}","${b.mandapBapor || '-'}","${b.mandapSanj || '-'}","${b.watchmanCount || 0}","${b.watchmanRate || 0}","${b.watchmanTotal || 0}","${(b.customerName||'').replace(/"/g, '""')}","${b.mobile || ''}","${(b.hastakName || '-').replace(/"/g, '""')}","${b.hastakMobile || '-'}","${(b.event || '-').replace(/"/g, '""')}","${b.guests || '-'}","${(b.bookingNote1 || '-').replace(/"/g, '""')}","${(b.bookingNote2 || '-').replace(/"/g, '""')}","${(b.bookingNote3 || '-').replace(/"/g, '""')}","${b.basePackageAmount || 0}","${extraStr.replace(/"/g, '""')}","${b.cleaningCharge || 0}","${b.otherExtraCharge || 0}","${(b.otherExtraChargeNote || '-').replace(/"/g, '""')}","${b.totalAmount || 0}","${b.advanceAmount || 0}","${b.balanceAmount || 0}","${pHistoryText.replace(/"/g, '""')}","${statusText}"\n`;
         });
@@ -9817,8 +9817,8 @@
             let slotName = (b.slot === 'fullday') ? 'આખો દિવસ' : ((b.slot === 'evening') ? 'સાંજ' : 'સવાર');
 
             let defTiming = (typeof getShiftDefaultTimings === "function") ? getShiftDefaultTimings(b.slot || 'morning') : { timeText: '' };
-            let tText = b.slotTimeText || defTiming.timeText || "";
-            let vText = b.slotVacateText || "";
+             let tText = b.isCustomJamnvar ? (b.slotTimeText || defTiming.timeText || "") : (defTiming.timeText || "");
+            let vText = b.isCustomJamnvar ? (b.slotVacateText || defTiming.vacateText || "") : (defTiming.vacateText || "");
 
             let bill = parseFloat(b.totalAmount || 0);
             let adv = parseFloat(b.advanceAmount || 0);
