@@ -5368,18 +5368,17 @@
     <div class="modal-content">
         <div class="modal-title">📝 બુકિંગ ફોર્મ (<span id="modalDateDisplay"></span>)</div> 
 
-        <!-- ⏰ સવાર / સાંજ શિફ્ટ પસંદ કરવાનું બોક્સ -->   
-          <div class="form-group" style="background:#eef2ff; padding:12px; border-radius:10px; border:1.5px solid #c7d2fe;">
+        <div class="form-group" style="background:#eef2ff; padding:12px; border-radius:10px; border:1.5px solid #c7d2fe;">
             <label style="color:var(--primary); font-weight:800; margin-bottom:6px; display:block; font-size:13.5px;">⏰ સમય / શિફ્ટ પસંદ કરો *</label>
             <select id="bookingSlot" class="form-control" onchange="switchSlot()" style="font-weight:700; color:#1e1b4b; background:#fff;">
-                <option value="morning">🌅 સવાર (Morning Shift: સવારે 06:00 AM થી બપોરે 02:00 PM)</option>
-                <option value="evening">🌙 સાંજ (Evening Shift: બપોરે 03:00 PM થી રાત્રે 09:00 PM)</option>
-                <option value="fullday">☀️ આખો દિવસ (Full Day: 12:00 કલાક મર્યાદા)</option>
+                <option value="morning">🌅 સવાર (Morning Shift: સવારે 04:00 AM થી બપોરે 02:00 PM)</option>
+                <option value="evening">🌙 સાંજ (Evening Shift: બપોરે 03:00 PM થી રાત્રે 12:00 AM)</option>
+                <option value="fullday">☀️ આખો દિવસ (Full Day: રાત્રે 12:00 AM થી રાત્રે 12:00 AM)</option>
             </select>
 
             <!-- ⏰ ઑટોમેટિક શિફ્ટ સમય અને ફાર્મ ખાલી કરવાની શરત ડિસ્પ્લે -->
             <div id="slotDefaultInfoBox" style="margin-top:8px; background:#ffffff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 10px; font-size:12px;">
-                <div style="color:#1e40af; font-weight:700;">⏱️ કાર્યક્રમ સમય: <span id="dispSlotTimeText" style="color:#047857; font-weight:800;">સવારે 06:00 AM થી બપોરે 02:00 PM</span></div>
+                <div style="color:#1e40af; font-weight:700;">⏱️ કાર્યક્રમ સમય: <span id="dispSlotTimeText" style="color:#047857; font-weight:800;">સવારે 04:00 AM થી બપોરે 02:00 PM</span></div>
                 <div style="color:#b91c1c; font-weight:800; margin-top:3px;">🚪 ફાર્મ ખાલી કરવાનો સમય: <span id="dispSlotVacateText">બપોરે 02:00 વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.</span></div>
             </div>
 
@@ -8443,28 +8442,28 @@
         renderPaymentHistory();
     }
 
-   // ⏱️ શિફ્ટ મુજબના ઑટોમેટિક ડિફોલ્ટ સમય અને ફાર્મ ખાલી કરવાની શરત મેળવવાનું ફંક્શન
-    function getShiftDefaultTimings(slot) {
+   // ⏱️ શિફ્ટ મુજબના ઑટોમેટિક ડિફોલ્ટ સમય અને ફાર્મ ખાલી કરવાની શરત મેળવવાનું ફંક્શન 
+     function getShiftDefaultTimings(slot) {
         if (slot === "evening") {
             return {
-                timeText: "બપોરે 03:00 PM થી રાત્રે 09:00 PM",
-                vacateText: "રાત્રે 09:00 વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.",
+                timeText: "બપોરે 03:00 PM થી રાત્રે 12:00 AM",
+                vacateText: "રાત્રે 12:00 વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.",
                 startTime: "15:00",
-                vacateTime: "21:00"
+                vacateTime: "00:00"
             };
         } else if (slot === "fullday") {
             return {
-                timeText: "12:00 કલાક (સવારે 08:00 AM થી રાત્રે 08:00 PM)",
-                vacateText: "12 કલાક પછી ફાર્મ ખાલી કરવાનું રહેશે.",
-                startTime: "08:00",
-                vacateTime: "20:00"
+                timeText: "રાત્રે 12:00 AM થી રાત્રે 12:00 AM (૨૪ કલાક)",
+                vacateText: "રાત્રે 12:00 વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.",
+                startTime: "00:00",
+                vacateTime: "00:00"
             };
         } else {
             // ડિફોલ્ટ: સવાર (Morning Shift)
             return {
-                timeText: "સવારે 06:00 AM થી બપોરે 02:00 PM",
+                timeText: "સવારે 04:00 AM થી બપોરે 02:00 PM",
                 vacateText: "બપોરે 02:00 વાગ્યે ફાર્મ ખાલી કરવાનું રહેશે.",
-                startTime: "06:00",
+                startTime: "04:00",
                 vacateTime: "14:00"
             };
         }
