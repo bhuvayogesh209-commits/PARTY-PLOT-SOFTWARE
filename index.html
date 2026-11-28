@@ -5810,6 +5810,8 @@
     let canUserEditExtraItems = true;
     let canUserDeleteExtraItems = false;
     let cloudWorkers = {};
+    let canUserClickCalendar = true; // 📅 કૅલેન્ડર ક્લિક પરવાનગી
+    let canUserViewBookingReport = true; // 📊 નાણાકીય બુકિંગ રિપોર્ટ પરવાનગી
     let canUserViewCompanyAccounts = false; // Step 4 કંપની એકાઉન્ટિંગ પરવાનગી  
     let currentWorkerRef = null;
     let selectedWorkerIdForUpad = "";
@@ -5983,7 +5985,10 @@
                 canUserDeleteUpad = staff.canDeleteUpad === true;
                 canUserEditExtraItems = staff.canEditExtraItems !== false;
                 canUserDeleteExtraItems = staff.canDeleteExtraItems === true;
+                canUserClickCalendar = (staff.canClickCalendar === true); // સ્ટાફ માટે કૅલેન્ડર ક્લિક
+                canUserViewBookingReport = (staff.canViewBookingReport === true); // સ્ટાફ માટે નાણાકીય રિપોર્ટ
                 setupUserView();
+                generateCalendar();
                 renderWorkersTable();
                 filterData();
             }
@@ -7831,11 +7836,15 @@
                 canUserEditExtraItems = true;
                 canUserDeleteExtraItems = true;
                 currentStaffConfig = null;
+                canUserClickCalendar = true; // Admin ને સંપૂર્ણ અધિકાર
+                canUserViewBookingReport = true; // Admin ને સંપૂર્ણ અધિકાર
             } else {
                 error.innerText = "❌ ખોટો એડમિન પાસવર્ડ!";
                 return;
             }
-        } else {
+         }
+
+         else {
             // સ્ટાફ લોગિન તપાસવું (જૂની અને નવી તમામ પરવાનગીઓ સાથે)
             let staff = staffListObj[role];
             if (staff && staff.pass === pass) {
@@ -7850,6 +7859,8 @@
                 canUserDeleteUpad = staff.canDeleteUpad === true;
                 canUserEditExtraItems = staff.canEditExtraItems !== false;
                 canUserDeleteExtraItems = staff.canDeleteExtraItems === true;
+                canUserClickCalendar = (staff.canClickCalendar === true);
+                canUserViewBookingReport = (staff.canViewBookingReport === true);
             } else {
                 error.innerText = "❌ ખોટો સ્ટાફ પાસવર્ડ!";
                 return;
@@ -7902,6 +7913,9 @@
         // ✅ સૌથી પહેલાં વર્ષ અને કૅલેન્ડર તરત બતાવી દેવા
         populateYears();
         goToToday();
+        
+        // 🔒 સ્ટાફ માટે નાણાકીય વિગત છુપાવવી અને ફક્ત Backup/Restore બતાવવું
+        applyBookingReportPermissions();
 
         // 💾 ઑફલાઇન હોય ત્યારે LocalStorage માંથી તુરંત ફાર્મ લોડ કરવા
         let localFarms = {};
@@ -7918,6 +7932,34 @@
                     populateFarmDropdownUI(farmsData);
                 }
             });
+        }
+    }
+
+    function applyBookingReportPermissions() {
+        let isAdmin = (currentUserRole === "admin");
+        let canViewReport = isAdmin || (canUserViewBookingReport === true);
+
+        // છુપાવવા યોગ્ય બટનો અને કન્ટેન્ટ
+        let toggleBtn = document.getElementById("btnToggleBookingSection");
+        let bookingContent = document.getElementById("bookingSectionContent");
+        let farmBackupBtn = document.querySelector("button[onclick='downloadFarmBackupJSON()']");
+        let excelBtn = document.querySelector("button[onclick='exportExcel()']");
+        let clearBtn = document.getElementById("clearAllBtn");
+        let tallyBtn = document.getElementById("btnAdminTallyTop");
+
+        // તમામ A4 પ્રિન્ટ બટન્સ
+        let printBtns = document.querySelectorAll("button[onclick='printBookingReportA4()']");
+        printBtns.forEach(btn => btn.style.display = canViewReport ? "inline-flex" : "none");
+
+        if (toggleBtn) toggleBtn.style.display = canViewReport ? "inline-flex" : "none";
+        if (farmBackupBtn) farmBackupBtn.style.display = canViewReport ? "inline-flex" : "none";
+        if (excelBtn) excelBtn.style.display = canViewReport ? "inline-flex" : "none";
+        if (clearBtn) clearBtn.style.display = (isAdmin && canViewReport) ? "inline-flex" : "none";
+        if (tallyBtn) tallyBtn.style.display = isAdmin ? "inline-flex" : "none";
+
+        // જો પરવાનગી ન હોય તો બુકિંગ કન્ટેન્ટ ૧૦૦% બંધ રહેશે
+        if (!canViewReport && bookingContent) {
+            bookingContent.style.display = "none";
         }
     }
 
@@ -8236,12 +8278,18 @@
                 let cust = fData.customerName ? fData.customerName.slice(0, 9) : '';
                 dayBox.style.background = fInfo.bg;
                 dayBox.style.border = `2.5px solid ${fInfo.border}`;
+                
                 dayBox.innerHTML = `
                     <span style="font-weight:900; font-size:14px; color:${fInfo.textColor};">${day}</span>
                     <span class="day-subtext" style="font-weight:800; color:${fInfo.textColor}; font-size:9.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:96%;">☀️ ${cust}</span>
                     <span style="font-size:8.5px; font-weight:800; opacity:0.9; color:${fInfo.textColor};">(${fInfo.label})</span>
                 `;
-                dayBox.onclick = () => openModal(year, month + 1, day, "fullday");
+                if (currentUserRole !== 'admin' && !canUserClickCalendar) {
+                    dayBox.onclick = () => alert("🔒 કૅલેન્ડર ફક્ત જોવા માટે છે! તારીખ ખોલવાની કે બુકિંગ કરવાની પરવાનગી નથી.");
+                    dayBox.style.cursor = "not-allowed";
+                } else {
+                    dayBox.onclick = () => openModal(year, month + 1, day, "fullday");
+                }
             } else if (hasM && !hasE) {
                 let mInfo = getSlotStyle(mData);
                 let mCust = mData.customerName ? mData.customerName.slice(0, 9) : '';
@@ -8252,7 +8300,12 @@
                     <span class="day-subtext" style="font-weight:800; color:${mInfo.textColor}; font-size:9.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:96%;">🌅 ${mCust}</span>
                     <span style="font-size:8.5px; font-weight:800; opacity:0.9; color:${mInfo.textColor};">(${mInfo.label})</span>
                 `;
-                dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+                if (currentUserRole !== 'admin' && !canUserClickCalendar) {
+                    dayBox.onclick = () => alert("🔒 કૅલેન્ડર ફક્ત જોવા માટે છે! તારીખ ખોલવાની કે બુકિંગ કરવાની પરવાનગી નથી.");
+                    dayBox.style.cursor = "not-allowed";
+                } else {
+                    dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+                }
             } else if (hasE && !hasM) {
                 let eInfo = getSlotStyle(eData);
                 let eCust = eData.customerName ? eData.customerName.slice(0, 9) : '';
@@ -8263,7 +8316,12 @@
                     <span class="day-subtext" style="font-weight:800; color:${eInfo.textColor}; font-size:9.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:96%;">🌙 ${eCust}</span>
                     <span style="font-size:8.5px; font-weight:800; opacity:0.9; color:${eInfo.textColor};">(${eInfo.label})</span>
                 `;
-                dayBox.onclick = () => openModal(year, month + 1, day, "evening");
+                if (currentUserRole !== 'admin' && !canUserClickCalendar) {
+                    dayBox.onclick = () => alert("🔒 કૅલેન્ડર ફક્ત જોવા માટે છે! તારીખ ખોલવાની કે બુકિંગ કરવાની પરવાનગી નથી.");
+                    dayBox.style.cursor = "not-allowed";
+                } else {
+                    dayBox.onclick = () => openModal(year, month + 1, day, "evening");
+                }
             } else if (hasM && hasE) {
                 let mInfo = getSlotStyle(mData);
                 let eInfo = getSlotStyle(eData);
@@ -8278,7 +8336,12 @@
                         <span style="color:${eInfo.textColor};">🌙${eCust}</span>
                     </div>
                 `;
-                dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+                if (currentUserRole !== 'admin' && !canUserClickCalendar) {
+                    dayBox.onclick = () => alert("🔒 કૅલેન્ડર ફક્ત જોવા માટે છે! તારીખ ખોલવાની કે બુકિંગ કરવાની પરવાનગી નથી.");
+                    dayBox.style.cursor = "not-allowed";
+                } else {
+                    dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+                }
             } else {
                 dayBox.className = "day-box available";
                 dayBox.style.background = "#ecfdf5";
@@ -8287,7 +8350,12 @@
                     <span style="font-weight:800; font-size:14px; color:#065f46;">${day}</span>
                     <span class="day-subtext" style="font-weight:700; color:#047857;">ઉપલબ્ધ</span>
                 `;
-                dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+                if (currentUserRole !== 'admin' && !canUserClickCalendar) {
+                    dayBox.onclick = () => alert("🔒 કૅલેન્ડર ફક્ત જોવા માટે છે! તારીખ ખોલવાની કે બુકિંગ કરવાની પરવાનગી નથી.");
+                    dayBox.style.cursor = "not-allowed";
+                } else {
+                    dayBox.onclick = () => openModal(year, month + 1, day, "morning");
+                }
             }
 
             grid.appendChild(dayBox);
@@ -8712,6 +8780,11 @@
             return;
         }
         selectedDateBaseKey = `${STORAGE_PREFIX}${year}_${String(month).padStart(2, '0')}_${String(day).padStart(2, '0')}`;
+        // 🔒 સ્ટાફ માટે કૅલેન્ડર તારીખ લૉક સુરક્ષા
+        if (currentUserRole !== 'admin' && !canUserClickCalendar) {
+            alert("🔒 કૅલેન્ડર ફક્ત જોવા માટે છે! તારીખ ખોલવાની કે બુકિંગ કરવાની પરવાનગી નથી.");
+            return;
+        }
         selectedSlot = slot;
 
         let slotSelect = document.getElementById("bookingSlot");
@@ -10041,7 +10114,33 @@
         staffPermRef.child(sId).child("canDelete").set(isChecked);
     }
 
-    // સ્ટાફ ડિલીટ કરવો
+    // 📅 કૅલેન્ડર ક્લિક પરવાનગી ટોગલ (Online + LocalStorage Sync)
+    function toggleStaffCalendarClickPerm(sId, isChecked) {
+        if (!staffListObj[sId]) staffListObj[sId] = {};
+        staffListObj[sId].canClickCalendar = isChecked;
+        localStorage.setItem("cached_staff_list", JSON.stringify(staffListObj));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        if (navigator.onLine) {
+            staffPermRef.child(sId).child("canClickCalendar").set(isChecked);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: `staff_permissions/${sId}/canClickCalendar`, action: "set", data: isChecked });
+        }
+    }
+
+    // 📊 નાણાકીય રિપોર્ટ પરવાનગી ટોગલ (Online + LocalStorage Sync)
+    function toggleStaffBookingReportPerm(sId, isChecked) {
+        if (!staffListObj[sId]) staffListObj[sId] = {};
+        staffListObj[sId].canViewBookingReport = isChecked;
+        localStorage.setItem("cached_staff_list", JSON.stringify(staffListObj));
+        if (typeof autoBackupAllData === "function") autoBackupAllData();
+
+        if (navigator.onLine) {
+            staffPermRef.child(sId).child("canViewBookingReport").set(isChecked);
+        } else if (typeof addToSyncQueue === "function") {
+            addToSyncQueue({ path: `staff_permissions/${sId}/canViewBookingReport`, action: "set", data: isChecked });
+        }
+    }
     function deleteStaffUser(sId, name) {
         if (confirm(`શું તમે સ્ટાફ "${name}" ને હટાવવા માંગો છો?`)) {
             staffPermRef.child(sId).remove();
@@ -10121,7 +10220,23 @@
                             ${staff.canDelete ? '🗑️ બુકિંગ ડિલીટ પરવાનગી ચાલુ છે (બુકિંગ/પેમેન્ટ ડિલીટ કરી શકશે)' : '🚫 બુકિંગ ડિલીટ પરવાનગી બંધ છે'}
                         </label>
                     </div>
+     
+                    <!-- 📅 ૧. કૅલેન્ડર તારીખ ક્લિક લૉક ચેકબોક્સ -->
+                    <div style="margin-bottom:8px; background:${staff.canClickCalendar ? '#eff6ff' : '#fef2f2'}; border:1px solid ${staff.canClickCalendar ? '#bfdbfe' : '#fecaca'}; padding:6px 10px; border-radius:6px;">
+                        <label style="font-size:12.5px; font-weight:700; color:${staff.canClickCalendar ? '#1d4ed8' : '#b91c1c'}; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" ${staff.canClickCalendar ? 'checked' : ''} onchange="toggleStaffCalendarClickPerm('${sId}', this.checked)">
+                            ${staff.canClickCalendar ? '🔓 કૅલેન્ડર તારીખ ક્લિક માન્ય (તારીખ ખોલી શકશે)' : '🔒 કૅલેન્ડર તારીખ લૉક (માત્ર કૅલેન્ડર દેખાશે, ક્લિક નહીં થાય)'}
+                        </label>
+                    </div>
 
+                    <!-- 📊 ૨. નાણાકીય વિગત અને બુકિંગ રિપોર્ટ ચેકબોક્સ -->
+                    <div style="margin-bottom:8px; background:${staff.canViewBookingReport ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${staff.canViewBookingReport ? '#86efac' : '#cbd5e1'}; padding:6px 10px; border-radius:6px;">
+                        <label style="font-size:12.5px; font-weight:700; color:${staff.canViewBookingReport ? '#15803d' : '#475569'}; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" ${staff.canViewBookingReport ? 'checked' : ''} onchange="toggleStaffBookingReportPerm('${sId}', this.checked)">
+                            ${staff.canViewBookingReport ? '👁️ નાણાકીય વિગત & બુકિંગ રિપોર્ટ જોવાની પરવાનગી ચાલુ છે' : '🙈 નાણાકીય વિગત & બુકિંગ રિપોર્ટ છુપાવો (માત્ર બેકઅપ-રિસ્ટોર બટનો જ દેખાશે)'}
+                        </label>
+                    </div>
+       
                     <!-- 👷‍♂️ ૧. Worker Module View Checkbox -->
                     <div style="margin-bottom:8px; background:${staff.canViewWorkers ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${staff.canViewWorkers ? '#86efac' : '#e2e8f0'}; padding:6px 10px; border-radius:6px;">
                         <label style="font-size:12px; font-weight:700; color:${staff.canViewWorkers ? '#166534' : '#64748b'}; display:flex; align-items:center; gap:6px; cursor:pointer;">
@@ -10237,12 +10352,14 @@
                 canUserEdit = true;
                 canUserDelete = true;
                 canUserViewWorkers = true;
-                canUserEditWorkerProfile = true;
+                canUserEditWorkerProfile = true;  
                 canUserAddUpad = true;
                 canUserDeleteWorker = true;
                 canUserDeleteUpad = true;
                 canUserEditExtraItems = true;
                 canUserDeleteExtraItems = true;
+                canUserClickCalendar = true;
+                canUserViewBookingReport = true;
                 currentStaffConfig = null;
                 setupUserView();
             } else { 
@@ -10257,6 +10374,8 @@
                     canUserAddUpad = staff.canAddUpad === true;
                     canUserDeleteWorker = staff.canDeleteWorker === true;
                     canUserDeleteUpad = staff.canDeleteUpad === true;
+                    canUserClickCalendar = (staff.canClickCalendar === true);
+                    canUserViewBookingReport = (staff.canViewBookingReport === true);
                     setupUserView();
                     renderWorkersTable();
                 }
@@ -10275,6 +10394,8 @@
                             canUserAddUpad = liveStaff.canAddUpad === true;
                             canUserDeleteWorker = liveStaff.canDeleteWorker === true;
                             canUserDeleteUpad = liveStaff.canDeleteUpad === true;
+                            canUserClickCalendar = (liveStaff.canClickCalendar === true);
+                            canUserViewBookingReport = (liveStaff.canViewBookingReport === true);
                             setupUserView();
                             renderWorkersTable();
                         } else if (!staff) {
